@@ -1,0 +1,132 @@
+using System.ComponentModel.DataAnnotations;
+
+namespace Library_Management_system.Models.Admin;
+
+public class ManageUserPageViewModel
+{
+    public const int DefaultPageSize = 10;
+
+    public int TotalStudents { get; set; }
+    public int TotalStaff { get; set; }
+    public int TotalUsers { get; set; }
+    public int PageSize { get; set; } = DefaultPageSize;
+    public string ActiveTab { get; set; } = "students";
+    public string Search { get; set; } = string.Empty;
+    public string GenderFilter { get; set; } = string.Empty;
+    public string RoleFilter { get; set; } = string.Empty;
+    public string Sort { get; set; } = "name_asc";
+    public int StudentsPage { get; set; } = 1;
+    public int StudentsTotalPages { get; set; } = 1;
+    public int StudentsTotalCount { get; set; }
+    public int StaffsPage { get; set; } = 1;
+    public int StaffsTotalPages { get; set; } = 1;
+    public int StaffsTotalCount { get; set; }
+    public IReadOnlyList<ManageUserItemViewModel> Students { get; set; } = Array.Empty<ManageUserItemViewModel>();
+    public IReadOnlyList<ManageUserItemViewModel> Staffs { get; set; } = Array.Empty<ManageUserItemViewModel>();
+}
+
+public class ManageUserItemViewModel
+{
+    public string UserId { get; set; } = string.Empty;
+    public string UserCode { get; set; } = string.Empty;
+    public string FullName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string PhoneNumber { get; set; } = string.Empty;
+    public string Gender { get; set; } = string.Empty;
+    public string Role { get; set; } = string.Empty;
+    public string ApprovalStatus { get; set; } = "approved";
+    public string CreatedBy { get; set; } = string.Empty;
+    public DateTime? CreatedDate { get; set; }
+    public bool IsStaff { get; set; }
+}
+
+public class ManageUserFormInput
+{
+    [Required]
+    [StringLength(50)]
+    public string UserCode { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(100)]
+    public string FullName { get; set; } = string.Empty;
+
+    [Required]
+    [EmailAddress]
+    public string Email { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(20)]
+    public string PhoneNumber { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(10)]
+    public string Gender { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(50)]
+    public string Role { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(100, MinimumLength = 6)]
+    public string Password { get; set; } = string.Empty;
+
+    public string? ReturnTab { get; set; } = "students";
+    public string? Search { get; set; }
+    public string? FilterGender { get; set; }
+    public string? RoleFilter { get; set; }
+    public string? Sort { get; set; }
+    public int PageStudents { get; set; } = 1;
+    public int PageStaffs { get; set; } = 1;
+}
+
+public class ManageUserUpdateInput
+{
+    [Required]
+    public string UserId { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(50)]
+    public string UserCode { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(100)]
+    public string FullName { get; set; } = string.Empty;
+
+    [Required]
+    [EmailAddress]
+    public string Email { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(20)]
+    public string PhoneNumber { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(10)]
+    public string Gender { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(50)]
+    public string Role { get; set; } = string.Empty;
+
+    public string? ReturnTab { get; set; } = "students";
+    public string? Search { get; set; }
+    public string? FilterGender { get; set; }
+    public string? RoleFilter { get; set; }
+    public string? Sort { get; set; }
+    public int PageStudents { get; set; } = 1;
+    public int PageStaffs { get; set; } = 1;
+}
+
+public class ManageUserDeleteInput
+{
+    [Required]
+    public string UserId { get; set; } = string.Empty;
+
+    public string? ReturnTab { get; set; } = "students";
+    public string? Search { get; set; }
+    public string? FilterGender { get; set; }
+    public string? RoleFilter { get; set; }
+    public string? Sort { get; set; }
+    public int PageStudents { get; set; } = 1;
+    public int PageStaffs { get; set; } = 1;
+}

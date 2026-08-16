@@ -1,0 +1,372 @@
+﻿/* =========================
+   Base Reset
+========================= */
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+  font-family:"Segoe UI",sans-serif;
+}
+
+body{
+  background:var(--sma-surface-sunken);
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+}
+
+/* =========================
+   Container
+========================= */
+.container{
+  width:100%;
+  max-width:1150px;
+  margin:auto;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:100vh;      /* vertically centre the card in the viewport */
+  padding:24px 16px;
+}
+
+/* =========================
+   Card Layout
+========================= */
+.card{
+  background:#fff;
+  border-radius:14px;
+  box-shadow:0 10px 25px rgba(0,0,0,0.08);
+  overflow:hidden;
+
+  display:block;
+  width:100%;
+  max-width:460px;      /* comfortable single-column form width */
+  margin-inline:auto;
+}
+
+/* =========================
+   LEFT SECTION
+========================= */
+.left{
+  padding:40px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  gap:20px;
+}
+
+/* Logo responsive */
+.logo img{
+  width:clamp(120px,15vw,180px);
+  height:auto;
+}
+
+/* Illustration */
+.illustration{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+}
+
+.illustration img{
+  width:clamp(180px,30vw,380px);
+  max-width:100%;
+  height:auto;
+}
+
+/* =========================
+   RIGHT SECTION
+========================= */
+.right{
+  padding:40px 36px;
+  display:flex;
+  flex-direction:column;
+}
+
+.right h2{
+  font-size:clamp(20px,3vw,32px);
+  color:var(--sma-chrome-900);
+  margin-bottom:25px;
+}
+
+/* =========================
+   Student Banner
+========================= */
+.btn-login-student{
+  width:100%;
+  background:var(--sma-chrome-900);
+  color:#fff;
+  border:none;
+  padding:12px;
+  border-radius:10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  font-weight:600;
+  font-size:clamp(13px,1.5vw,16px);
+}
+
+.btn-login-student img{
+  width:clamp(20px,3vw,30px);
+  height:auto;
+}
+
+/* =========================
+   Divider
+========================= */
+.divider{
+  text-align:center;
+  margin:20px 0;
+  position:relative;
+}
+
+.divider::before{
+  content:"";
+  position:absolute;
+  left:0;
+  top:50%;
+  width:100%;
+  height:1px;
+  background:var(--sma-line);
+}
+
+.divider span{
+  background:white;
+  padding:0 15px;
+  position:relative;
+  font-size:12px;
+  color:var(--sma-ink-subtle);
+}
+
+/* =========================
+   Inputs
+========================= */
+.input-group{
+  position:relative;
+  width:100%;
+  margin-bottom:15px;
+}
+
+.input-group input,
+.input-group select{
+  width:100%;
+  padding:12px 45px;
+  border:1px solid var(--sma-line);
+  border-radius:10px;
+  font-size:14px;
+  outline:none;
+  color:var(--sma-ink);
+  font-weight:500;
+}
+
+/* focus */
+.input-group input:focus,
+.input-group select:focus{
+  border-color:var(--sma-brand-strong);
+  box-shadow:0 0 0 0.2rem rgba(162,124,25,0.2);
+}
+
+/* icons */
+.icon-email,
+.icon-password{
+  position:absolute;
+  left:14px;
+  top:50%;
+  transform:translateY(-50%);
+  color:var(--sma-ink-subtle);
+  font-size:18px;
+}
+
+.toggle-password{
+  position:absolute;
+  right:14px;
+  top:50%;
+  transform:translateY(-50%);
+  cursor:pointer;
+  color:var(--sma-ink-subtle);
+}
+
+/* =========================
+   Button
+========================= */
+.btn-signin{
+  width:100%;
+  background:var(--sma-brand-strong);
+  color:#fff;
+  padding:14px;
+  border-radius:10px;
+  font-weight:bold;
+  cursor:pointer;
+  border:none;
+  margin-bottom:20px;
+  transition:0.2s;
+}
+
+.btn-signin:hover{
+  background:var(--sma-brand-deep);
+}
+
+/* Loader */
+.btn-loader{
+  display:inline-block;
+  width:16px;
+  height:16px;
+  border-radius:50%;
+  border:2px solid rgba(255,255,255,0.6);
+  border-top-color:white;
+  animation:spin .7s linear infinite;
+  margin-left:6px;
+  opacity:0;
+}
+
+.btn-signin.btn-loading .btn-loader{
+  opacity:1;
+}
+
+@keyframes spin{
+  to{transform:rotate(360deg);}
+}
+
+/* =========================
+   Links
+========================= */
+.links{
+  text-align:center;
+  font-size:14px;
+}
+
+.links a{
+  color:var(--sma-brand-strong);
+  text-decoration:none;
+}
+
+.forgot{
+  margin-bottom:12px;
+}
+
+/* =========================
+   Validation
+========================= */
+.text-danger{
+  color:var(--sma-danger) !important;
+  font-weight:600;
+}
+
+.field-validation-error{
+  color:var(--sma-danger);
+  font-size:13px;
+}
+
+.info-banner{
+  margin-bottom:12px;
+  border:1px solid var(--sma-orange-400);
+  background:var(--sma-brand-tint);
+  color:var(--sma-brand-deep);
+  border-radius:10px;
+  padding:10px 12px;
+  font-size:13px;
+  font-weight:600;
+}
+
+/* =========================
+   Responsive Breakpoints
+========================= */
+
+/* Tablet */
+@media (max-width:992px){
+
+  .card{
+    grid-template-columns:1fr;
+  }
+
+  .left{
+    text-align:center;
+    align-items:center;
+  }
+
+  .right{
+    padding:40px 30px;
+  }
+}
+
+/* Phone */
+@media (max-width:600px){
+
+  body{
+    padding:15px;
+  }
+
+  .left{
+    padding:20px;
+    min-height:200px;
+  }
+
+  .illustration img{
+    width:clamp(120px,25vw,250px);
+  }
+
+  .right{
+    padding:25px 20px;
+  }
+
+  .btn-login-student{
+    font-size:14px;
+  }
+
+}
+
+/* Very small phone */
+@media (max-width:360px){
+
+  .right h2{
+    font-size:18px;
+  }
+
+  .btn-signin{
+    padding:12px;
+  }
+
+}
+
+
+/* =========================
+   Auth logo — replaces the wordmark heading and the marketing banner.
+   The official lockup carries the brand; repeating it in text was redundant
+   and pushed the form below the fold.
+========================= */
+.auth-logo{
+  display:flex;
+  justify-content:center;
+  margin-bottom:28px;
+}
+
+.auth-logo img{
+  width:clamp(180px,60%,240px);
+  height:auto;              /* never distort the official logo */
+  object-fit:contain;
+}
+
+/* Centre the remaining content of the column. */
+.right{ text-align:center; }
+.right form,
+.right .input-group,
+.right .links{ text-align:left; }
+.right .links{ text-align:center; }
+
+/* Informational banners (OTP guidance) keep their meaning, lose the shout. */
+.btn-login-student{
+  font-size:14px;
+  font-weight:600;
+  line-height:1.5;
+  padding:12px 16px;
+  border-radius:8px;
+}
+
+@media (max-width:520px){
+  .container{ padding:16px 12px; }
+  .right{ padding:28px 20px; }
+  .auth-logo img{ width:clamp(150px,70%,200px); }
+}

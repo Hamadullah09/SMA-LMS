@@ -1,0 +1,173 @@
+@model Library_Management_system.Models.Admin.AdminDashboardViewModel
+@{
+    ViewData["Title"] = "Admin Dashboard";
+    ViewBag.SmaRole = "Administrator";
+    ViewBag.SmaActive = "dashboard";
+    ViewBag.SmaSubtitle = "Stock, circulation and system health at a glance.";
+    Layout = "~/Views/Shared/_StaffLayout.cshtml";
+}
+
+@* Health first: if something is wrong, the administrator should see it before the statistics. *@
+@if (Model.HasHealthConcerns)
+{
+    <div class="sma-alert sma-alert--warning" role="alert">
+        <span class="sma-alert__icon" aria-hidden="true">▲</span>
+        <div>
+            <strong>Attention needed</strong>
+            <ul style="margin:var(--sma-space-2) 0 0;padding-left:1.2em">
+                @if (Model.ReadersOffline > 0)
+                {
+                    <li>@Model.ReadersOffline RFID reader(s) offline — circulation can continue in manual mode.</li>
+                }
+                @if (Model.FailedNotifications > 0)
+                {
+                    <li>@Model.FailedNotifications notification(s) abandoned after repeated failures. Check email settings.</li>
+                }
+                @if (Model.UnacknowledgedSecurityEvents > 0)
+                {
+                    <li>@Model.UnacknowledgedSecurityEvents unacknowledged security event(s).</li>
+                }
+            </ul>
+        </div>
+    </div>
+}
+
+@if (Model.StudentsNeedingDetails > 0)
+{
+    <div class="sma-alert sma-alert--info">
+        <span class="sma-alert__icon" aria-hidden="true">i</span>
+        <div>
+            <strong>@Model.StudentsNeedingDetails student record(s) need real roll numbers.</strong>
+            <div class="sma-small">
+                These were created during the data migration with provisional
+                <span class="sma-mono">PENDING-</span> identifiers because the inherited system never
+                recorded them. They cannot be matched to university records until completed.
+            </div>
+        </div>
+    </div>
+}
+
+<h2>Stock</h2>
+<div class="sma-grid sma-grid--4" style="margin-bottom:var(--sma-space-6)">
+    <div class="sma-card sma-stat">
+        <div class="sma-stat__label">Titles</div>
+        <div class="sma-stat__value">@Model.TotalTitles</div>
+        <div class="sma-stat__meta">@Model.TotalCopies physical copies</div>
+    </div>
+    <div class="sma-card sma-stat">
+        <div class="sma-stat__label">On the shelf</div>
+        <div class="sma-stat__value">@Model.AvailableCopies</div>
+        <div class="sma-stat__meta">Available to borrow now</div>
+    </div>
+    <div class="sma-card sma-stat">
+        <div class="sma-stat__label">On loan</div>
+        <div class="sma-stat__value">@Model.IssuedCopies</div>
+        <div class="sma-stat__meta">@Model.OverdueLoans overdue</div>
+    </div>
+    <div class="sma-card sma-stat">
+        <div class="sma-stat__label">Lost or damaged</div>
+        <div class="sma-stat__value">@Model.LostOrDamagedCopies</div>
+        <div class="sma-stat__meta">Withdrawn from circulation</div>
+    </div>
+</div>
+
+<h2>Today</h2>
+<div class="sma-grid sma-grid--4" style="margin-bottom:var(--sma-space-6)">
+    <div class="sma-card sma-stat">
+        <div class="sma-stat__label">Issued today</div>
+        <div class="sma-stat__value">@Model.IssuedToday</div>
+    </div>
+    <div class="sma-card sma-stat">
+        <div class="sma-stat__label">Returned today</div>
+        <div class="sma-stat__value">@Model.ReturnedToday</div>
+    </div>
+    <div class="sma-card sma-stat">
+        <div class="sma-stat__label">Students</div>
+        <div class="sma-stat__value">@Model.ActiveStudents</div>
+        <div class="sma-stat__meta">of @Model.TotalStudents registered</div>
+    </div>
+    <div class="sma-card sma-stat">
+        <div class="sma-stat__label">Fines outstanding</div>
+        <div class="sma-stat__value">@Model.Currency @Model.OutstandingFines.ToString("0.00")</div>
+    </div>
+</div>
+
+<h2>System</h2>
+<div class="sma-grid sma-grid--3" style="margin-bottom:var(--sma-space-6)">
+    <div class="sma-card sma-stat">
+        <div class="sma-stat__label">RFID readers</div>
+        <div class="sma-stat__value">
+            @if (Model.ReadersOffline == 0 && Model.ReadersOnline > 0)
+            {
+                <span class="sma-badge sma-badge--success">● @Model.ReadersOnline online</span>
+            }
+            else
+            {
+                <span class="sma-badge sma-badge--warning">▲ @Model.ReadersOnline up / @Model.ReadersOffline down</span>
+            }
+        </div>
+        <div class="sma-stat__meta"><a href="/desk/readers">Reader health</a></div>
+    </div>
+    <div class="sma-card sma-stat">
+        <div class="sma-stat__label">Notification queue</div>
+        <div class="sma-stat__value">@Model.PendingNotifications</div>
+        <div class="sma-stat__meta">@Model.FailedNotifications abandoned</div>
+    </div>
+    <div class="sma-card sma-stat">
+        <div class="sma-stat__label">Security events</div>
+        <div class="sma-stat__value">@Model.UnacknowledgedSecurityEvents</div>
+        <div class="sma-stat__meta">Awaiting acknowledgement</div>
+    </div>
+</div>
+
+<div class="sma-card">
+    <div class="sma-card__header">
+        <h2 class="sma-card__title">Current loans</h2>
+        <a class="sma-btn sma-btn--ghost" href="/admin/sma/policies">Library policies</a>
+    </div>
+    <div class="sma-card__body">
+        @if (Model.RecentLoans.Count == 0)
+        {
+            <div class="sma-empty">
+                <div class="sma-empty__icon" aria-hidden="true">▤</div>
+                <div class="sma-empty__title">Nothing is currently on loan</div>
+                <p class="sma-empty__body">
+                    Loans issued at the circulation desk, by RFID or manually, appear here.
+                </p>
+                <a class="sma-btn sma-btn--primary" href="/desk/checkout">Go to the desk</a>
+            </div>
+        }
+        else
+        {
+            <div class="sma-table-wrap">
+                <table class="sma-table">
+                    <caption class="sma-sr-only">Books currently on loan</caption>
+                    <thead>
+                    <tr><th>Reference</th><th>Student</th><th>Book</th><th>Due</th><th>Method</th></tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var loan in Model.RecentLoans)
+                    {
+                        <tr>
+                            <td class="sma-mono sma-small">@loan.TransactionNumber</td>
+                            <td>@loan.StudentName</td>
+                            <td>@loan.Title</td>
+                            <td>
+                                @if (loan.IsOverdue)
+                                {
+                                    <span class="sma-badge sma-badge--danger">✕ @loan.DueDate.ToString("dd MMM")</span>
+                                }
+                                else
+                                {
+                                    <span class="sma-badge sma-badge--success">✓ @loan.DueDate.ToString("dd MMM")</span>
+                                }
+                            </td>
+                            <td><span class="sma-badge sma-badge--neutral">@loan.Method</span></td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

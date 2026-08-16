@@ -1,0 +1,214 @@
+@model Library_Management_system.Models.Admin.ManageFeedbackPageViewModel
+@{
+    ViewBag.Title = "Manage Feedback";
+    ViewBag.SmaSubtitle = "Review contact messages and reader feedback.";
+    var startPage = Math.Max(1, Model.CurrentPage - 2);
+    var endPage = Math.Min(Model.TotalPages, startPage + 4);
+    startPage = Math.Max(1, endPage - 4);
+}
+
+
+<div class="dashboard-page container-fluid feedback-page" id="manageFeedbackPage">
+    <header class="page-header">
+        <div class="header-actions">
+            <div class="feedback-counts">
+                <span><strong>@Model.TotalMessages</strong> total messages</span>
+                <span><strong>@Model.UnreadMessages</strong> unread</span>
+            </div>
+            <form method="post" asp-controller="ManageFeedback" asp-action="MarkAllAsRead">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="q" value="@Model.Search" />
+                <input type="hidden" name="rq" value="@Model.ReviewSearch" />
+                <input type="hidden" name="page" value="@Model.CurrentPage" />
+                <button type="submit" class="mark-all-btn" @(Model.UnreadMessages == 0 ? "disabled" : null)>
+                    Mark all as read
+                </button>
+            </form>
+        </div>
+    </header>
+
+    <section class="feedback-section user-feedback-part">
+        <form method="get" asp-controller="ManageFeedback" asp-action="Index" class="search-form"
+              id="user-feedback-search">
+            <i class="bi bi-search search-icon" id="search-feedback-icon"></i>
+            <input type="text" name="q" value="@Model.Search" placeholder="Search by email or message..."
+                   class="search-input" id="search-feedback-input" />
+        </form>
+
+        <div class="table-container">
+            <div class="table-responsive">
+                <table class="table user-feedback-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">#</th>
+                            <th scope="col">Email</th>
+                            <th scope="col">Message</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Created Date</th>
+                            <th scope="col">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Messages.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center py-4">No contact messages found.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @for (var i = 0; i < Model.Messages.Count; i++)
+                            {
+                                var item = Model.Messages[i];
+                                var rowNumber = ((Model.CurrentPage - 1) * Model.PageSize) + i + 1;
+                                var messagePreview = item.Message.Length > 130 ? $"{item.Message[..130]}..." : item.Message;
+
+                                <tr>
+                                    <td>@rowNumber</td>
+                                    <td>@item.Email</td>
+                                    <td class="message-cell" title="@item.Message">@messagePreview</td>
+                                    <td>
+                                        <span class="status-pill @(item.IsRead ? "read" : "unread")">
+                                            @(item.IsRead ? "Read" : "Unread")
+                                        </span>
+                                    </td>
+                                    <td>@item.CreatedDate.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                                    <td>
+                                        <div class="action-group">
+                                            @if (!item.IsRead)
+                                            {
+                                                <form method="post" asp-controller="ManageFeedback" asp-action="MarkAsRead"
+                                                      asp-route-id="@item.Id" class="mark-read-form">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="q" value="@Model.Search" />
+                                                    <input type="hidden" name="rq" value="@Model.ReviewSearch" />
+                                                    <input type="hidden" name="page" value="@Model.CurrentPage" />
+                                                    <button type="submit" class="mark-read-btn">Mark read</button>
+                                                </form>
+                                            }
+                                            else
+                                            {
+                                                <span class="read-label">Read</span>
+                                            }
+
+                                            <form method="post" asp-controller="ManageFeedback" asp-action="Delete"
+                                                  asp-route-id="@item.Id" class="delete-feedback-form"
+                                                  data-feedback-email="@item.Email">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="q" value="@Model.Search" />
+                                                <input type="hidden" name="rq" value="@Model.ReviewSearch" />
+                                                <input type="hidden" name="page" value="@Model.CurrentPage" />
+                                                <button type="submit" class="delete-feedback-btn">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (Model.TotalPages > 1)
+            {
+                <div class="pagination-wrapper">
+                    <nav aria-label="Feedback pagination">
+                        <ul class="pagination justify-content-end">
+                            <li class="page-item @(Model.HasPreviousPage ? null : "disabled")">
+                                <a class="page-link" asp-controller="ManageFeedback" asp-action="Index"
+                                   asp-route-q="@Model.Search" asp-route-rq="@Model.ReviewSearch"
+                                   asp-route-page="@(Model.CurrentPage - 1)">Previous</a>
+                            </li>
+
+                            @for (var pageNumber = startPage; pageNumber <= endPage; pageNumber++)
+                            {
+                                <li class="page-item @(pageNumber == Model.CurrentPage ? "active" : null)">
+                                    <a class="page-link" asp-controller="ManageFeedback" asp-action="Index"
+                                       asp-route-q="@Model.Search" asp-route-rq="@Model.ReviewSearch"
+                                       asp-route-page="@pageNumber">@pageNumber</a>
+                                </li>
+                            }
+
+                            <li class="page-item @(Model.HasNextPage ? null : "disabled")">
+                                <a class="page-link" asp-controller="ManageFeedback" asp-action="Index"
+                                   asp-route-q="@Model.Search" asp-route-rq="@Model.ReviewSearch"
+                                   asp-route-page="@(Model.CurrentPage + 1)">Next</a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            }
+        </div>
+    </section>
+
+    <section class="feedback-section book-review-part">
+        <div class="section-header">
+            <h2 class="section-title">Book Review</h2>
+            <p class="page-subtitle">Review from Students.</p>
+
+        </div>
+
+        <form method="get" asp-controller="ManageFeedback" asp-action="Index" class="search-form"
+              id="book-review-search">
+            <i class="bi bi-search search-icon" id="book-review-icon"></i>
+            <input type="hidden" name="q" value="@Model.Search" />
+            <input type="text" name="rq" value="@Model.ReviewSearch" placeholder="Search book review..."
+                   class="search-input" id="book-review-input" />
+        </form>
+
+        <div class="table-container">
+            <div class="table-responsive">
+                <table class="table book-review-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">#</th>
+                            <th scope="col">Cover</th>
+                            <th scope="col">Title</th>
+                            <th scope="col">Username</th>
+                            <th scope="col">Email</th>
+                            <th scope="col">Rating</th>
+                            <th scope="col">Created Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.BookReviews.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center py-4">No book reviews available yet.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @for (var i = 0; i < Model.BookReviews.Count; i++)
+                            {
+                                var review = Model.BookReviews[i];
+                                <tr>
+                                    <td>@(i + 1)</td>
+                                    <td>
+                                        <img src="@Url.Content(review.CoverImageUrl)" alt="@review.Title cover"
+                                             class="book-cover" />
+                                    </td>
+                                    <td>@review.Title</td>
+                                    <td>@review.Username</td>
+                                    <td>@review.Email</td>
+                                    <td>
+                                        <span class="rating-pill">
+                                            @review.Rating / 5
+                                        </span>
+                                    </td>
+                                    <td>@review.CreatedDate.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+</div>
+
+@section Scripts {
+    <script src="~/js/admin/Feedback.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,112 @@
+@model Library_Management_system.Models.Desk.ReturnViewModel
+@{
+    ViewData["Title"] = "Return Book";
+    ViewBag.SmaActive = "return";
+    ViewBag.SmaSubtitle = "Scan the book. The borrower is identified from the loan.";
+    Layout = "~/Views/Shared/_StaffLayout.cshtml";
+}
+
+@if (Model.Succeeded is not null)
+{
+    <div class="sma-desk-result @(Model.Succeeded == true ? "sma-desk-result--success" : "sma-desk-result--failure")"
+         role="status" aria-live="polite">
+        <div class="sma-desk-result__headline">
+            @(Model.Succeeded == true ? "✓ RETURNED" : "✕ NOT RETURNED")
+        </div>
+        <div class="sma-desk-result__detail">@Model.ResultMessage</div>
+    </div>
+    <div style="height:var(--sma-space-5)"></div>
+}
+
+<form method="get" id="scanForm">
+    <div class="sma-card">
+        <div class="sma-card__body">
+            <div class="sma-field" style="margin-bottom:0">
+                <label class="sma-label" for="bookTag">Book tag / accession number</label>
+                <input class="sma-input sma-mono" id="bookTag" name="bookTag" value="@Model.BookTag"
+                       autocomplete="off" autofocus
+                       aria-invalid="@(Model.LookupError is not null ? "true" : "false")" />
+                <p class="sma-hint">Section 19: the student card is not required to return a book.</p>
+            </div>
+            <div style="margin-top:var(--sma-space-4)">
+                <button type="submit" class="sma-btn sma-btn--ghost">Look up</button>
+            </div>
+        </div>
+    </div>
+</form>
+
+@if (Model.LookupError is not null)
+{
+    <div class="sma-alert sma-alert--warning" style="margin-top:var(--sma-space-4)" role="alert">
+        <span class="sma-alert__icon" aria-hidden="true">▲</span>
+        <div>@Model.LookupError</div>
+    </div>
+}
+
+@if (Model.HasActiveLoan)
+{
+    <div style="height:var(--sma-space-5)"></div>
+    <div class="sma-desk">
+        <section class="sma-desk-panel is-filled">
+            <div class="sma-desk-panel__label">Book</div>
+            <div class="sma-desk-panel__primary">@(Model.Copy!.Book?.Title ?? "Untitled")</div>
+            <div class="sma-desk-panel__secondary">Copy @Model.Copy.CopyNumber</div>
+            <div class="sma-desk-panel__secondary sma-mono">@Model.TransactionNumber</div>
+        </section>
+
+        <section class="sma-desk-panel is-filled">
+            <div class="sma-desk-panel__label">Borrowed by</div>
+            <div class="sma-desk-panel__primary">@Model.Borrower!.FullName</div>
+            <div class="sma-desk-panel__secondary">Roll No: @Model.Borrower.RollNumber</div>
+            <div class="sma-desk-panel__secondary">Due @Model.DueDate?.ToString("dd MMMM yyyy")</div>
+
+            <div style="margin-top:var(--sma-space-4)">
+                @if (Model.IsOverdue)
+                {
+                    <span class="sma-badge sma-badge--danger">
+                        ✕ @Model.ProjectedOverdueDays day(s) overdue
+                    </span>
+                }
+                else
+                {
+                    <span class="sma-badge sma-badge--success">✓ On time</span>
+                }
+            </div>
+        </section>
+    </div>
+
+    @if (Model.IsOverdue)
+    {
+        @* The fine is shown BEFORE confirming, never as a surprise afterwards. *@
+        <div class="sma-alert sma-alert--warning" style="margin-top:var(--sma-space-5)">
+            <span class="sma-alert__icon" aria-hidden="true">▲</span>
+            <div>
+                <strong>A fine of @Model.Currency @Model.ProjectedFine.ToString("0.00") will be recorded.</strong>
+                <div class="sma-small">
+                    @Model.ProjectedOverdueDays day(s) past the due date of
+                    @Model.DueDate?.ToString("dd MMMM yyyy").
+                </div>
+            </div>
+        </div>
+    }
+
+    <form method="post" id="returnForm" style="margin-top:var(--sma-space-5)">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="bookTag" value="@Model.BookTag" />
+        <button type="submit" class="sma-btn sma-btn--gold sma-btn--lg sma-btn--block" id="returnButton">
+            Confirm Return
+        </button>
+    </form>
+}
+
+@section Scripts {
+    <script>
+        document.getElementById('returnForm')?.addEventListener('submit', function () {
+            var b = document.getElementById('returnButton');
+            if (b) { b.classList.add('is-loading'); b.disabled = true; }
+        });
+        document.getElementById('bookTag')?.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); document.getElementById('scanForm').submit(); }
+        });
+    </script>
+}

@@ -1,0 +1,154 @@
+@model List<Library_Management_system.Models.Desk.ReservationLine>
+@{
+    ViewData["Title"] = "Reservations";
+    ViewBag.SmaActive = "reservations";
+    ViewBag.SmaSubtitle = "Holds waiting to be collected, and students waiting in queues.";
+    Layout = "~/Views/Shared/_StaffLayout.cshtml";
+
+    var ready = Model.Where(r => r.IsReadyToCollect).ToList();
+    var queued = Model.Where(r => !r.IsReadyToCollect).ToList();
+    var stale = ready.Count(r => r.IsOverdueForCollection);
+}
+
+@if (TempData["ReservationMessage"] is string message)
+{
+    <div class="sma-alert sma-alert--info" role="status">
+        <span class="sma-alert__icon" aria-hidden="true">i</span>
+        <div>@message</div>
+    </div>
+}
+
+@if (stale > 0)
+{
+    <div class="sma-alert sma-alert--warning" role="alert">
+        <span class="sma-alert__icon" aria-hidden="true">▲</span>
+        <div>
+            <strong>@stale hold(s) past their collection date.</strong>
+            <div class="sma-small">
+                Each is occupying a copy nobody else can borrow. Expiring them releases the copy to
+                the next student in the queue.
+            </div>
+            <form method="post" action="/desk/reservations/expire" style="margin-top:var(--sma-space-3)">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="sma-btn sma-btn--primary">Expire uncollected holds</button>
+            </form>
+        </div>
+    </div>
+}
+
+@* ---- Waiting on the hold shelf ---- *@
+<div class="sma-card" style="margin-bottom:var(--sma-space-5)">
+    <div class="sma-card__header">
+        <h2 class="sma-card__title">Ready to collect</h2>
+        <span class="sma-badge sma-badge--neutral">@ready.Count</span>
+    </div>
+    <div class="sma-card__body">
+        @if (ready.Count == 0)
+        {
+            <div class="sma-empty">
+                <div class="sma-empty__title">Nothing is waiting on the hold shelf</div>
+                <p class="sma-empty__body">
+                    When a reserved book is returned it is set aside here and the student is emailed.
+                </p>
+            </div>
+        }
+        else
+        {
+            <div class="sma-table-wrap">
+                <table class="sma-table">
+                    <caption class="sma-sr-only">Holds ready for collection</caption>
+                    <thead>
+                    <tr><th>Book</th><th>Copy</th><th>For</th><th>Collect by</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var r in ready)
+                    {
+                        <tr>
+                            <td><strong>@r.BookTitle</strong></td>
+                            <td class="sma-mono sma-small">@(r.HeldCopy ?? "—")</td>
+                            <td>
+                                @r.StudentName
+                                <div class="sma-small sma-muted sma-mono">@r.RollNumber</div>
+                            </td>
+                            <td>
+                                @if (r.IsOverdueForCollection)
+                                {
+                                    <span class="sma-badge sma-badge--danger">
+                                        ✕ Expired @r.ExpiresUtc?.ToString("dd MMM")
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="sma-badge sma-badge--success">
+                                        ✓ @r.ExpiresUtc?.ToString("dd MMM yyyy")
+                                    </span>
+                                }
+                            </td>
+                            <td>
+                                <form method="post" action="/desk/reservations/release"
+                                      onsubmit="return confirm('Release this hold? The copy returns to the shelf and the student loses their place.');">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@r.Id" />
+                                    <button type="submit" class="sma-btn sma-btn--ghost">Release</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@* ---- Still queueing ---- *@
+<div class="sma-card">
+    <div class="sma-card__header">
+        <h2 class="sma-card__title">Waiting in queue</h2>
+        <span class="sma-badge sma-badge--neutral">@queued.Count</span>
+    </div>
+    <div class="sma-card__body">
+        @if (queued.Count == 0)
+        {
+            <div class="sma-empty">
+                <div class="sma-empty__title">Nobody is waiting for a book</div>
+                <p class="sma-empty__body">
+                    Students can reserve a title from the catalogue when every copy is on loan.
+                </p>
+            </div>
+        }
+        else
+        {
+            <div class="sma-table-wrap">
+                <table class="sma-table">
+                    <caption class="sma-sr-only">Students queueing for titles</caption>
+                    <thead>
+                    <tr><th>Book</th><th>Position</th><th>Student</th><th>Waiting</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var r in queued)
+                    {
+                        <tr>
+                            <td><strong>@r.BookTitle</strong></td>
+                            <td><span class="sma-badge sma-badge--info">#@r.QueuePosition</span></td>
+                            <td>
+                                @r.StudentName
+                                <div class="sma-small sma-muted sma-mono">@r.RollNumber</div>
+                            </td>
+                            <td class="sma-small">@r.DaysWaiting day(s)</td>
+                            <td>
+                                <form method="post" action="/desk/reservations/release"
+                                      onsubmit="return confirm('Remove this student from the queue?');">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@r.Id" />
+                                    <button type="submit" class="sma-btn sma-btn--ghost">Remove</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

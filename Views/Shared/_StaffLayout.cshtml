@@ -1,0 +1,129 @@
+@using Library_Management_system.ViewComponents
+@*
+    The single shell for every staff screen — admin management and the circulation desk alike.
+
+    It replaces two layouts that had drifted apart: _AdminLayout (its own topbar, sidebar,
+    Bootstrap chrome and ten per-page stylesheets) and _SmaLayout (design-system styling, but no
+    account menu, no logout and no notifications). Staff moving between the desk and the admin
+    pages were crossing between two products.
+
+    Data comes from the StaffShell view component, not from queries inline here.
+
+    Page contract:
+      ViewData["Title"]     page title, shown in the topbar and <title>
+      ViewBag.SmaSubtitle   optional one-line description under the title
+      ViewData["PageWide"]  set true to drop the max-width reading measure on dense tables
+*@
+@{
+    var title = ViewData["Title"]?.ToString() ?? ViewBag.Title as string ?? "Staff";
+    var subtitle = ViewBag.SmaSubtitle as string;
+    var isWide = ViewData["PageWide"] is bool wide && wide;
+
+    // The nav only needs the role, which is a claims check with no database access. Everything
+    // that does need a query lives in the StaffShell component instead.
+    var navModel = new StaffShellModel
+    {
+        IsAdmin = User.IsInRole("Admin"),
+        IsLibrarian = User.IsInRole("Librarian")
+    };
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <partial name="_SmaFavicon" />
+    <title>@title — SMA Library</title>
+    <meta name="theme-color" content="#f07c20" />
+
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+
+    @* Tokens first, then the staff components built on them. *@
+    <link rel="stylesheet" href="~/css/sma-design-system.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/sma-admin.css" asp-append-version="true" />
+
+    @RenderSection("Styles", required: false)
+
+    @* Maps Bootstrap's own variables onto the brand. Must stay last so it wins. *@
+    <link rel="stylesheet" href="~/css/sma-theme-bridge.css" asp-append-version="true" />
+</head>
+<body class="sma staff-shell">
+
+<a class="sma-sr-only" href="#staffMain">Skip to content</a>
+
+<header class="staff-topbar">
+    <div class="staff-topbar__left">
+        <button class="staff-icon-btn d-lg-none" type="button"
+                data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar"
+                aria-label="Open menu">
+            <i class="bi bi-list" aria-hidden="true"></i>
+        </button>
+
+        @* id/behaviour owned by js/admin/sidebar.js — it toggles body.sidebar-collapsed. *@
+        <button class="staff-icon-btn d-none d-lg-inline-flex" type="button"
+                id="sidebarToggle" title="Toggle sidebar" aria-label="Toggle sidebar">
+            <i class="bi bi-layout-sidebar-inset" aria-hidden="true"></i>
+        </button>
+
+        <div class="staff-topbar__heading">
+            <h1 class="staff-topbar__title">@title</h1>
+            @if (!string.IsNullOrWhiteSpace(subtitle))
+            {
+                <p class="staff-topbar__subtitle">@subtitle</p>
+            }
+        </div>
+    </div>
+
+    <div class="staff-topbar__right">
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+            @await Component.InvokeAsync("StaffShell")
+        }
+    </div>
+</header>
+
+<div class="staff-layout">
+
+    <aside class="staff-sidebar d-none d-lg-flex" id="sidebar">
+        <a class="sma-sidebar__brand" href="/admin/dashboard" aria-label="SMA Library staff home">
+            <img src="~/images/brand/sma-mark.png" alt="" aria-hidden="true"
+                 width="34" height="34" class="sma-sidebar__brand-mark" />
+            <span class="sma-sidebar__brand-text">
+                <span class="sma-sidebar__brand-name">SMA Library</span>
+                <span class="sma-sidebar__brand-sub">@(navModel.IsAdmin ? "Administrator" : "Librarian")</span>
+            </span>
+        </a>
+
+        <nav class="staff-sidebar__nav" aria-label="Staff navigation">
+            <partial name="_StaffNav" model="navModel" />
+        </nav>
+    </aside>
+
+    <main class="staff-main @(isWide ? "staff-main--wide" : "")" id="staffMain">
+        @RenderBody()
+    </main>
+</div>
+
+<div class="offcanvas offcanvas-start staff-offcanvas" tabindex="-1" id="mobileSidebar"
+     aria-label="Staff navigation">
+    <div class="offcanvas-header">
+        <span class="sma-sidebar__brand-name">SMA Library</span>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+        <nav class="staff-sidebar__nav">
+            <partial name="_StaffNav" model="navModel" />
+        </nav>
+    </div>
+</div>
+
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="~/js/admin/sidebar.js" asp-append-version="true"></script>
+<script src="~/js/admin/page-animations.js" asp-append-version="true"></script>
+
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

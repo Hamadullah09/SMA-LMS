@@ -1,0 +1,97 @@
+@using Library_Management_system.Models
+@model (Book Book, HomeViewModel Home, string ReturnUrl)
+
+@*
+    One book card, used by every rail and grid on the homepage.
+
+    Extracted so the trending and new-arrival sections cannot drift apart — the inherited page
+    had two near-identical copies of this markup, which is how they diverged in the first place.
+
+    Behaviour preserved from the original: favourite add/remove posts with an antiforgery token,
+    and the share button keeps the data- attributes site.js binds to.
+*@
+
+@{
+    var book = Model.Book;
+    var home = Model.Home;
+
+    var isFavorite = home.FavoriteBookIds.Contains(book.Id);
+    var available = home.AvailableFor(book.Id);
+    var category = string.IsNullOrWhiteSpace(book.CategoryName) ? "General" : book.CategoryName;
+    var cover = string.IsNullOrWhiteSpace(book.ImageUrl) ? "/images/User/Book/book2.png" : book.ImageUrl;
+    var shareUrl = Url.Action("BookDetail", "Home", new { id = book.Id }) ?? $"/book/{book.Id}";
+}
+
+<article class="sma-book">
+    <a class="sma-book__cover" asp-controller="Home" asp-action="BookDetail" asp-route-id="@book.Id"
+       tabindex="-1" aria-hidden="true">
+        <img src="@cover" alt="" loading="lazy" />
+    </a>
+
+    <div class="sma-book__body">
+        <p class="sma-book__cat">@category</p>
+
+        <h3 class="sma-book__title">
+            <a asp-controller="Home" asp-action="BookDetail" asp-route-id="@book.Id">@book.Title</a>
+        </h3>
+
+        <p class="sma-book__author">@book.Author</p>
+
+        @* Availability carries a glyph as well as colour (section 111). *@
+        @if (available > 0)
+        {
+            <p class="sma-book__status sma-book__status--ok">
+                ✓ @available cop@(available == 1 ? "y" : "ies") available
+            </p>
+        }
+        else
+        {
+            <p class="sma-book__status sma-book__status--out">
+                ● All copies on loan
+            </p>
+        }
+
+        <div class="sma-book__actions">
+            <a class="sma-book__view" asp-controller="Home" asp-action="BookDetail" asp-route-id="@book.Id">
+                View book
+            </a>
+
+            <div class="sma-book__icons">
+                <button type="button"
+                        class="sma-icon-btn share-book-btn"
+                        data-share-url="@shareUrl"
+                        data-share-title="@book.Title"
+                        data-share-author="@book.Author"
+                        title="Share @book.Title"
+                        aria-label="Share @book.Title">
+                    <i class="fa-solid fa-share-nodes" aria-hidden="true"></i>
+                </button>
+
+                @if (isFavorite)
+                {
+                    <form method="post" asp-controller="Home" asp-action="RemoveFavorite"
+                          asp-route-bookId="@book.Id" class="sma-book__fav">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+                        <button type="submit" class="sma-icon-btn is-active"
+                                title="Remove from saved" aria-label="Remove @book.Title from saved books">
+                            <i class="fa-solid fa-heart" aria-hidden="true"></i>
+                        </button>
+                    </form>
+                }
+                else
+                {
+                    <form method="post" asp-controller="Home" asp-action="AddFavorite"
+                          asp-route-bookId="@book.Id" class="sma-book__fav">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+                        <button type="submit" class="sma-icon-btn"
+                                title="Save for later" aria-label="Save @book.Title for later">
+                            <i class="fa-regular fa-heart" aria-hidden="true"></i>
+                        </button>
+                    </form>
+                }
+            </div>
+        </div>
+    </div>
+</article>

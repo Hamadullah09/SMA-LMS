@@ -1,0 +1,196 @@
+@using System.Globalization
+@using Library_Management_system.Models
+@model CartPageViewModel
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewBag.Title = "Cart";
+
+    string GetGroupLabel(DateTime createdUtc)
+    {
+        var localDate = createdUtc.ToLocalTime().Date;
+        var today = DateTime.Now.Date;
+        if (localDate == today) return "Today";
+        if (localDate == today.AddDays(-1)) return "Yesterday";
+        return localDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+    }
+
+    var groupedItems = Model.Items
+        .GroupBy(i => GetGroupLabel(i.CreatedDate))
+        .ToList();
+
+    var normalizedStatuses = Model.Items
+        .Select(i => (i.ReservationStatus ?? "none").Trim().ToLowerInvariant())
+        .ToList();
+    var pendingCount = normalizedStatuses.Count(s => s == "pending");
+    var approvedCount = normalizedStatuses.Count(s => s == "approved");
+    var rejectedCount = normalizedStatuses.Count(s => s == "rejected");
+    var totalCount = Model.Items.Count;
+    var allLockedRequested = totalCount > 0 && normalizedStatuses.All(s => s is "pending" or "approved");
+    var showPendingState = allLockedRequested && pendingCount > 0;
+    var showRejectedState = totalCount > 0 && rejectedCount == totalCount;
+    var showApprovedState = allLockedRequested && pendingCount == 0 && approvedCount > 0;
+}
+
+<section class="cart-page">
+    <div id="reservation-alert-meta"
+         data-approved="@Model.ApprovedReservationsCount"
+         data-rejected="@Model.RejectedReservationsCount"
+         data-version="@Model.LastReservationDecisionVersion"></div>
+
+    @if (TempData["CartMessage"] is string successMessage && !string.IsNullOrWhiteSpace(successMessage))
+    {
+        <div class="alert alert-success cart-alert">@successMessage</div>
+    }
+
+    @if (TempData["CartError"] is string errorMessage && !string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger cart-alert">@errorMessage</div>
+    }
+
+    <form id="cartForm" method="post">
+        @Html.AntiForgeryToken()
+
+        <div class="cart-toolbar">
+            <h1 class="cart-title">Cart</h1>
+            <div class="cart-toolbar-actions">
+                <span class="cart-total">Total: @Model.TotalBooks books</span>
+
+                @if (showPendingState)
+                {
+                    <span class="toolbar-pill toolbar-pending">Request Pending</span>
+                    <button type="submit"
+                            class="toolbar-btn toolbar-cancel"
+                            formaction="@Url.Action("CancelPendingRequests", "Home")">
+                        Cancel
+                    </button>
+                }
+                else if (showRejectedState)
+                {
+                    <span class="toolbar-pill toolbar-rejected">Request Decline</span>
+                }
+                else if (showApprovedState)
+                {
+                    <span class="toolbar-pill toolbar-approved">Request Approved</span>
+                }
+                else
+                {
+                    <button type="submit"
+                            class="toolbar-btn toolbar-delete"
+                            formaction="@Url.Action("DeleteSelectedCartItems", "Home")">
+                        Delete
+                    </button>
+                    <button type="submit"
+                            class="toolbar-btn toolbar-request"
+                            formaction="@Url.Action("ProceedToRequest", "Home")">
+                        Proceed to request
+                    </button>
+                }
+            </div>
+        </div>
+        
+        @if (!Model.Items.Any())
+        {
+            <div class="cart-empty-state">
+                Your cart is empty.
+            </div>
+        }
+        else
+        {
+            foreach (var group in groupedItems)
+            {
+                var selectableInGroup = group.Any(item =>
+                {
+                    var status = (item.ReservationStatus ?? "none").Trim().ToLowerInvariant();
+                    return status is not ("pending" or "approved");
+                });
+
+                <div class="inventory-group">
+                    <div class="group-header">
+                        <label class="checkbox-container">
+                            <input type="checkbox"
+                                   class="hidden-input master-tick"
+                                   @(selectableInGroup ? null : "disabled")>
+                            <span class="custom-check"></span>
+                        </label>
+                        <h5 class="group-title">@group.Key</h5>
+                    </div>
+
+                    <div class="group-items">
+                        @foreach (var item in group)
+                        {
+                            var imagePath = string.IsNullOrWhiteSpace(item.ImageUrl)
+                                ? Url.Content("~/images/User/Book/book2.png")
+                                : Url.Content(item.ImageUrl);
+                            var publishYear = item.Year > 0 ? item.Year.ToString(CultureInfo.InvariantCulture) : "N/A";
+                            var bookCode = string.IsNullOrWhiteSpace(item.BookCode) ? $"A{item.BookId:0000}" : item.BookCode;
+                            var reservationStatus = (item.ReservationStatus ?? "none").Trim().ToLowerInvariant();
+                            var isLockedRequest = reservationStatus is "pending" or "approved";
+                            var badgeClass = reservationStatus switch
+                            {
+                                "approved" => "request-badge request-approved",
+                                "rejected" => "request-badge request-rejected",
+                                "pending" => "request-badge request-pending",
+                                _ => string.Empty
+                            };
+                            var badgeLabel = reservationStatus switch
+                            {
+                                "approved" => "Approved",
+                                "rejected" => "Declined",
+                                "pending" => "Pending",
+                                _ => string.Empty
+                            };
+
+                            <article class="cart-item-card">
+                                <div class="cart-item-select">
+                                    <label class="checkbox-container">
+                                        <input type="checkbox"
+                                               class="hidden-input cart-item-checkbox"
+                                               name="itemIds"
+                                               value="@item.CartItemId"
+                                               @(isLockedRequest ? "checked disabled" : null)>
+                                        <span class="custom-check"></span>
+                                    </label>
+                                </div>
+
+                                <div class="cart-item-cover">
+                                    <img src="@imagePath" alt="@item.Title" class="book-img">
+                                </div>
+
+                                <div class="cart-item-content">
+                                    <h4 class="book-title">@item.Title</h4>
+                                    <p class="book-meta">Author: @item.Author</p>
+                                    <p class="book-meta">Publish Year: @publishYear</p>
+                                    <p class="book-meta">Book Code: @bookCode</p>
+                                    <div class="star-rating">
+                                        @for (var i = 0; i < 5; i++)
+                                        {
+                                            if (i < item.Rating)
+                                            {
+                                                <i class="fa-solid fa-star"></i>
+                                            }
+                                            else
+                                            {
+                                                <i class="fa-regular fa-star"></i>
+                                            }
+                                        }
+                                    </div>
+                </div>
+
+                                <div class="cart-item-state">
+                                    @if (!string.IsNullOrWhiteSpace(badgeClass))
+                                    {
+                                        <span class="@badgeClass">@badgeLabel</span>
+                                    }
+                                </div>
+                            </article>
+                        }
+                    </div>
+                </div>
+            }
+        }
+    </form>
+</section>
+
+@section Scripts {
+    <script src="~/js/users/cart.js" asp-append-version="true"></script>
+}

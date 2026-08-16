@@ -1,0 +1,191 @@
+@model Library_Management_system.Models.HomeViewModel
+@{
+    ViewData["Title"] = "Home";
+    ViewData["FullWidth"] = true;   // opt out of the 960px container
+    var returnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
+    var isSignedIn = User.Identity?.IsAuthenticated == true;
+}
+
+@*
+    SMA LMS homepage.
+
+    Rebuilt on the SMA design system. Every behaviour of the inherited page is preserved —
+    category links, book detail links, favourite add/remove (antiforgery intact) and the share
+    buttons that site.js binds to `.share-book-btn` via its data- attributes.
+
+    The substantive addition is availability on every book card: "can I actually borrow this?"
+    is the first question a student has, and the previous homepage never answered it.
+*@
+
+<div id="homePage" class="sma-home">
+
+    <!-- ============================ Hero ============================ -->
+    <section class="sma-hero" aria-labelledby="smaHeroTitle">
+        <div class="sma-hero__body">
+            <h1 class="sma-hero__title" id="smaHeroTitle">Find it, borrow it, get back to studying.</h1>
+            <p class="sma-hero__lead">
+                Search the catalogue, see exactly which shelf a book is on, and check it out at the
+                desk with your student card.
+            </p>
+
+            <form class="sma-hero__search" method="get" asp-controller="Home" asp-action="Book" role="search">
+                <label class="sma-sr-only" for="heroSearch">Search the catalogue</label>
+                <input id="heroSearch" name="q" type="search" autocomplete="off"
+                       placeholder="Search by title, author or ISBN" />
+                <button type="submit">Search</button>
+            </form>
+
+            <div class="sma-hero__actions">
+                <a asp-controller="Home" asp-action="Book">Browse the catalogue</a>
+                <a href="/assistant">Ask the library assistant</a>
+                @if (isSignedIn)
+                {
+                    <a href="/portal">My library</a>
+                }
+            </div>
+        </div>
+    </section>
+
+    <!-- ======================= Quick actions ======================== -->
+    @* Section 8 wants the common actions obvious rather than buried in a menu. *@
+    <section class="sma-quick" aria-label="Quick actions">
+        <a class="sma-quick__item" asp-controller="Home" asp-action="Book">
+            <span class="sma-quick__icon" aria-hidden="true">▤</span>
+            <span class="sma-quick__label">Browse books</span>
+            <span class="sma-quick__hint">The full catalogue</span>
+        </a>
+        <a class="sma-quick__item" href="/portal">
+            <span class="sma-quick__icon" aria-hidden="true">◫</span>
+            <span class="sma-quick__label">My books</span>
+            <span class="sma-quick__hint">What you have out</span>
+        </a>
+        <a class="sma-quick__item" href="/portal">
+            <span class="sma-quick__icon" aria-hidden="true">◷</span>
+            <span class="sma-quick__label">Due dates &amp; fines</span>
+            <span class="sma-quick__hint">What you owe, if anything</span>
+        </a>
+        <a class="sma-quick__item" href="/assistant">
+            <span class="sma-quick__icon" aria-hidden="true">✦</span>
+            <span class="sma-quick__label">Library assistant</span>
+            <span class="sma-quick__hint">Ask where a book is</span>
+        </a>
+    </section>
+
+    <!-- ======================== Categories ========================== -->
+    <section class="sma-home-section" aria-labelledby="catsTitle">
+        <div class="sma-home-section__head">
+            <div>
+                <h2 class="sma-home-section__title" id="catsTitle">Browse by subject</h2>
+                <p class="sma-home-section__sub">Jump straight to the shelf you need.</p>
+            </div>
+            <a class="sma-home-link" asp-controller="Home" asp-action="Book">All categories →</a>
+        </div>
+
+        @if (!Model.Categories.Any())
+        {
+            <div class="sma-home-empty">
+                <p><strong>No categories yet.</strong></p>
+                <p>Once a librarian adds books, subjects appear here for browsing.</p>
+            </div>
+        }
+        else
+        {
+            <div class="sma-cat-grid">
+                @foreach (var category in Model.Categories)
+                {
+                    var img = string.IsNullOrWhiteSpace(category.ImageUrl)
+                        ? "/images/User/Book/general.jpg"
+                        : category.ImageUrl;
+
+                    <a class="sma-cat" asp-controller="Home" asp-action="Book" asp-route-category="@category.Name">
+                        <span class="sma-cat__media">
+                            <img src="@img" alt="" aria-hidden="true" loading="lazy" />
+                        </span>
+                        <span class="sma-cat__name">@category.Name</span>
+                    </a>
+                }
+            </div>
+        }
+    </section>
+
+    <!-- ========================= Trending =========================== -->
+    <section class="sma-home-section" aria-labelledby="trendTitle">
+        <div class="sma-home-section__head">
+            <div>
+                <h2 class="sma-home-section__title" id="trendTitle">Popular right now</h2>
+                <p class="sma-home-section__sub">What other students are borrowing.</p>
+            </div>
+            <a class="sma-home-link" asp-controller="Home" asp-action="Book">See all →</a>
+        </div>
+
+        @if (!Model.TrendingBooks.Any())
+        {
+            <div class="sma-home-empty">
+                <p><strong>The catalogue is empty.</strong></p>
+                <p>Books added by a librarian will appear here.</p>
+            </div>
+        }
+        else
+        {
+            <div class="sma-book-rail custom-scrollbar">
+                @foreach (var book in Model.TrendingBooks)
+                {
+                    @await Html.PartialAsync("_SmaBookCard", (book, Model, returnUrl))
+                }
+            </div>
+        }
+    </section>
+
+    <!-- ======================= New arrivals ========================= -->
+    <section class="sma-home-section" aria-labelledby="newTitle">
+        <div class="sma-home-section__head">
+            <div>
+                <h2 class="sma-home-section__title" id="newTitle">Just added</h2>
+                <p class="sma-home-section__sub">The newest titles on the shelves.</p>
+            </div>
+            <a class="sma-home-link" asp-controller="Home" asp-action="Book">See all →</a>
+        </div>
+
+        @if (!Model.NewArrivalBooks.Any())
+        {
+            <div class="sma-home-empty">
+                <p><strong>Nothing new yet.</strong></p>
+                <p>Recently added books will show up here.</p>
+            </div>
+        }
+        else
+        {
+            <div class="sma-book-grid">
+                @foreach (var book in Model.NewArrivalBooks)
+                {
+                    @await Html.PartialAsync("_SmaBookCard", (book, Model, returnUrl))
+                }
+            </div>
+        }
+    </section>
+
+    <!-- ====================== Using the library ===================== -->
+    <section class="sma-info" aria-labelledby="infoTitle">
+        <h2 class="sma-info__title" id="infoTitle">Using the library</h2>
+        <div class="sma-info__grid">
+            <div class="sma-info__item">
+                <h3>Opening hours</h3>
+                <p>Monday – Friday, 07:30 – 20:30<br />Saturday – Sunday, 07:30 – 16:30</p>
+            </div>
+            <div class="sma-info__item">
+                <h3>Borrowing</h3>
+                <p>Bring the book and your student card to the circulation desk. Scan both and you're done.</p>
+            </div>
+            <div class="sma-info__item">
+                <h3>Can't find something?</h3>
+                <p>The <a href="/assistant">library assistant</a> can tell you whether we hold a title and which shelf it's on.</p>
+            </div>
+            <div class="sma-info__item">
+                <h3>Need help?</h3>
+                <p>Ask at the circulation desk, or see the <a asp-controller="About" asp-action="Support">support page</a>.</p>
+            </div>
+        </div>
+    </section>
+</div>
+
+@await Html.PartialAsync("_StaticChatbot")

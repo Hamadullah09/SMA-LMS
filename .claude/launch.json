@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "library-app",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": [
+        "run",
+        "--project",
+        "Library Management system.csproj",
+        "--launch-profile",
+        "http",
+        "--no-build"
+      ],
+      "port": 5083
+    }
+  ]
+}

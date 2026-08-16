@@ -1,0 +1,204 @@
+@model Library_Management_system.Models.Portal.BookDetailViewModel
+@{
+    ViewData["Title"] = Model.Title;
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@Model.Title — SMA Library</title>
+    <link rel="stylesheet" href="~/css/sma-design-system.css" asp-append-version="true" />
+</head>
+<body class="sma">
+<header class="sma-topbar">
+    <div style="display:flex;align-items:center;gap:var(--sma-space-3)">
+        <img src="/images/brand/sma-mark.png" alt="" aria-hidden="true"
+             width="38" height="38" class="sma-sidebar__brand-mark" />
+        <div>
+            <div style="font-weight:700">SMA Library</div>
+            <div class="sma-small sma-muted">Book detail</div>
+        </div>
+    </div>
+    <nav style="display:flex;gap:var(--sma-space-2)" aria-label="Primary">
+        <a class="sma-btn sma-btn--ghost" href="/catalogue">Catalogue</a>
+        <a class="sma-btn sma-btn--ghost" href="/portal">My Library</a>
+    </nav>
+</header>
+
+<main class="sma-main">
+    <nav class="sma-breadcrumb" aria-label="Breadcrumb">
+        <a href="/catalogue">Catalogue</a> <span aria-hidden="true">›</span> <span>@Model.Title</span>
+    </nav>
+
+    <div class="sma-grid sma-grid--2" style="align-items:start">
+
+        <div class="sma-card">
+            <div class="sma-card__body">
+                @if (!string.IsNullOrWhiteSpace(Model.CoverImage))
+                {
+                    <img src="@Model.CoverImage" alt="Cover of @Model.Title"
+                         style="width:100%;max-height:320px;object-fit:contain;border-radius:var(--sma-radius)" />
+                }
+
+                <h1 style="margin-top:var(--sma-space-4)">@Model.Title</h1>
+                <p class="sma-muted" style="font-size:var(--sma-text-lg)">@Model.Author</p>
+
+                <div style="margin-bottom:var(--sma-space-4)">
+                    @if (Model.IsAvailable)
+                    {
+                        <span class="sma-badge sma-badge--success">
+                            ✓ @Model.AvailableCopies of @Model.Copies.Count cop@(Model.Copies.Count == 1 ? "y" : "ies") available
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="sma-badge sma-badge--warning">▲ All copies are currently on loan</span>
+                    }
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(Model.Description))
+                {
+                    <p>@Model.Description</p>
+                }
+
+                <dl style="display:grid;grid-template-columns:auto 1fr;gap:var(--sma-space-2) var(--sma-space-4);margin:0">
+                    <dt class="sma-small sma-muted">Category</dt>
+                    <dd class="sma-small" style="margin:0">@Model.CategoryName</dd>
+
+                    <dt class="sma-small sma-muted">ISBN</dt>
+                    <dd class="sma-small sma-mono" style="margin:0">@(Model.Isbn ?? "—")</dd>
+
+                    @if (Model.Year is > 0)
+                    {
+                        <dt class="sma-small sma-muted">Published</dt>
+                        <dd class="sma-small" style="margin:0">@Model.Year</dd>
+                    }
+
+                    @if (Model.Pages is > 0)
+                    {
+                        <dt class="sma-small sma-muted">Pages</dt>
+                        <dd class="sma-small" style="margin:0">@Model.Pages</dd>
+                    }
+                </dl>
+            </div>
+        </div>
+
+        @* ---- Copies and their locations. Section 95 wants location visually prominent. ---- *@
+        <div class="sma-card">
+            <div class="sma-card__header">
+                <h2 class="sma-card__title">Where to find it</h2>
+            </div>
+            <div class="sma-card__body">
+                @if (Model.Copies.Count == 0)
+                {
+                    <div class="sma-empty">
+                        <div class="sma-empty__title">No physical copies are held</div>
+                        <p class="sma-empty__body">
+                            This title is catalogued but the library holds no copies of it, so it
+                            cannot be borrowed. Ask a librarian whether a copy can be ordered.
+                        </p>
+                    </div>
+                }
+                else
+                {
+                    <div class="sma-table-wrap">
+                        <table class="sma-table">
+                            <caption class="sma-sr-only">Copies of @Model.Title and where they are</caption>
+                            <thead>
+                            <tr><th>Copy</th><th>Location</th><th>Status</th></tr>
+                            </thead>
+                            <tbody>
+                            @foreach (var copy in Model.Copies)
+                            {
+                                <tr>
+                                    <td class="sma-mono">@copy.CopyNumber</td>
+                                    <td>
+                                        <strong>@copy.Location</strong>
+                                        @if (copy.AccessionNumber is not null)
+                                        {
+                                            <div class="sma-small sma-muted sma-mono">@copy.AccessionNumber</div>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (copy.IsAvailable)
+                                        {
+                                            <span class="sma-badge sma-badge--success">✓ On the shelf</span>
+                                        }
+                                        else if (copy.DueBack is not null)
+                                        {
+                                            <span class="sma-badge sma-badge--warning">
+                                                ▲ Back @copy.DueBack.Value.ToString("dd MMM")
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="sma-badge sma-badge--neutral">✕ @copy.Status</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @if (TempData["ReserveMessage"] is string reserved)
+                    {
+                        <div class="sma-alert sma-alert--success" style="margin-top:var(--sma-space-4)" role="status">
+                            <span class="sma-alert__icon" aria-hidden="true">✓</span>
+                            <div>@reserved</div>
+                        </div>
+                    }
+                    @if (TempData["ReserveError"] is string reserveError)
+                    {
+                        <div class="sma-alert sma-alert--warning" style="margin-top:var(--sma-space-4)" role="alert">
+                            <span class="sma-alert__icon" aria-hidden="true">▲</span>
+                            <div>@reserveError</div>
+                        </div>
+                    }
+
+                    <div class="sma-alert sma-alert--info" style="margin-top:var(--sma-space-5);margin-bottom:0">
+                        <span class="sma-alert__icon" aria-hidden="true">i</span>
+                        <div>
+                            @if (Model.IsAvailable)
+                            {
+                                <text>
+                                    Take the copy from the shelf to the circulation desk with your
+                                    student card. You can keep it for up to @Model.MaximumLoanDays days.
+                                </text>
+                            }
+                            else
+                            {
+                                <text>
+                                    Every copy is out at the moment. Reserve it and we will email you
+                                    as soon as one is returned.
+                                </text>
+                            }
+                        </div>
+                    </div>
+
+                    @* Reserving only makes sense when nothing is on the shelf (section 26). *@
+                    @if (!Model.IsAvailable && User.Identity?.IsAuthenticated == true)
+                    {
+                        <form method="post" action="/catalogue/@Model.BookId/reserve" style="margin-top:var(--sma-space-4)">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="sma-btn sma-btn--gold sma-btn--block">
+                                Reserve this book
+                            </button>
+                        </form>
+                    }
+                    else if (!Model.IsAvailable)
+                    {
+                        <a class="sma-btn sma-btn--ghost sma-btn--block" style="margin-top:var(--sma-space-4)"
+                           href="/Identity/Account/Login?ReturnUrl=/catalogue/@Model.BookId">
+                            Sign in to reserve
+                        </a>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</main>
+</body>
+</html>

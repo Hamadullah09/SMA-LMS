@@ -1,0 +1,175 @@
+﻿@page
+@model RegisterModel
+@{
+    Layout = null;
+    ViewData["Title"] = "Register";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <partial name="_SmaFavicon" />
+    <title>Create an account — SMA Library</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+
+    <!-- Reuse the login css to keep the same style -->
+    <link rel="stylesheet" href="~/css/Login/login.css" asp-append-version="true" />
+    @* SMA design tokens + Bootstrap theming. Must load last so it wins. *@
+    <link rel="stylesheet" href="~/css/sma-theme-bridge.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/page-loader.css" asp-append-version="true" />
+</head>
+
+<body>
+    <div id="pageLoader" class="page-loader" aria-hidden="false">
+        <div class="page-loader__dots" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+
+            <!-- Right Section -->
+            <div class="right">
+
+                
+                <div class="auth-logo">
+                    <img src="~/images/brand/sma-logo.png" alt="SMA Library" />
+                </div>
+
+                <!-- Register Form -->
+                <form id="register" asp-route-returnUrl="@Model.ReturnUrl" method="post">
+                    <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+
+                    <!-- FULL NAME -->
+                    <div class="input-group">
+                        <div class="icon-email">
+                            <i class="fa-regular fa-user"></i>
+                        </div>
+                        <input asp-for="Input.Name" type="text" placeholder="Your Name" autocomplete="name"
+                               aria-required="true" required />
+                    </div>
+                    <span asp-validation-for="Input.Name" class="text-danger"></span>
+
+                    <!-- EMAIL -->
+                    <div class="input-group">
+                        <div class="icon-email">
+                            <i class="fa-regular fa-envelope"></i>
+                        </div>
+
+                        <input asp-for="Input.Email" type="email" placeholder="Your Email" autocomplete="email"
+                               aria-required="true" required />
+                    </div>
+                    <span asp-validation-for="Input.Email" class="text-danger"></span>
+
+                    <!-- PHONE -->
+                    <div class="input-group">
+                        <div class="icon-email">
+                            <i class="fa-solid fa-phone"></i>
+                        </div>
+
+                        <input asp-for="Input.PhoneNumber" type="text" placeholder="Phone Number" autocomplete="tel"
+                               aria-required="true" required />
+                    </div>
+                    <span asp-validation-for="Input.PhoneNumber" class="text-danger"></span>
+
+                    <!-- GENDER -->
+                    <div class="input-group">
+                        <div class="icon-email">
+                            <i class="fa-solid fa-venus-mars"></i>
+                        </div>
+                        <select asp-for="Input.Gender" aria-required="true" required>
+                            <option value="">Select Gender</option>
+                            <option value="M">Male</option>
+                            <option value="F">Female</option>
+                            <option value="U">Unspecified</option>
+                        </select>
+                    </div>
+                    <span asp-validation-for="Input.Gender" class="text-danger"></span>
+
+                    <!-- PASSWORD -->
+                    <div class="input-group">
+                        <div class="icon-password">
+                            <i class="fa-solid fa-lock"></i>
+                        </div>
+
+                        <input asp-for="Input.Password" type="password" class="password" placeholder="Your Password"
+                               autocomplete="new-password" aria-required="true" required />
+
+                        <span class="toggle-password" role="button" tabindex="0" data-target="#Input_Password">
+                            <i class="bi bi-eye-slash" id="togglePassword1"></i>
+                        </span>
+
+                    </div>
+                    <span asp-validation-for="Input.Password" class="text-danger"></span>
+
+                    <!-- CONFIRM PASSWORD -->
+                    <div class="input-group">
+                        <div class="icon-password">
+                            <i class="fa-solid fa-lock"></i>
+                        </div>
+
+                        <input asp-for="Input.ConfirmPassword" type="password" class="password"
+                               placeholder="Confirm Password" autocomplete="new-password" aria-required="true" required />
+
+                        <span class="toggle-password" role="button" tabindex="0" data-target="#Input_ConfirmPassword">
+                            <i class="bi bi-eye-slash" id="togglePassword2"></i>
+                        </span>
+                    </div>
+                    <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
+
+                    <button id="register-submit" type="submit" class="btn-signin">
+                        <span class="btn-text">Sign up</span>
+                        <span class="btn-loader" aria-hidden="true"></span>
+                    </button>
+                </form>
+
+                <div class="links">
+                    <div class="forgot">
+                        <a asp-page="./Login">Already have an account? Sign in</a>
+                    </div>
+
+                    <p style="margin-top:8px; font-size:0.95rem; color:#6b7280;">
+                        By registering you agree to the library terms.
+                    </p>
+                </div>
+
+                <!-- External Login (Optional) -->
+                @if ((Model.ExternalLogins?.Count ?? 0) > 0)
+                {
+                    <div style="margin-top:18px;">
+                        <div class="divider"><span>OR</span></div>
+
+                        <form id="external-account" asp-page="./ExternalLogin" asp-route-returnUrl="@Model.ReturnUrl"
+                              method="post">
+                            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                                @foreach (var provider in Model.ExternalLogins!)
+                                {
+                                    <button type="submit" class="btn-signin" name="provider" value="@provider.Name"
+                                            title="Register using your @provider.DisplayName account"
+                                            style="width:auto; padding:10px 16px;">
+                                        @provider.DisplayName
+                                    </button>
+                                }
+                            </div>
+                        </form>
+                    </div>
+                }
+            </div>
+
+        </div>
+    </div>
+
+    <script src="~/js/page-loader.js" asp-append-version="true"></script>
+    <script src="~/js/admin/login.js"></script>
+
+    <!-- Because Layout = null, include validation scripts directly -->
+    <partial name="_ValidationScriptsPartial" />
+</body>
+
+</html>

@@ -1,0 +1,11 @@
+@*
+    jQuery must load before the validation plugins that extend it. Every page that includes
+    this partial (Login, Register, ForgotPassword, ResetPassword, LoginOtp) sets Layout = null
+    and so does not inherit the site layout's jQuery reference. Without this line both plugin
+    scripts threw "jQuery is not defined" on load and client-side validation was silently dead
+    on every account form — the fields still validated on the server, so the failure was
+    invisible apart from the console error.
+*@
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+<script src="~/lib/jquery-validation-unobtrusive/dist/jquery.validate.unobtrusive.min.js"></script>

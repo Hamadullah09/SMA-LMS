@@ -1,0 +1,236 @@
+@model Library_Management_system.Models.Desk.ManualIssueViewModel
+@{
+    ViewData["Title"] = "Manual Issue";
+    ViewBag.SmaActive = "manual";
+    ViewBag.SmaSubtitle = "Fallback for when RFID is unavailable. The same borrowing rules apply.";
+    Layout = "~/Views/Shared/_StaffLayout.cshtml";
+}
+
+@if (Model.Succeeded is not null)
+{
+    <div class="sma-desk-result @(Model.Succeeded == true ? "sma-desk-result--success" : "sma-desk-result--failure")"
+         role="status" aria-live="polite">
+        <div class="sma-desk-result__headline">
+            @(Model.Succeeded == true ? "✓ BOOK ISSUED" : "✕ NOT ISSUED")
+        </div>
+        <div class="sma-desk-result__detail">@Model.ResultMessage</div>
+        @if (Model.Succeeded == true && Model.TransactionNumber is not null)
+        {
+            <div class="sma-mono" style="margin-top:var(--sma-space-4);font-size:var(--sma-text-xl);font-weight:700">
+                @Model.TransactionNumber
+            </div>
+        }
+    </div>
+    <div style="height:var(--sma-space-5)"></div>
+}
+
+<div class="sma-alert sma-alert--info">
+    <span class="sma-alert__icon" aria-hidden="true">i</span>
+    <div>
+        Manual issue applies exactly the same eligibility rules, fines and audit trail as an RFID
+        checkout. Only the recorded method differs.
+    </div>
+</div>
+
+<div class="sma-grid sma-grid--2">
+
+    @* ---------------- Student search ---------------- *@
+    <div class="sma-card">
+        <div class="sma-card__header"><h2 class="sma-card__title">1. Find the student</h2></div>
+        <div class="sma-card__body">
+            @if (Model.SelectedStudent is not null)
+            {
+                <div class="sma-desk-panel is-filled" style="min-height:auto">
+                    <div class="sma-desk-panel__primary" style="font-size:var(--sma-text-xl)">
+                        @Model.SelectedStudent.FullName
+                    </div>
+                    <div class="sma-desk-panel__secondary">Roll No: @Model.SelectedStudent.RollNumber</div>
+                    <div class="sma-desk-panel__secondary">
+                        @(Model.SelectedStudent.Department?.Name ?? "Department not recorded")
+                    </div>
+                    <a class="sma-btn sma-btn--ghost" style="margin-top:var(--sma-space-3)"
+                       href="/desk/manual?bookQuery=@Model.BookQuery&copyId=@Model.SelectedCopyId">
+                        Change student
+                    </a>
+                </div>
+            }
+            else
+            {
+                <form method="get">
+                    <input type="hidden" name="bookQuery" value="@Model.BookQuery" />
+                    <input type="hidden" name="copyId" value="@Model.SelectedCopyId" />
+                    <div class="sma-field">
+                        <label class="sma-label" for="studentQuery">Name, roll number or student ID</label>
+                        <input class="sma-input" id="studentQuery" name="studentQuery" value="@Model.StudentQuery" autocomplete="off" />
+                    </div>
+                    <button type="submit" class="sma-btn sma-btn--primary">Search students</button>
+                </form>
+
+                @if (Model.StudentMatches.Count > 0)
+                {
+                    <div class="sma-table-wrap" style="margin-top:var(--sma-space-4)">
+                        <table class="sma-table">
+                            <caption class="sma-sr-only">Matching students</caption>
+                            <thead><tr><th>Name</th><th>Roll No</th><th></th></tr></thead>
+                            <tbody>
+                            @foreach (var s in Model.StudentMatches)
+                            {
+                                <tr>
+                                    <td>@s.FullName</td>
+                                    <td class="sma-mono">@s.RollNumber</td>
+                                    <td>
+                                        <a class="sma-btn sma-btn--ghost"
+                                           href="/desk/manual?studentId=@s.Id&bookQuery=@Model.BookQuery&copyId=@Model.SelectedCopyId">
+                                            Select
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else if (!string.IsNullOrWhiteSpace(Model.StudentQuery))
+                {
+                    <div class="sma-empty">
+                        <div class="sma-empty__title">No students matched “@Model.StudentQuery”</div>
+                        <p class="sma-empty__body">Try a roll number, or part of the student's name.</p>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
+    @* ---------------- Book search ---------------- *@
+    <div class="sma-card">
+        <div class="sma-card__header"><h2 class="sma-card__title">2. Find the copy</h2></div>
+        <div class="sma-card__body">
+            @if (Model.SelectedCopy is not null)
+            {
+                <div class="sma-desk-panel is-filled" style="min-height:auto">
+                    <div class="sma-desk-panel__primary" style="font-size:var(--sma-text-xl)">
+                        @(Model.SelectedCopy.Book?.Title ?? "Untitled")
+                    </div>
+                    <div class="sma-desk-panel__secondary">Copy @Model.SelectedCopy.CopyNumber</div>
+                    <div class="sma-desk-panel__secondary sma-mono">@Model.SelectedCopy.AccessionNumber</div>
+                    <a class="sma-btn sma-btn--ghost" style="margin-top:var(--sma-space-3)"
+                       href="/desk/manual?studentQuery=@Model.StudentQuery&studentId=@Model.SelectedStudentId">
+                        Change book
+                    </a>
+                </div>
+            }
+            else
+            {
+                <form method="get">
+                    <input type="hidden" name="studentQuery" value="@Model.StudentQuery" />
+                    <input type="hidden" name="studentId" value="@Model.SelectedStudentId" />
+                    <div class="sma-field">
+                        <label class="sma-label" for="bookQuery">Title, ISBN or accession number</label>
+                        <input class="sma-input" id="bookQuery" name="bookQuery" value="@Model.BookQuery" autocomplete="off" />
+                    </div>
+                    <button type="submit" class="sma-btn sma-btn--primary">Search books</button>
+                </form>
+
+                @if (Model.CopyMatches.Count > 0)
+                {
+                    <div class="sma-table-wrap" style="margin-top:var(--sma-space-4)">
+                        <table class="sma-table">
+                            <caption class="sma-sr-only">Matching copies</caption>
+                            <thead><tr><th>Title</th><th>Copy</th><th>Status</th><th></th></tr></thead>
+                            <tbody>
+                            @foreach (var c in Model.CopyMatches)
+                            {
+                                <tr>
+                                    <td>@(c.Book?.Title ?? "Untitled")</td>
+                                    <td class="sma-mono">@c.CopyNumber</td>
+                                    <td>
+                                        @if (c.IsBorrowable)
+                                        {
+                                            <span class="sma-badge sma-badge--success">✓ Available</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="sma-badge sma-badge--neutral">✕ @c.Status</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <a class="sma-btn sma-btn--ghost"
+                                           href="/desk/manual?copyId=@c.Id&studentQuery=@Model.StudentQuery&studentId=@Model.SelectedStudentId">
+                                            Select
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else if (!string.IsNullOrWhiteSpace(Model.BookQuery))
+                {
+                    <div class="sma-empty">
+                        <div class="sma-empty__title">No copies matched “@Model.BookQuery”</div>
+                        <p class="sma-empty__body">Try the title, ISBN, or the accession number on the label.</p>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+@* ---------------- Issue ---------------- *@
+@if (Model.BothSelected)
+{
+    <div style="height:var(--sma-space-5)"></div>
+
+    @if (!Model.IsEligible)
+    {
+        <div class="sma-alert sma-alert--danger" role="alert">
+            <span class="sma-alert__icon" aria-hidden="true">✕</span>
+            <div>
+                <strong>This book cannot be issued</strong>
+                <ul style="margin:var(--sma-space-2) 0 0;padding-left:1.2em">
+                    @foreach (var m in Model.EligibilityMessages) { <li>@m</li> }
+                </ul>
+            </div>
+        </div>
+    }
+
+    <div class="sma-card">
+        <div class="sma-card__header"><h2 class="sma-card__title">3. Loan period</h2></div>
+        <div class="sma-card__body">
+            <form method="post" id="manualForm">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="studentId" value="@Model.SelectedStudentId" />
+                <input type="hidden" name="copyId" value="@Model.SelectedCopyId" />
+                <input type="hidden" name="studentQuery" value="@Model.StudentQuery" />
+                <input type="hidden" name="bookQuery" value="@Model.BookQuery" />
+
+                <div class="sma-choice-row" role="radiogroup" aria-label="Loan period">
+                    @foreach (var d in Model.LoanOptions)
+                    {
+                        <label class="sma-choice">
+                            <input type="radio" name="loanDays" value="@d" checked="@(d == Model.LoanDays)" />
+                            <span>@d days</span>
+                        </label>
+                    }
+                </div>
+                <p class="sma-hint">Maximum loan period is @Model.MaximumLoanDays days.</p>
+
+                <button type="submit" class="sma-btn sma-btn--gold sma-btn--lg sma-btn--block"
+                        id="manualButton" style="margin-top:var(--sma-space-5)"
+                        @(Model.IsEligible ? "" : "disabled")>
+                    Issue Book (Manual)
+                </button>
+            </form>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        document.getElementById('manualForm')?.addEventListener('submit', function () {
+            var b = document.getElementById('manualButton');
+            if (b) { b.classList.add('is-loading'); b.disabled = true; }
+        });
+    </script>
+}

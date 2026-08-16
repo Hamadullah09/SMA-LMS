@@ -1,0 +1,433 @@
+﻿@using Library_Management_system.Models
+@using Microsoft.AspNetCore.Identity
+@using Library_Management_system.Data
+@using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
+@using System.Globalization
+@inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+@inject ApplicationDbContext DbContext
+
+@{
+    var cartOwnerKey = string.Empty;
+    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (!string.IsNullOrWhiteSpace(userId))
+    {
+        cartOwnerKey = $"user:{userId}";
+    }
+    else if (Context.Request.Cookies.TryGetValue("library_cart_id", out var guestCartId) &&
+             !string.IsNullOrWhiteSpace(guestCartId))
+    {
+        cartOwnerKey = $"guest:{guestCartId}";
+    }
+
+    var cartCount = 0;
+    var reservationNotificationCount = 0;
+    var reservationNotifications = new List<(string Status, string BookTitle, DateTime UpdatedAt)>();
+    var currentPath = Context.Request.Path.Value ?? "/";
+    var currentSearchQuery = Context.Request.Query["q"].ToString();
+    var isSignedIn = SignInManager.IsSignedIn(User);
+    var currentUserName = User.Identity?.Name ?? "User";
+    var currentUserEmail = User.FindFirstValue(ClaimTypes.Email) ?? string.Empty;
+
+    string ToBreadcrumbLabel(string segment)
+    {
+        if (string.IsNullOrWhiteSpace(segment))
+        {
+            return string.Empty;
+        }
+
+        var clean = segment.Replace("-", " ").Replace("_", " ").Trim();
+        if (int.TryParse(clean, out _))
+        {
+            var currentBreadcrumb = ViewData["BreadcrumbCurrent"]?.ToString();
+            if (string.IsNullOrWhiteSpace(currentBreadcrumb))
+            {
+                currentBreadcrumb = ViewData["Title"]?.ToString();
+            }
+
+            return (string.IsNullOrWhiteSpace(currentBreadcrumb) ? "Detail" : currentBreadcrumb).Trim();
+        }
+
+        return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(clean.ToLowerInvariant());
+    }
+
+    var pathSegments = currentPath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+    var breadcrumbTrail = new List<(string Label, string Url)>
+    {
+        ("Home", "/")
+    };
+    var builtPath = string.Empty;
+
+    for (var i = 0; i < pathSegments.Length; i++)
+    {
+        var segment = pathSegments[i];
+        builtPath += $"/{segment}";
+
+        if (string.Equals(segment, "index", StringComparison.OrdinalIgnoreCase))
+        {
+            continue;
+        }
+
+        if (i == 0 &&
+            string.Equals(segment, "home", StringComparison.OrdinalIgnoreCase))
+        {
+            continue;
+        }
+
+        breadcrumbTrail.Add((ToBreadcrumbLabel(segment), builtPath));
+    }
+
+    var currentCategory = (ViewBag.CurrentCategory as string)?.Trim();
+    if (currentPath.Contains("category", StringComparison.OrdinalIgnoreCase) &&
+        !string.IsNullOrWhiteSpace(currentCategory))
+    {
+        breadcrumbTrail.Add((currentCategory, string.Empty));
+    }
+
+    var showBreadcrumb = breadcrumbTrail.Count > 1;
+
+    if (isSignedIn)
+    {
+        try
+        {
+            var currentUser = await UserManager.GetUserAsync(User);
+            if (currentUser != null)
+            {
+                currentUserName = currentUser.FullName ?? currentUser.UserName ?? currentUserName;
+                currentUserEmail = currentUser.Email ?? currentUserEmail;
+            }
+        }
+        catch
+        {
+            // Allow page rendering even if database is temporarily unreachable.
+        }
+    }
+
+    if (!string.IsNullOrWhiteSpace(cartOwnerKey))
+    {
+        try
+        {
+            cartCount = await DbContext.CartItems
+                .AsNoTracking()
+                .Where(ci => ci.OwnerKey == cartOwnerKey)
+                .Where(ci => !(ci.ReservationStatus != null &&
+                               ci.ReservationStatus.ToLower() == "approved" &&
+                               DbContext.BorrowingRecords.Any(br => br.ReservationId == ci.Id)))
+                .CountAsync();
+
+            reservationNotificationCount = await DbContext.CartItems
+                .AsNoTracking()
+                .Where(ci => ci.OwnerKey == cartOwnerKey &&
+                             (ci.ReservationStatus == "approved" || ci.ReservationStatus == "rejected") &&
+                             !ci.IsReservationNotificationSeen)
+                .CountAsync();
+
+            var rawNotifications = await DbContext.CartItems
+                .AsNoTracking()
+                .Include(ci => ci.Book)
+                .Where(ci => ci.OwnerKey == cartOwnerKey &&
+                             (ci.ReservationStatus == "approved" || ci.ReservationStatus == "rejected"))
+                .OrderByDescending(ci => ci.ReservationUpdatedDate ?? ci.RequestedDate ?? ci.CreatedDate)
+                .Take(5)
+                .Select(ci => new
+                {
+                    Status = ci.ReservationStatus,
+                    BookTitle = ci.Book != null ? ci.Book.Title : "Book",
+                    UpdatedAt = ci.ReservationUpdatedDate ?? ci.RequestedDate ?? ci.CreatedDate
+                })
+                .ToListAsync();
+
+            reservationNotifications = rawNotifications
+                .Select(x => (x.Status ?? string.Empty, x.BookTitle ?? "Book", x.UpdatedAt))
+                .ToList();
+        }
+        catch
+        {
+            cartCount = 0;
+            reservationNotificationCount = 0;
+            reservationNotifications = new List<(string Status, string BookTitle, DateTime UpdatedAt)>();
+        }
+    }
+}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <partial name="_SmaFavicon" />
+    <title>@ViewData["Title"] — SMA Library</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/users/Navbar.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/users/Home.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/users/About.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/users/Bookmark.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/users/Category.css" asp-append-version="true" />
+
+    <link rel="stylesheet" href="~/css/users/detail.css" asp-append-version="true" />
+
+    <link rel="stylesheet" href="~/css/users/History.css" asp-append-version="true" />
+
+    <link rel="stylesheet" href="~/css/users/cart.css" asp-append-version="true" />
+
+    <link rel="stylesheet" href="~/css/users/History.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/users/cart.css" asp-append-version="true" />
+
+    <!-- Roboto font (Google Fonts) + local override to apply Roboto site-wide -->
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap" />
+    <link rel="stylesheet" href="~/css/fonts.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/sweetalert-theme.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/page-loader.css" asp-append-version="true" />
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+    @* SMA branding for the inherited views. Must stay LAST so it overrides Bootstrap
+       and the per-page stylesheets above (specification sections 91, 113). *@
+    <link rel="stylesheet" href="~/css/sma-theme-bridge.css" asp-append-version="true" />
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+
+<body class="@(showBreadcrumb ? "has-breadcrumb" : null)">
+    <div id="pageLoader" class="page-loader" aria-hidden="false">
+        <div class="page-loader__dots" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+    </div>
+
+    @* ------------------------------------------------------------------
+       Single header bar.
+
+       Previously two stacked bars: a "top-header" carrying only the logo and
+       the login links, and a "main-navbar" carrying everything else. Merged
+       into one - the top bar held almost nothing and cost ~60px of vertical
+       space on every page.
+
+       Brand text is "SMA Library"; the full product name lives in the page
+       title and the hero, so repeating it in the chrome was noise.
+       ------------------------------------------------------------------ *@
+    <header id="main-header">
+        <nav class="sma-nav" aria-label="Main navigation">
+            <div class="sma-nav__inner">
+
+                <a href="/" class="sma-nav__brand" aria-label="SMA Library home">
+                    <img src="/images/brand/sma-mark.png" alt="" aria-hidden="true" />
+                    <span>SMA Library</span>
+                </a>
+
+                <form asp-controller="Home" asp-action="Book" method="get" class="sma-nav__search search-box" role="search">
+                    <button type="submit" class="search-submit" aria-label="Search books">
+                        <i class="bi bi-search" aria-hidden="true"></i>
+                    </button>
+                    <label class="sma-sr-only" for="navSearch">Search books or categories</label>
+                    <input id="navSearch" type="search" name="q" value="@currentSearchQuery"
+                           placeholder="Search books or categories" autocomplete="off" />
+                    <div class="search-suggestions d-none" aria-live="polite"></div>
+                </form>
+
+                <div class="sma-nav__actions icon-buttons">
+                    <a class="icon-btn" title="Cart" aria-label="Shopping cart" href="/Cart">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <circle cx="9" cy="21" r="1"></circle>
+                            <circle cx="20" cy="21" r="1"></circle>
+                            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                        </svg>
+                        <span class="badge @(cartCount > 0 ? "" : "d-none")" id="userCartBadge">@cartCount</span>
+                    </a>
+
+                    <div class="dropdown">
+                        <a id="userReservationToggle" class="icon-btn dropdown-toggle no-caret" title="Notifications"
+                           aria-label="Reservation notifications" href="#" role="button"
+                           data-bs-toggle="dropdown" aria-expanded="false">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                            </svg>
+                            <span class="badge @(reservationNotificationCount > 0 ? "" : "d-none")"
+                                  id="userReservationBadge">@reservationNotificationCount</span>
+                        </a>
+                            <div class="dropdown-menu dropdown-menu-end user-notification-menu shadow-sm">
+                                <div class="notification-head">Reservation Notifications</div>
+                                @if (reservationNotifications.Any())
+                                {
+                                    foreach (var notification in reservationNotifications)
+                                    {
+                                        var status = notification.Status.ToLowerInvariant();
+                                        var label = status == "approved" ? "Approved" : "Rejected";
+                                        var cssClass = status == "approved" ? "notif-approved" : "notif-rejected";
+                                        <a class="dropdown-item notification-item" href="/Cart">
+                                            <div class="notification-title @cssClass">@label</div>
+                                            <div class="notification-text">@notification.BookTitle</div>
+                                            <div class="notification-time">
+                                                @notification.UpdatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</div>
+                                            </a>
+                                        }
+                                    }
+                                else
+                                    {
+                                        <div class="notification-empty">No reservation updates.</div>
+                                    }
+                                </div>
+                    </div>
+
+                    <a class="icon-btn" title="Borrowing history" aria-label="Borrowing history" href="/History">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                    </a>
+                </div>
+
+                <div class="sma-nav__account">
+                    @if (isSignedIn)
+                    {
+                        <a href="/Profile" class="sma-nav__user">
+                            <i class="bi bi-person-circle" aria-hidden="true"></i>
+                            <span>@currentUserName</span>
+                        </a>
+                    }
+                    else
+                    {
+                        <a asp-area="Identity" asp-page="/Account/Login" class="sma-nav__signin">Sign in</a>
+                        <a asp-area="Identity" asp-page="/Account/Register" class="sma-nav__register">Register</a>
+                    }
+                </div>
+            </div>
+        </nav>
+    </header>
+    @if (showBreadcrumb)
+    {
+        <div class="breadcrumb-bar">
+            <div class="main-navbar-content breadcrumb-content">
+                <nav class="library-breadcrumb" aria-label="Breadcrumb">
+                    <img src="/images/brand/sma-mark.png" class="breadcrumb-logo" alt="" aria-hidden="true">
+
+                    @for (var i = 0; i < breadcrumbTrail.Count; i++)
+                    {
+                        var item = breadcrumbTrail[i];
+                        var isLast = i == breadcrumbTrail.Count - 1;
+                        var hasLink = !string.IsNullOrWhiteSpace(item.Url) && !isLast;
+
+                        if (i > 0)
+                        {
+                            <span class="breadcrumb-separator" aria-hidden="true">
+                                <i class="bi bi-chevron-right"></i>
+                            </span>
+                        }
+
+                        if (hasLink)
+                        {
+                            <a class="breadcrumb-link" href="@item.Url">@item.Label</a>
+                        }
+                        else
+                        {
+                            <span class="breadcrumb-current" aria-current="page">@item.Label</span>
+                        }
+                    }
+                </nav>
+            </div>
+        </div>
+    }
+    @* Pages opt out of the 960px Bootstrap container by setting ViewData["FullWidth"].
+       The homepage does: its grids have more to show than that well allows, and it left
+       large empty gutters on wide screens. Every other page keeps the narrow container. *@
+    @{
+        var fullWidth = ViewData["FullWidth"] as bool? ?? false;
+    }
+    <div class="@(fullWidth ? "container-fluid px-0" : "container")">
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+    @* Footer trimmed: the big logo and the mission paragraph repeated branding the
+       header and hero already carry. Links and the legal line are what people
+       actually come down here for. *@
+    <footer class="sma-footer">
+        <div class="sma-footer__inner">
+            <nav class="sma-footer__links" aria-label="Footer">
+                <div class="sma-footer__col">
+                    <h3>Library</h3>
+                    <a asp-controller="Home" asp-action="Book">Browse books</a>
+                    <a href="/BookMark">Saved books</a>
+                    <a href="/History">Borrowing history</a>
+                </div>
+                <div class="sma-footer__col">
+                    <h3>Help</h3>
+                    <a asp-controller="About" asp-action="Faq">FAQ</a>
+                    <a asp-controller="About" asp-action="Support">Support</a>
+                    <a href="/assistant">Library assistant</a>
+                </div>
+                <div class="sma-footer__col">
+                    <h3>About</h3>
+                    <a asp-controller="Home" asp-action="About">About the library</a>
+                    <a asp-controller="About" asp-action="Policies">Policies</a>
+                    <a asp-controller="About" asp-action="Account">Account &amp; login</a>
+                </div>
+            </nav>
+
+            <div class="sma-footer__bottom">
+                <p class="sma-footer__copy">&copy; @DateTime.UtcNow.Year SMA Library</p>
+                <div class="sma-footer__legal">
+                    <a asp-controller="About" asp-action="Policies">Terms</a>
+                    <a asp-controller="About" asp-action="Policies">Privacy</a>
+                    <a asp-controller="Home" asp-action="Cookie">Cookies</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <section id="cookieConsentAlert"
+             class="cookie-consent"
+             role="dialog"
+             aria-live="polite"
+             aria-modal="false"
+             aria-labelledby="cookieConsentTitle"
+             aria-describedby="cookieConsentDesc"
+             hidden>
+        <button id="cookieCloseBtn" type="button" class="cookie-consent__dismiss" aria-label="Dismiss cookie banner">
+            <i class="bi bi-x-lg"></i>
+        </button>
+
+        <div class="cookie-consent__icon" aria-hidden="true">
+            <i class="bi bi-shield-check"></i>
+        </div>
+
+        <div class="cookie-consent__content">
+            <p class="cookie-consent__eyebrow">Cookie Notice</p>
+            <h2 id="cookieConsentTitle" class="cookie-consent__title">We use cookies to improve your experience</h2>
+            <p id="cookieConsentDesc" class="cookie-consent__description">
+                We use cookies to remember your preferences, improve performance, and keep the library platform secure.
+                You can accept all cookies or keep only essential cookies.
+                <a href="/Cookie">Learn more</a>.
+            </p>
+        </div>
+
+        <div class="cookie-consent__actions">
+            <button id="cookieRejectBtn" type="button" class="cookie-consent__btn cookie-consent__btn--secondary">
+                Essential only
+            </button>
+            <button id="cookieAcceptBtn" type="button" class="cookie-consent__btn cookie-consent__btn--primary">
+                <i class="bi bi-check-lg"></i>
+                Accept all cookies
+            </button>
+        </div>
+    </section>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="~/js/sweetalert-theme.js" asp-append-version="true"></script>
+    <script src="~/js/page-loader.js" asp-append-version="true"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/users/page-animations.js" asp-append-version="true"></script>
+    <script src="~/js/users/chatbot.js" asp-append-version="true"></script>
+    <script src="~/js/users/navbar.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+
+</html>

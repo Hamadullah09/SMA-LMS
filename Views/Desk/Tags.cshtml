@@ -1,0 +1,208 @@
+@model Library_Management_system.Models.Desk.TagAssignmentViewModel
+@using Library_Management_system.Models.Desk
+@{
+    ViewData["Title"] = "RFID Tags";
+    ViewBag.SmaActive = "tags";
+    ViewBag.SmaSubtitle = "Assign student cards and book tags. Replaced tags are kept for audit.";
+    Layout = "~/Views/Shared/_StaffLayout.cshtml";
+}
+
+@if (Model.Succeeded is not null)
+{
+    <div class="sma-alert @(Model.Succeeded == true ? "sma-alert--success" : "sma-alert--danger")" role="status">
+        <span class="sma-alert__icon" aria-hidden="true">@(Model.Succeeded == true ? "✓" : "✕")</span>
+        <div>
+            <strong>@Model.ResultMessage</strong>
+            @if (Model.ConflictHolder is not null)
+            {
+                <div class="sma-small">Currently held by: @Model.ConflictHolder</div>
+            }
+        </div>
+    </div>
+}
+
+@* ---- Scan a tag first, so its current holder is known before assigning ---- *@
+<div class="sma-card" style="margin-bottom:var(--sma-space-5)">
+    <div class="sma-card__header"><h2 class="sma-card__title">1. Scan the tag</h2></div>
+    <div class="sma-card__body">
+        <form method="get">
+            <input type="hidden" name="studentQuery" value="@Model.StudentQuery" />
+            <input type="hidden" name="bookQuery" value="@Model.BookQuery" />
+            <div class="sma-field">
+                <label class="sma-label" for="epc">Tag EPC</label>
+                <input class="sma-input sma-mono" id="epc" name="epc" value="@Model.ScannedEpc"
+                       autocomplete="off" autofocus placeholder="Present the card or tag to the reader" />
+            </div>
+            <button type="submit" class="sma-btn sma-btn--primary">Check this tag</button>
+        </form>
+
+        @if (!string.IsNullOrWhiteSpace(Model.ScannedEpc))
+        {
+            <div style="margin-top:var(--sma-space-4)">
+                @if (Model.ScannedTagIsKnown)
+                {
+                    <div class="sma-alert sma-alert--warning" style="margin-bottom:0">
+                        <span class="sma-alert__icon" aria-hidden="true">▲</span>
+                        <div>
+                            <strong>This tag is already in use.</strong>
+                            <div>Held by: @Model.ScannedTagHolder</div>
+                            <div class="sma-small">
+                                Assigning it elsewhere is blocked. Use a different tag, or revoke the
+                                current assignment first.
+                            </div>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <span class="sma-badge sma-badge--success">✓ Unused — free to assign</span>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<div class="sma-grid sma-grid--2">
+
+    @* ---------------- Student cards ---------------- *@
+    <div class="sma-card">
+        <div class="sma-card__header"><h2 class="sma-card__title">2a. Assign to a student</h2></div>
+        <div class="sma-card__body">
+            <form method="get">
+                <input type="hidden" name="epc" value="@Model.ScannedEpc" />
+                <div class="sma-field">
+                    <label class="sma-label" for="studentQuery">Find a student</label>
+                    <input class="sma-input" id="studentQuery" name="studentQuery" value="@Model.StudentQuery" autocomplete="off" />
+                </div>
+                <button type="submit" class="sma-btn sma-btn--ghost">Search</button>
+            </form>
+
+            @if (Model.Students.Count > 0)
+            {
+                <div class="sma-table-wrap" style="margin-top:var(--sma-space-4)">
+                    <table class="sma-table">
+                        <caption class="sma-sr-only">Students and their current cards</caption>
+                        <thead><tr><th>Student</th><th>Current card</th><th></th></tr></thead>
+                        <tbody>
+                        @foreach (var s in Model.Students)
+                        {
+                            var current = TagAssignmentViewModel.ActiveEpc(s);
+                            <tr>
+                                <td>
+                                    <strong>@s.FullName</strong>
+                                    <div class="sma-small sma-muted sma-mono">@s.RollNumber</div>
+                                </td>
+                                <td>
+                                    @if (current is null)
+                                    {
+                                        <span class="sma-badge sma-badge--neutral">✕ None</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="sma-badge sma-badge--success">✓ Has card</span>
+                                        <div class="sma-small sma-mono sma-subtle">@current</div>
+                                    }
+                                </td>
+                                <td style="white-space:nowrap">
+                                    <form method="post" action="/desk/tags/student" style="display:inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="studentId" value="@s.Id" />
+                                        <input type="hidden" name="epc" value="@Model.ScannedEpc" />
+                                        <input type="hidden" name="studentQuery" value="@Model.StudentQuery" />
+                                        <button type="submit" class="sma-btn sma-btn--primary"
+                                                @(string.IsNullOrWhiteSpace(Model.ScannedEpc) || Model.ScannedTagIsKnown ? "disabled" : "")>
+                                            @(current is null ? "Assign" : "Replace")
+                                        </button>
+                                    </form>
+                                    @if (current is not null)
+                                    {
+                                        <form method="post" action="/desk/tags/revoke" style="display:inline"
+                                              onsubmit="return confirm('Revoke this card? The student will no longer be identified by it. The record is kept for audit.');">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="studentId" value="@s.Id" />
+                                            <input type="hidden" name="reason" value="lost" />
+                                            <input type="hidden" name="studentQuery" value="@Model.StudentQuery" />
+                                            <button type="submit" class="sma-btn sma-btn--ghost">Report lost</button>
+                                        </form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else if (!string.IsNullOrWhiteSpace(Model.StudentQuery))
+            {
+                <div class="sma-empty">
+                    <div class="sma-empty__title">No students matched “@Model.StudentQuery”</div>
+                </div>
+            }
+        </div>
+    </div>
+
+    @* ---------------- Book tags ---------------- *@
+    <div class="sma-card">
+        <div class="sma-card__header"><h2 class="sma-card__title">2b. Attach to a book copy</h2></div>
+        <div class="sma-card__body">
+            <form method="get">
+                <input type="hidden" name="epc" value="@Model.ScannedEpc" />
+                <div class="sma-field">
+                    <label class="sma-label" for="bookQuery">Find a copy</label>
+                    <input class="sma-input" id="bookQuery" name="bookQuery" value="@Model.BookQuery" autocomplete="off" />
+                </div>
+                <button type="submit" class="sma-btn sma-btn--ghost">Search</button>
+            </form>
+
+            @if (Model.Copies.Count > 0)
+            {
+                <div class="sma-table-wrap" style="margin-top:var(--sma-space-4)">
+                    <table class="sma-table">
+                        <caption class="sma-sr-only">Book copies and their current tags</caption>
+                        <thead><tr><th>Copy</th><th>Current tag</th><th></th></tr></thead>
+                        <tbody>
+                        @foreach (var c in Model.Copies)
+                        {
+                            var current = TagAssignmentViewModel.ActiveEpc(c);
+                            <tr>
+                                <td>
+                                    <strong>@(c.Book?.Title ?? "Untitled")</strong>
+                                    <div class="sma-small sma-muted">Copy @c.CopyNumber</div>
+                                </td>
+                                <td>
+                                    @if (current is null)
+                                    {
+                                        <span class="sma-badge sma-badge--warning">▲ Untagged</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="sma-badge sma-badge--success">✓ Tagged</span>
+                                    }
+                                </td>
+                                <td>
+                                    <form method="post" action="/desk/tags/book">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="copyId" value="@c.Id" />
+                                        <input type="hidden" name="epc" value="@Model.ScannedEpc" />
+                                        <input type="hidden" name="bookQuery" value="@Model.BookQuery" />
+                                        <button type="submit" class="sma-btn sma-btn--primary"
+                                                @(string.IsNullOrWhiteSpace(Model.ScannedEpc) || Model.ScannedTagIsKnown ? "disabled" : "")>
+                                            @(current is null ? "Attach" : "Replace")
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else if (!string.IsNullOrWhiteSpace(Model.BookQuery))
+            {
+                <div class="sma-empty">
+                    <div class="sma-empty__title">No copies matched “@Model.BookQuery”</div>
+                </div>
+            }
+        </div>
+    </div>
+</div>

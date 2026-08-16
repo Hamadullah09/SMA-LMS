@@ -1,0 +1,594 @@
+@using System.Globalization
+@using Library_Management_system.Models.Admin
+@model ManageBorrowingViewModel
+@{
+    ViewBag.Title = "Manage Borrowing Book";
+    ViewBag.SmaSubtitle = "Track borrowing records and reservation requests in one place.";
+
+    object BuildIndexRouteValues(int borrowingPage, int reservationPage)
+    {
+        return new
+        {
+            bq = Model.BorrowingQuery,
+            bs = Model.BorrowingStatus,
+            rq = Model.ReservationQuery,
+            rs = Model.ReservationStatus,
+            bp = borrowingPage,
+            rp = reservationPage
+        };
+    }
+
+    var borrowingRowStart = ((Model.BorrowingPage - 1) * Model.PageSize) + 1;
+    var reservationRowStart = ((Model.ReservationPage - 1) * Model.PageSize) + 1;
+}
+
+
+<div class="dashboard-page container-fluid borrowing-page" id="manageBorrowingPage">
+    <section class="module-section">
+        <div class="controls-section">
+            <form method="get" class="search-form" id="borrowing-search">
+                <i class="bi bi-search search-icon" id="search-borrowing-icon"></i>
+                <input type="text"
+                       name="bq"
+                       value="@Model.BorrowingQuery"
+                       placeholder="Search borrowing..."
+                       class="search-input"
+                       id="search-borrowing-input" />
+                <input type="hidden" name="bs" value="@Model.BorrowingStatus" />
+                <input type="hidden" name="rq" value="@Model.ReservationQuery" />
+                <input type="hidden" name="rs" value="@Model.ReservationStatus" />
+                <input type="hidden" name="bp" value="1" />
+                <input type="hidden" name="rp" value="@Model.ReservationPage" />
+            </form>
+
+            <div class="action-controls">
+                <div class="filters" id="status-borrowing-filter">
+                    <button type="button"
+                            class="new-borrowing-btn"
+                            id="new-borrowing-btn"
+                            data-bs-toggle="modal"
+                            data-bs-target="#addNewBorrowingModal">
+                        <i class="bi bi-plus-circle-fill"></i>
+                        <span>New Borrowing</span>
+                    </button>
+
+                    <form method="get" class="d-inline-flex gap-2 align-items-center">
+                        <input type="hidden" name="bq" value="@Model.BorrowingQuery" />
+                        <input type="hidden" name="rq" value="@Model.ReservationQuery" />
+                        <input type="hidden" name="rs" value="@Model.ReservationStatus" />
+                        <input type="hidden" name="bp" value="1" />
+                        <input type="hidden" name="rp" value="@Model.ReservationPage" />
+                        <select class="filter-btn form-select" name="bs" onchange="this.form.submit()">
+                            @if (string.IsNullOrWhiteSpace(Model.BorrowingStatus))
+                            {
+                                <option value="" selected>All statuses</option>
+                            }
+                            else
+                            {
+                                <option value="">All statuses</option>
+                            }
+
+                            @if (Model.BorrowingStatus == "active")
+                            {
+                                <option value="active" selected>Active</option>
+                            }
+                            else
+                            {
+                                <option value="active">Active</option>
+                            }
+
+                            @if (Model.BorrowingStatus == "overdue")
+                            {
+                                <option value="overdue" selected>Overdue</option>
+                            }
+                            else
+                            {
+                                <option value="overdue">Overdue</option>
+                            }
+
+                            @if (Model.BorrowingStatus == "returned")
+                            {
+                                <option value="returned" selected>Returned</option>
+                            }
+                            else
+                            {
+                                <option value="returned">Returned</option>
+                            }
+
+                            @if (Model.BorrowingStatus == "rejected")
+                            {
+                                <option value="rejected" selected>Rejected</option>
+                            }
+                            else
+                            {
+                                <option value="rejected">Rejected</option>
+                            }
+                        </select>
+                    </form>
+
+                    <a id="clearBorrowingFilterBtn" class="clear-filter-btn" href="@Url.Action("Index", "ManageBorrowingBook")">
+                        <i class="bi bi-eraser"></i>
+                        <span>Clear Filter</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <div class="table-responsive">
+                <table class="table borrowing-book-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">#</th>
+                            <th scope="col">Username</th>
+                            <th scope="col">Book Title</th>
+                            <th scope="col">Borrow Date</th>
+                            <th scope="col">Due Date</th>
+                            <th scope="col">Duration</th>
+                            <th scope="col">Return Date</th>
+                            <th scope="col">Fine</th>
+                            <th scope="col">Paid</th>
+                            <th scope="col">Paid Date</th>
+                            <th scope="col">Created By</th>
+                            <th scope="col">Created Date</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Borrowings.Any())
+                        {
+                            var rowNo = borrowingRowStart - 1;
+                            foreach (var borrowing in Model.Borrowings)
+                            {
+                                rowNo++;
+                                var statusLabel = borrowing.Status switch
+                                {
+                                    "active" => "Active",
+                                    "overdue" => "Overdue",
+                                    "returned" => "Returned",
+                                    "rejected" => "Rejected",
+                                    _ => "Active"
+                                };
+                                var statusClass = borrowing.Status switch
+                                {
+                                    "active" => "status-active",
+                                    "overdue" => "status-overdue",
+                                    "returned" => "status-returned",
+                                    _ => "status-rejected"
+                                };
+
+                                <tr data-borrowing-id="@borrowing.Id"
+                                    data-username="@borrowing.Username"
+                                    data-book-code="@borrowing.BookCode"
+                                    data-book-title="@borrowing.BookTitle"
+                                    data-borrow-date="@borrowing.BorrowDate.ToString("yyyy-MM-dd")">
+                                    <th scope="row">@rowNo</th>
+                                    <td>@borrowing.Username</td>
+                                    <td>@borrowing.BookTitle</td>
+                                    <td>@borrowing.BorrowDate.ToString("yyyy-MM-dd")</td>
+                                    <td>@borrowing.DueDate.ToString("yyyy-MM-dd")</td>
+                                    <td>@borrowing.DurationDays day(s)</td>
+                                    <td>@(borrowing.ReturnDate?.ToString("yyyy-MM-dd") ?? "-")</td>
+                                    <td>
+                                        @(borrowing.FineAmount > 0
+                                            ? $"${borrowing.FineAmount.ToString("0.00", CultureInfo.InvariantCulture)}"
+                                            : "-")
+                                    </td>
+                                    <td>
+                                        @if (borrowing.FineAmount <= 0)
+                                        {
+                                            <span>-</span>
+                                        }
+                                        else
+                                        {
+                                            <span>@(borrowing.IsFinePaid ? "Yes" : "No")</span>
+                                        }
+                                    </td>
+                                    <td>@(borrowing.FinePaidDate?.ToString("yyyy-MM-dd") ?? "-")</td>
+                                    <td>@borrowing.CreatedBy</td>
+                                    <td>@borrowing.CreatedDate.ToString("yyyy-MM-dd")</td>
+                                    <td><span class="table-status @statusClass">@statusLabel</span></td>
+                                    <td>
+                                        <div class="action-container">
+                                            <button class="process-borrowing-btn"
+                                                    type="button"
+                                                    data-borrowing-id="@borrowing.Id"
+                                                    aria-label="Process return"
+                                                    @((borrowing.Status == "returned" || borrowing.Status == "rejected") ? "disabled" : null)>
+                                                <i class="bi bi-arrow-counterclockwise"></i>
+                                            </button>
+                                            <button class="mark-fine-paid-btn"
+                                                    type="button"
+                                                    data-borrowing-id="@borrowing.Id"
+                                                    data-fine-amount="@borrowing.FineAmount.ToString("0.00", CultureInfo.InvariantCulture)"
+                                                    aria-label="Mark fine as paid"
+                                                    @((borrowing.Status != "returned" || borrowing.FineAmount <= 0 || borrowing.IsFinePaid) ? "disabled" : null)>
+                                                <i class="bi bi-cash-coin"></i>
+                                            </button>
+                                            <button class="edit-borrowing-btn"
+                                                    type="button"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#updateBorrowingModal"
+                                                    aria-label="Edit borrowing"
+                                                    @((borrowing.Status == "returned" || borrowing.Status == "rejected") ? "disabled" : null)>
+                                                <i class="bi bi-pencil-square"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="14" class="text-center text-muted py-4">No borrowing records found.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @if (Model.BorrowingTotalPages > 1)
+            {
+                <div class="pagination-wrapper">
+                    <nav aria-label="Borrowing page navigation">
+                        <ul class="pagination justify-content-end">
+                            <li class="page-item @(Model.BorrowingPage <= 1 ? "disabled" : null)">
+                                <a class="page-link"
+                                   href="@Url.Action("Index", "ManageBorrowingBook", BuildIndexRouteValues(Model.BorrowingPage - 1, Model.ReservationPage))">Previous</a>
+                            </li>
+                            @for (var pageNumber = 1; pageNumber <= Model.BorrowingTotalPages; pageNumber++)
+                            {
+                                <li class="page-item @(pageNumber == Model.BorrowingPage ? "active" : null)">
+                                    <a class="page-link"
+                                       href="@Url.Action("Index", "ManageBorrowingBook", BuildIndexRouteValues(pageNumber, Model.ReservationPage))">@pageNumber</a>
+                                </li>
+                            }
+                            <li class="page-item @(Model.BorrowingPage >= Model.BorrowingTotalPages ? "disabled" : null)">
+                                <a class="page-link"
+                                   href="@Url.Action("Index", "ManageBorrowingBook", BuildIndexRouteValues(Model.BorrowingPage + 1, Model.ReservationPage))">Next</a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            }
+        </div>
+    </section>
+
+    <section class="module-section">
+        <div class="section-header">
+            <h2 class="section-title">Reservations</h2>
+            <p class="page-subtitle">Manage and view all book reservations.</p>
+        </div>
+
+        <div class="controls-section">
+            <form method="get" class="search-form" id="reservation-search">
+                <i class="bi bi-search search-icon" id="search-reservation-icon"></i>
+                <input type="text"
+                       name="rq"
+                       value="@Model.ReservationQuery"
+                       placeholder="Search reservation..."
+                       class="search-input"
+                       id="search-reservation-input" />
+                <input type="hidden" name="bq" value="@Model.BorrowingQuery" />
+                <input type="hidden" name="bs" value="@Model.BorrowingStatus" />
+                <input type="hidden" name="rs" value="@Model.ReservationStatus" />
+                <input type="hidden" name="bp" value="@Model.BorrowingPage" />
+                <input type="hidden" name="rp" value="1" />
+            </form>
+
+            <div class="action-controls">
+                <div class="filters" id="status-reservation-filter">
+                    <form method="get" class="d-inline-flex gap-2 align-items-center">
+                        <input type="hidden" name="bq" value="@Model.BorrowingQuery" />
+                        <input type="hidden" name="bs" value="@Model.BorrowingStatus" />
+                        <input type="hidden" name="rq" value="@Model.ReservationQuery" />
+                        <input type="hidden" name="bp" value="@Model.BorrowingPage" />
+                        <input type="hidden" name="rp" value="1" />
+                        <select class="filter-btn form-select" name="rs" onchange="this.form.submit()">
+                            @if (string.IsNullOrWhiteSpace(Model.ReservationStatus))
+                            {
+                                <option value="" selected>All statuses</option>
+                            }
+                            else
+                            {
+                                <option value="">All statuses</option>
+                            }
+
+                            @if (Model.ReservationStatus == "pending")
+                            {
+                                <option value="pending" selected>Pending</option>
+                            }
+                            else
+                            {
+                                <option value="pending">Pending</option>
+                            }
+
+                            @if (Model.ReservationStatus == "approved")
+                            {
+                                <option value="approved" selected>Approved</option>
+                            }
+                            else
+                            {
+                                <option value="approved">Approved</option>
+                            }
+
+                            @if (Model.ReservationStatus == "rejected")
+                            {
+                                <option value="rejected" selected>Rejected</option>
+                            }
+                            else
+                            {
+                                <option value="rejected">Rejected</option>
+                            }
+                        </select>
+                    </form>
+                    <a id="clearReservationFilterBtn" class="clear-filter-btn" href="@Url.Action("Index", "ManageBorrowingBook")">
+                        <i class="bi bi-eraser"></i>
+                        <span>Clear Filter</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <div class="table-responsive">
+                <table class="table reservation-book-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">#</th>
+                            <th scope="col">Username</th>
+                            <th scope="col">Book Title</th>
+                            <th scope="col">Reservation Date</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Reservations.Any())
+                        {
+                            var rowNo = reservationRowStart - 1;
+                            foreach (var reservation in Model.Reservations)
+                            {
+                                rowNo++;
+                                var statusLabel = reservation.Status switch
+                                {
+                                    "approved" => "Approved",
+                                    "rejected" => "Rejected",
+                                    _ => "Pending"
+                                };
+                                var statusClass = reservation.Status switch
+                                {
+                                    "approved" => "reservation-approved",
+                                    "rejected" => "reservation-rejected",
+                                    _ => "reservation-pending"
+                                };
+                                <tr data-reservation-id="@reservation.Id"
+                                    data-username="@reservation.Username"
+                                    data-book-code="@reservation.BookCode"
+                                    data-book-title="@reservation.BookTitle"
+                                    data-reservation-date="@reservation.ReservationDate.ToString("yyyy-MM-dd")">
+                                    <th scope="row">@rowNo</th>
+                                    <td>@reservation.Username</td>
+                                    <td>@reservation.BookTitle</td>
+                                    <td>@reservation.ReservationDate.ToString("yyyy-MM-dd")</td>
+                                    <td><span class="reservation-table-status @statusClass">@statusLabel</span></td>
+                                    <td>
+                                        <div class="action-container">
+                                            <button class="edit-reservation-btn"
+                                                    type="button"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#updateReservationModal"
+                                                    aria-label="Edit reservation">
+                                                <i class="bi bi-pencil-square"></i>
+                                            </button>
+                                            <button class="approve-reservation-btn"
+                                                    type="button"
+                                                    data-reservation-id="@reservation.Id"
+                                                    aria-label="Approve reservation"
+                                                    @(reservation.Status == "approved" ? "disabled" : null)>
+                                                <i class="bi bi-check-lg"></i>
+                                            </button>
+                                            <button class="reject-reservation-btn"
+                                                    type="button"
+                                                    data-reservation-id="@reservation.Id"
+                                                    aria-label="Reject reservation"
+                                                    @(reservation.Status == "rejected" ? "disabled" : null)>
+                                                <i class="bi bi-x-lg"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">No reservation requests found.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @if (Model.ReservationTotalPages > 1)
+            {
+                <div class="pagination-wrapper">
+                    <nav aria-label="Reservation page navigation">
+                        <ul class="pagination justify-content-end">
+                            <li class="page-item @(Model.ReservationPage <= 1 ? "disabled" : null)">
+                                <a class="page-link"
+                                   href="@Url.Action("Index", "ManageBorrowingBook", BuildIndexRouteValues(Model.BorrowingPage, Model.ReservationPage - 1))">Previous</a>
+                            </li>
+                            @for (var pageNumber = 1; pageNumber <= Model.ReservationTotalPages; pageNumber++)
+                            {
+                                <li class="page-item @(pageNumber == Model.ReservationPage ? "active" : null)">
+                                    <a class="page-link"
+                                       href="@Url.Action("Index", "ManageBorrowingBook", BuildIndexRouteValues(Model.BorrowingPage, pageNumber))">@pageNumber</a>
+                                </li>
+                            }
+                            <li class="page-item @(Model.ReservationPage >= Model.ReservationTotalPages ? "disabled" : null)">
+                                <a class="page-link"
+                                   href="@Url.Action("Index", "ManageBorrowingBook", BuildIndexRouteValues(Model.BorrowingPage, Model.ReservationPage + 1))">Next</a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            }
+        </div>
+    </section>
+
+    <div class="modal fade" id="addNewBorrowingModal" tabindex="-1" aria-labelledby="addNewBorrowingModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addNewBorrowingModalLabel">Add New Borrowing</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addNewBorrowingForm">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="usernameSelect">Username <span class="text-danger">*</span></label>
+                                <div class="custom-select-wrapper">
+                                    <select class="form-select" id="usernameSelect" required>
+                                        <option value="">Select user</option>
+                                        @foreach (var user in Model.UserOptions)
+                                        {
+                                            <option value="@user.Username">@user.DisplayName</option>
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="bookCodeSelect">Book Code <span class="text-danger">*</span></label>
+                                <div class="custom-select-wrapper">
+                                    <select class="form-select" id="bookCodeSelect" required>
+                                        <option value="">Select code</option>
+                                        @foreach (var book in Model.BookOptions)
+                                        {
+                                            <option value="@book.BookCode" data-title="@book.Title" data-qty="@book.Quantity">
+                                                @book.BookCode (@book.Quantity left)
+                                            </option>
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="bookTitleInput">Book Title</label>
+                                <input type="text" class="form-control" id="bookTitleInput" readonly />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="borrowingDateInput">Borrowing Date</label>
+                                <input type="date" class="form-control" id="borrowingDateInput" />
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" id="confirmBorrowing">Confirm Borrowing</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="updateBorrowingModal" tabindex="-1" aria-labelledby="updateBorrowingModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="updateBorrowingModalLabel">Update Borrowing</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="updateBorrowingForm">
+                        <input type="hidden" id="editBorrowingIdInput" />
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="edit-borrowing-usernameInput">Username <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="edit-borrowing-usernameInput" required />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="edit-borrowing-bookCodeSelect">Book Code <span class="text-danger">*</span></label>
+                                <div class="custom-select-wrapper">
+                                    <select class="form-select" id="edit-borrowing-bookCodeSelect" required>
+                                        <option value="">Select code</option>
+                                        @foreach (var book in Model.BookOptions)
+                                        {
+                                            <option value="@book.BookCode" data-title="@book.Title" data-qty="@book.Quantity">
+                                                @book.BookCode (@book.Quantity left)
+                                            </option>
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="edit-borrowing-bookTitleInput">Book Title</label>
+                                <input type="text" class="form-control" id="edit-borrowing-bookTitleInput" readonly />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="edit-borrowing-borrowingDateInput">Borrowing Date</label>
+                                <input type="date" class="form-control" id="edit-borrowing-borrowingDateInput" />
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" id="updateBorrowing">Update Borrowing</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="updateReservationModal" tabindex="-1" aria-labelledby="updateReservationModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="updateReservationModalLabel">Update Reservation</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="updateReservationForm">
+                        <input type="hidden" id="editReservationIdInput" />
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="edit-reservation-usernameInput">Username</label>
+                                <input type="text" class="form-control" id="edit-reservation-usernameInput" readonly />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="edit-reservation-bookCodeSelect">Book Code <span class="text-danger">*</span></label>
+                                <div class="custom-select-wrapper">
+                                    <select class="form-select" id="edit-reservation-bookCodeSelect" required>
+                                        <option value="">Select code</option>
+                                        @foreach (var book in Model.BookOptions)
+                                        {
+                                            <option value="@book.BookCode" data-title="@book.Title" data-qty="@book.Quantity">
+                                                @book.BookCode (@book.Quantity left)
+                                            </option>
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="edit-reservation-bookTitleInput">Book Title</label>
+                                <input type="text" class="form-control" id="edit-reservation-bookTitleInput" readonly />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="edit-reservation-reservationDateInput">Reservation Date</label>
+                                <input type="date" class="form-control" id="edit-reservation-reservationDateInput" />
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" id="updateReservation">Update Reservation</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/admin/ManageBorrowing.js" asp-append-version="true"></script>
+}

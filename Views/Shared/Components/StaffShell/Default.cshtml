@@ -1,0 +1,217 @@
+@model Library_Management_system.ViewComponents.StaffShellModel
+@*
+    Topbar actions for the staff shell: notifications, contact messages, account menu.
+
+    The element ids and class names here are a contract with wwwroot/js/admin/sidebar.js —
+    #topbarActions and its data-* counts, #notificationBadge, #notificationMenu,
+    #markAllNotificationsReadBtn, a.action-item, #contactMenu, #contactBadge,
+    #contactMenuUnreadText, #markAllContactsReadBtn, .contact-item[data-contact-id],
+    .mark-contact-read-btn, .contact-item-actions, .contact-read-label, and #logoutForm.
+    Rename any of them and the badges stop updating. Bootstrap's dropdown JS and its .d-none
+    utility are also required, which is why the shell still loads Bootstrap.
+*@
+@functions {
+    static string TruncateText(string? text, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+
+        var value = text.Trim();
+        return value.Length <= maxLength ? value : $"{value[..maxLength]}...";
+    }
+
+    static string FormatRelativeTime(DateTime utcDateTime)
+    {
+        var elapsed = DateTime.UtcNow - utcDateTime;
+        if (elapsed.TotalMinutes < 1) return "Just now";
+        if (elapsed.TotalHours < 1) return $"{(int)elapsed.TotalMinutes}m ago";
+        if (elapsed.TotalDays < 1) return $"{(int)elapsed.TotalHours}h ago";
+        if (elapsed.TotalDays < 7) return $"{(int)elapsed.TotalDays}d ago";
+        return utcDateTime.ToLocalTime().ToString("yyyy-MM-dd");
+    }
+}
+
+<div class="topbar-actions"
+     id="topbarActions"
+     data-base-notification-count="@Model.BaseNotificationCount"
+     data-server-base-notification-count="@Model.BaseNotificationCount">
+
+    <div class="dropdown action-dropdown" id="notificationDropdown">
+        <button class="action-icon-btn dropdown-toggle" type="button"
+                data-bs-toggle="dropdown" data-bs-auto-close="outside"
+                aria-expanded="false" title="Notifications" aria-label="Notifications">
+            <i class="bi bi-bell" aria-hidden="true"></i>
+            <span class="action-badge @(Model.NotificationCount > 0 ? "" : "d-none")"
+                  id="notificationBadge">@Model.NotificationCount</span>
+        </button>
+        <div class="dropdown-menu dropdown-menu-end action-menu notification-menu" id="notificationMenu">
+            <div class="action-menu-header">
+                <span>Notifications</span>
+                <div class="notification-header-right">
+                    <small id="notificationMenuUnreadText">@Model.BaseNotificationCount unread</small>
+                    <button type="button"
+                            class="mark-all-notification-read-btn @(Model.BaseNotificationCount > 0 ? "" : "d-none")"
+                            id="markAllNotificationsReadBtn">Mark all</button>
+                </div>
+            </div>
+
+            @if (Model.NotificationCount == 0)
+            {
+                <div class="action-menu-empty">No new notifications.</div>
+            }
+            else
+            {
+                <a class="dropdown-item action-item" asp-controller="ManageUser" asp-action="Index" asp-route-sort="id_desc">
+                    <span class="action-item-left">
+                        <span class="action-item-icon"><i class="bi bi-person-plus" aria-hidden="true"></i></span>
+                        <span class="action-item-stack">
+                            <span class="action-item-title">New students</span>
+                            <span class="action-item-sub">Registered in the last 7 days</span>
+                        </span>
+                    </span>
+                    <span class="action-item-meta">@Model.NewUsersCount new</span>
+                </a>
+                <a class="dropdown-item action-item" asp-controller="ManageBooks" asp-action="Index">
+                    <span class="action-item-left">
+                        <span class="action-item-icon"><i class="bi bi-book-half" aria-hidden="true"></i></span>
+                        <span class="action-item-stack">
+                            <span class="action-item-title">New books</span>
+                            <span class="action-item-sub">Added in the last 7 days</span>
+                        </span>
+                    </span>
+                    <span class="action-item-meta">@Model.NewBooksCount new</span>
+                </a>
+                <a class="dropdown-item action-item" asp-controller="ManageBorrowingBook" asp-action="Index" asp-route-rs="pending">
+                    <span class="action-item-left">
+                        <span class="action-item-icon"><i class="bi bi-hourglass-split" aria-hidden="true"></i></span>
+                        <span class="action-item-stack">
+                            <span class="action-item-title">Pending requests</span>
+                            <span class="action-item-sub">Reservations awaiting approval</span>
+                        </span>
+                    </span>
+                    <span class="action-item-meta">@Model.PendingReservationsCount pending</span>
+                </a>
+                <a class="dropdown-item action-item" asp-controller="ManageFeedback" asp-action="Index">
+                    <span class="action-item-left">
+                        <span class="action-item-icon"><i class="bi bi-envelope-open" aria-hidden="true"></i></span>
+                        <span class="action-item-stack">
+                            <span class="action-item-title">Contact messages</span>
+                            <span class="action-item-sub">Unread inbox messages</span>
+                        </span>
+                    </span>
+                    <span class="action-item-meta">@Model.UnreadContactCount unread</span>
+                </a>
+            }
+        </div>
+    </div>
+
+    <div class="dropdown action-dropdown">
+        <button class="action-icon-btn dropdown-toggle" type="button"
+                data-bs-toggle="dropdown" data-bs-auto-close="outside"
+                aria-expanded="false" title="Contact messages" aria-label="Contact messages">
+            <i class="bi bi-envelope" aria-hidden="true"></i>
+            <span class="action-badge @(Model.UnreadContactCount > 0 ? "" : "d-none")"
+                  id="contactBadge">@Model.UnreadContactCount</span>
+        </button>
+        <div class="dropdown-menu dropdown-menu-end action-menu contact-menu" id="contactMenu">
+            <div class="action-menu-header">
+                <span>Contact messages</span>
+                <div class="contact-header-right">
+                    <small id="contactMenuUnreadText">@Model.UnreadContactCount unread</small>
+                    <button type="button"
+                            class="mark-all-contact-read-btn @(Model.UnreadContactCount > 0 ? "" : "d-none")"
+                            id="markAllContactsReadBtn">Mark all</button>
+                </div>
+            </div>
+
+            @if (Model.RecentContacts.Count == 0)
+            {
+                <div class="action-menu-empty">No contact messages yet.</div>
+            }
+            else
+            {
+                @foreach (var message in Model.RecentContacts)
+                {
+                    <div class="contact-item @(message.IsRead ? "is-read" : "is-unread")"
+                         data-contact-id="@message.Id">
+                        <div class="contact-item-top">
+                            <span class="contact-email">
+                                <span class="contact-unread-dot"></span>
+                                @message.Email
+                            </span>
+                            <span class="contact-time">@FormatRelativeTime(message.CreatedDate)</span>
+                        </div>
+                        <div class="contact-message">@TruncateText(message.Message, 80)</div>
+                        <div class="contact-item-actions">
+                            @if (!message.IsRead)
+                            {
+                                <button type="button" class="mark-contact-read-btn"
+                                        data-contact-id="@message.Id">Mark as read</button>
+                            }
+                            else
+                            {
+                                <span class="contact-read-label">Read</span>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+
+            <div class="action-menu-footer">
+                <a asp-controller="ManageFeedback" asp-action="Index">Open feedback page</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="dropdown">
+        <button class="user-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <span class="avatar">
+                @if (!string.IsNullOrWhiteSpace(Model.ProfileImageUrl))
+                {
+                    <img src="@Model.ProfileImageUrl" alt="" class="avatar-img" />
+                }
+                else
+                {
+                    @Model.Initials
+                }
+            </span>
+            <span class="user-meta">
+                <span class="user-name">@Model.DisplayName</span>
+                <span class="user-role">@Model.RoleText</span>
+            </span>
+        </button>
+
+        <ul class="dropdown-menu dropdown-menu-end">
+            <li class="user-menu-head">
+                <div class="user-menu-name">@Model.DisplayName</div>
+                <div class="user-menu-role">@Model.RoleText</div>
+            </li>
+            <li><hr class="dropdown-divider" /></li>
+            <li>
+                <a class="dropdown-item" asp-controller="AdminAccount" asp-action="Profile">
+                    <i class="bi bi-person" aria-hidden="true"></i> Profile
+                </a>
+            </li>
+            <li>
+                <a class="dropdown-item" asp-controller="AdminAccount" asp-action="ChangePassword">
+                    <i class="bi bi-key" aria-hidden="true"></i> Change password
+                </a>
+            </li>
+            <li>
+                <a class="dropdown-item" href="/">
+                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> View public site
+                </a>
+            </li>
+            <li><hr class="dropdown-divider" /></li>
+            <li class="user-menu-foot">
+                <form asp-area="Identity" asp-page="/Account/Logout" method="post" id="logoutForm">
+                    <button type="submit" class="sma-btn sma-btn--danger sma-btn--block">
+                        <i class="bi bi-box-arrow-right" aria-hidden="true"></i> Log out
+                    </button>
+                </form>
+            </li>
+        </ul>
+    </div>
+</div>

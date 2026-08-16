@@ -1,0 +1,497 @@
+@using System.Linq
+@model IEnumerable<Library_Management_system.Models.Book>
+@{
+    ViewBag.Title = "Manage Books";
+    ViewBag.SmaSubtitle = "Manage titles, copies and availability.";
+
+    int totalBooks = ViewBag.TotalBooks ?? 0;
+    int borrowedBooks = ViewBag.BorrowedBooks ?? 0;
+    int availableCopies = ViewBag.AvailableCopies ?? 0;
+    int unavailableBooks = ViewBag.UnavailableBooks ?? 0;
+    var bookCategories = ViewBag.BookCategories as IEnumerable<string> ?? Enumerable.Empty<string>();
+    var bookAuthors = ViewBag.BookAuthors as IEnumerable<Library_Management_system.Models.Author> ??
+Enumerable.Empty<Library_Management_system.Models.Author>();
+    var selectedStatus = (Context.Request.Query["status"].ToString() ?? string.Empty).Trim().ToLowerInvariant();
+}
+
+
+<div class="dashboard-page container-fluid" id="manageBooksPage">
+    <section class="card-container" aria-label="Book statistics">
+        <article class="stat-card">
+            <div class="icon-box"><i class="bi bi-book"></i></div>
+            <div class="card-content">
+                <span class="card-label">Total Books</span>
+                <span class="card-value">@totalBooks</span>
+            </div>
+        </article>
+
+        <article class="stat-card">
+            <div class="icon-box"><i class="bi bi-journal-bookmark"></i></div>
+            <div class="card-content">
+                <span class="card-label">Borrowed Books</span>
+                <span class="card-value">@borrowedBooks</span>
+            </div>
+        </article>
+
+        <article class="stat-card">
+            <div class="icon-box"><i class="bi bi-stack"></i></div>
+            <div class="card-content">
+                <span class="card-label">Available Copies</span>
+                <span class="card-value">@availableCopies</span>
+            </div>
+        </article>
+
+        <article class="stat-card">
+            <div class="icon-box"><i class="bi bi-exclamation-circle"></i></div>
+            <div class="card-content">
+                <span class="card-label">Unavailable</span>
+                <span class="card-value">@unavailableBooks</span>
+            </div>
+        </article>
+    </section>
+
+    <section class="controls-section">
+        <form class="search-form" method="get">
+            <i class="bi bi-search search-icon"></i>
+            <input type="text" name="q" class="search-input" placeholder="Search by title, author, ISBN..."
+                   value="@Context.Request.Query["q"]" autocomplete="off" />
+        </form>
+        <div class="action-controls">
+            <button type="button" class="add-btn" data-bs-toggle="modal" data-bs-target="#addBookModal">
+                <i class="bi bi-plus-lg"></i>
+                Add Book
+            </button>
+
+            <button type="button" class="filter-btn" data-bs-toggle="modal" data-bs-target="#filterBookModal">
+                <i class="bi bi-funnel"></i>
+                Filter
+            </button>
+            <a id="clearFilterBtn" class="clear-filter-btn" href="@Url.Action("Index", "ManageBooks")">
+                <i class="bi bi-eraser"></i>
+                <span>Clear Filter</span>
+            </a>
+        </div>
+    </section>
+
+    <section class="table-container">
+        <table class="table book-table align-middle">
+            <thead>
+                <tr>
+                    <th style="width:90px;">Cover</th>
+                    <th>Title</th>
+                    <th style="width:180px;">Author</th>
+                    <th style="width:140px;">ISBN</th>
+                    <th style="width:110px;">Qty</th>
+                    <th style="width:150px;">Status</th>
+                    <th style="width:160px;">Created By</th>
+                    <th style="width:180px;">Created Date</th>
+                    <th style="width:160px; text-align:center;">Actions</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                @if (Model != null && Model.Any())
+                {
+                    @foreach (var book in Model)
+                    {
+                        var imagePath = string.IsNullOrWhiteSpace(book.ImageUrl)
+                            ? Url.Content("~/images/User/Book/book2.png")
+                            : Url.Content(book.ImageUrl);
+                        var statusValue = string.IsNullOrWhiteSpace(book.Status)
+                            ? "available"
+                            : book.Status.Trim().ToLowerInvariant();
+                        var statusLabel = System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(statusValue);
+                        var isbnText = string.IsNullOrWhiteSpace(book.Isbn) ? "-" : book.Isbn;
+
+                        <tr data-book-id="@book.Id" data-book-code="@book.BookCode" data-author-id="@book.AuthorId"
+                            data-category-name="@book.CategoryName" data-isbn="@book.Isbn" data-quantity="@book.Quantity"
+                            data-pages="@book.Pages" data-year="@book.Year" data-status="@statusValue"
+                            data-rating="@book.Rating" data-description="@book.Description">
+                            <td>
+                                <img class="book-cover" src="@imagePath" alt="Book cover" />
+                            </td>
+                            <td>
+                                <div style="font-weight:800;">@book.Title</div>
+                                <div style="color:#64748b; font-size:12px;">Category: @book.CategoryName</div>
+                            </td>
+                            <td>@book.AuthorId</td>
+                            <td>@isbnText</td>
+                            <td>@book.Quantity</td>
+                            <td>
+                                <span class="table-status">@statusLabel</span>
+                            </td>
+                            <td>@(string.IsNullOrWhiteSpace(book.CreatedBy) ? "-" : book.CreatedBy)</td>
+                            <td>@(book.CreatedDate?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "-")</td>
+                            <td>
+                                <div class="action-container">
+                                    <button class="edit-book-btn" type="button" data-bs-toggle="modal"
+                                            data-bs-target="#editBookModal">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+
+                                    <button class="delete-book-btn" type="button" data-book-id="@book.Id">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">No books found.</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <div class="pagination-wrapper">
+            <nav aria-label="Book pagination">
+                <ul class="pagination justify-content-end">
+                    <li class="page-item disabled"><a class="page-link" href="#">Prev</a></li>
+                    <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                    <li class="page-item disabled"><a class="page-link" href="#">Next</a></li>
+                </ul>
+            </nav>
+        </div>
+    </section>
+
+    <div class="modal fade" id="filterBookModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Filter Books</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <form method="get" id="filterForm" class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Status</label>
+                            <div class="custom-select-wrapper">
+                                <select class="form-select" name="status">
+                                    <option value="">All</option>
+                                    @if (selectedStatus == "available")
+                                    {
+                                        <option value="available" selected>Available</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="available">Available</option>
+                                    }
+                                    @if (selectedStatus == "unavailable")
+                                    {
+                                        <option value="unavailable" selected>Unavailable</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="unavailable">Unavailable</option>
+                                    }
+                                    @if (selectedStatus == "borrowed")
+                                    {
+                                        <option value="borrowed" selected>Borrowed</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="borrowed">Borrowed</option>
+                                    }
+                                    @if (selectedStatus == "reserved")
+                                    {
+                                        <option value="reserved" selected>Reserved</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="reserved">Reserved</option>
+                                    }
+                                    @if (selectedStatus == "maintenance")
+                                    {
+                                        <option value="maintenance" selected>Maintenance</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="maintenance">Maintenance</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label">Keyword</label>
+                            <input class="form-control" type="text" name="q" placeholder="Title / Author / ISBN"
+                                   value="@Context.Request.Query["q"]" />
+                        </div>
+                    </form>
+                </div>
+
+                <div class="modal-footer">
+                    <a class="btn btn-outline-secondary" href="@Url.Action("Index", "ManageBooks")">Reset</a>
+                    <button type="submit" form="filterForm" class="btn btn-success">Apply</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="addBookModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Book</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <form id="bookForm">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Book Code <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="bookCodeInput" placeholder="eg. 1010"
+                                       required />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Book Title <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="bookTitleInput" placeholder="eg. Me"
+                                       required />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Category <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <select class="form-select" id="categorySelect" required>
+                                        <option value="">Select category</option>
+                                        @foreach (var category in bookCategories)
+                                        {
+                                            <option value="@category">@category</option>
+                                        }
+                                        <option value="__new__">+ Add New Category</option>
+                                    </select>
+                                    <button type="button" class="btn btn-outline-primary"
+                                            id="showAddCategoryBtn">Add</button>
+                                </div>
+                                <div class="input-group mt-2 d-none" id="newCategoryGroup">
+                                    <input type="text" class="form-control" id="newCategoryInput"
+                                           placeholder="New category name" />
+                                    <button type="button" class="btn btn-primary"
+                                            id="addCategoryOptionBtn">Save</button>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Quantity <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="quantityInput" placeholder="eg. 10"
+                                       min="0" required />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">ISBN</label>
+                                <input type="text" class="form-control" id="isbnInput"
+                                       placeholder="eg. 978-3-16-148410-0" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Author <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <select class="form-select" id="authorSelect" required>
+                                        <option value="">Select author</option>
+                                        @foreach (var author in bookAuthors)
+                                        {
+                                            <option value="@author.AuthorID">@author.AuthorName</option>
+                                        }
+                                        <option value="__new__">+ Add New Author</option>
+                                    </select>
+                                    <button type="button" class="btn btn-outline-primary"
+                                            id="showAddAuthorBtn">Add</button>
+                                </div>
+                                <div class="input-group mt-2 d-none" id="newAuthorGroup">
+                                    <input type="text" class="form-control" id="newAuthorInput"
+                                           placeholder="New author name" />
+                                    <button type="button" class="btn btn-primary" id="addAuthorOptionBtn">Save</button>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Pages <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="pagesInput" placeholder="eg. 250" min="1"
+                                       required />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Year <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="yearInput" placeholder="eg. 2024"
+                                       min="1000" max="9999" required />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Status <span class="text-danger">*</span></label>
+                                <div class="custom-select-wrapper">
+                                    <select class="form-select" id="statusSelect" required>
+                                        <option value="">Select Status</option>
+                                        <option value="available">Available</option>
+                                        <option value="unavailable">Unavailable</option>
+                                        <option value="borrowed">Borrowed</option>
+                                        <option value="reserved">Reserved</option>
+                                        <option value="maintenance">Maintenance</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Rating</label>
+                                <div class="custom-select-wrapper">
+                                    <select class="form-select" id="ratingSelect">
+                                        <option value="5">5</option>
+                                        <option value="4">4</option>
+                                        <option value="3">3</option>
+                                        <option value="2">2</option>
+                                        <option value="1">1</option>
+                                        <option value="0">0</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="col-md-12">
+                                <label class="form-label">Book Image</label>
+                                <input type="file" class="form-control" id="bookImageInput" accept="image/*" />
+                            </div>
+
+                            <div class="col-md-12">
+                                <label class="form-label">Description</label>
+                                <textarea class="form-control" id="descriptionTextarea" rows="3"></textarea>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-success" id="addBookBtn">Add Book</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="editBookModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Book</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <form id="editBookForm">
+                        <input type="hidden" id="editBookIdInput" />
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Book Code <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="edit-bookCodeInput" placeholder="eg. 1010"
+                                       required />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Book Title <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="edit-bookTitleInput" required />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Category <span class="text-danger">*</span></label>
+                                <div class="custom-select-wrapper">
+                                    <select class="form-select" id="edit-categorySelect" required>
+                                        <option value="">Select category</option>
+                                        @foreach (var category in bookCategories)
+                                        {
+                                            <option value="@category">@category</option>
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Quantity <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="edit-quantityInput" min="0" required />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">ISBN</label>
+                                <input type="text" class="form-control" id="edit-isbnInput" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Author <span class="text-danger">*</span></label>
+                                <div class="custom-select-wrapper">
+                                    <select class="form-select" id="edit-authorSelect" required>
+                                        <option value="">Select author</option>
+                                        @foreach (var author in bookAuthors)
+                                        {
+                                            <option value="@author.AuthorID">@author.AuthorName</option>
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Pages <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="edit-pagesInput" min="1" required />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Year <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="edit-yearInput" min="1000" max="9999"
+                                       required />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Status <span class="text-danger">*</span></label>
+                                <div class="custom-select-wrapper">
+                                    <select class="form-select" id="edit-statusSelect" required>
+                                        <option value="">Select Status</option>
+                                        <option value="available">Available</option>
+                                        <option value="unavailable">Unavailable</option>
+                                        <option value="borrowed">Borrowed</option>
+                                        <option value="reserved">Reserved</option>
+                                        <option value="maintenance">Maintenance</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Rating</label>
+                                <div class="custom-select-wrapper">
+                                    <select class="form-select" id="edit-ratingSelect">
+                                        <option value="5">5</option>
+                                        <option value="4">4</option>
+                                        <option value="3">3</option>
+                                        <option value="2">2</option>
+                                        <option value="1">1</option>
+                                        <option value="0">0</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="col-md-12">
+                                <label class="form-label">Book Image</label>
+                                <input type="file" class="form-control" id="edit-bookImageInput" accept="image/*" />
+                            </div>
+
+                            <div class="col-md-12">
+                                <label class="form-label">Description</label>
+                                <textarea class="form-control" id="edit-descriptionTextarea" rows="3"></textarea>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-success" id="updateBookBtn">Update Book</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/admin/ManageBooks.js" asp-append-version="true"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+}

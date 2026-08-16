@@ -1,0 +1,408 @@
+/* ==========================================================================
+   SMA Library Management System — Design System
+   Specification sections 92, 111, 113.
+
+   One design language for every screen. Component classes are prefixed `sma-`
+   so they never collide with the inherited Bootstrap styling while the UI
+   refactor is in progress.
+
+   Accessibility (section 111): status is NEVER conveyed by colour alone —
+   every state carries a glyph and a text label.
+   ========================================================================== */
+
+/* Brand palette sampled directly from the official SMA Technology logo.
+   The hero orange clusters at rgb(248,128,40); the logo's black wordmark and
+   silver magnifier give the warm-charcoal neutral family.
+
+   Accessibility (section 111 / WCAG AA), measured not assumed:
+     #f07c20 on white ......... 2.76:1  -> identity/large surfaces only, dark text on it
+     #b85c0a with white text .. 4.59:1  -> PASSES, so this is the interactive primary
+     #a9500f on white ......... 5.47:1  -> PASSES, links and small text
+   The true brand orange is never used behind white text. */
+:root {
+    /* ---- Brand ------------------------------------------------------ */
+    --sma-orange-400: #f8a05a;
+    --sma-orange-500: #f07c20;   /* the logo orange - the identity colour */
+    --sma-orange-600: #d2691e;
+    --sma-orange-700: #b85c0a;   /* interactive primary, safe behind white text */
+    --sma-orange-800: #8f4209;
+    --sma-orange-050: #fff4ea;   /* tint for selected/hover surfaces */
+
+    /* Semantic aliases so components never hardcode a ramp step. */
+    --sma-brand: var(--sma-orange-500);
+    --sma-brand-strong: var(--sma-orange-700);
+    --sma-brand-deep: var(--sma-orange-800);
+    --sma-brand-tint: var(--sma-orange-050);
+
+    /* ---- Neutrals: warm charcoal, to sit with orange rather than fight it ---- */
+    --sma-ink: #1a1614;
+    --sma-ink-muted: #5c534e;
+    --sma-ink-subtle: #8a807a;
+    --sma-line: #e7e1dc;
+    --sma-line-strong: #cfc6bf;
+    --sma-surface: #ffffff;
+    --sma-surface-sunken: #faf7f4;
+    --sma-surface-raised: #ffffff;
+
+    /* Dark chrome for sidebars and the circulation desk. */
+    --sma-chrome-900: #1a1614;
+    --sma-chrome-800: #2b2320;
+    --sma-chrome-700: #3d332e;
+
+    /* ---- Status. Each pairs with a glyph, never used alone ---------- */
+    --sma-success: #1a7f4b;
+    --sma-success-bg: #e8f6ee;
+    --sma-warning: #9a6700;
+    --sma-warning-bg: #fdf5e3;
+    --sma-danger: #b42318;
+    --sma-danger-bg: #fdeceb;
+    --sma-info: #175cd3;
+    --sma-info-bg: #eaf1fd;
+
+    /* ---- Type scale ------------------------------------------------- */
+    --sma-font: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --sma-text-xs: 0.75rem;
+    --sma-text-sm: 0.875rem;
+    --sma-text-base: 1rem;
+    --sma-text-lg: 1.125rem;
+    --sma-text-xl: 1.375rem;
+    --sma-text-2xl: 1.75rem;
+    --sma-text-3xl: 2.25rem;
+    /* Circulation-desk readability — legible from several feet (section 46) */
+    --sma-text-desk: 2.75rem;
+
+    /* ---- Spacing, 4px base ------------------------------------------ */
+    --sma-space-1: 0.25rem;
+    --sma-space-2: 0.5rem;
+    --sma-space-3: 0.75rem;
+    --sma-space-4: 1rem;
+    --sma-space-5: 1.5rem;
+    --sma-space-6: 2rem;
+    --sma-space-7: 3rem;
+
+    /* ---- Radius & elevation ----------------------------------------- */
+    --sma-radius-sm: 6px;
+    --sma-radius: 10px;
+    --sma-radius-lg: 16px;
+    --sma-shadow-sm: 0 1px 2px rgba(26, 22, 20, .06), 0 1px 3px rgba(26, 22, 20, .08);
+    --sma-shadow: 0 4px 12px rgba(26, 22, 20, .08);
+    --sma-shadow-lg: 0 12px 32px rgba(26, 22, 20, .14);
+
+    --sma-focus: 0 0 0 3px rgba(184, 92, 10, .38);
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+
+.sma { font-family: var(--sma-font); color: var(--sma-ink); background: var(--sma-surface-sunken); }
+.sma *, .sma *::before, .sma *::after { box-sizing: border-box; }
+
+.sma h1, .sma h2, .sma h3, .sma h4 { margin: 0 0 var(--sma-space-3); line-height: 1.25; font-weight: 650; }
+.sma h1 { font-size: var(--sma-text-3xl); letter-spacing: -.02em; }
+.sma h2 { font-size: var(--sma-text-2xl); letter-spacing: -.01em; }
+.sma h3 { font-size: var(--sma-text-xl); }
+.sma h4 { font-size: var(--sma-text-lg); }
+.sma p  { margin: 0 0 var(--sma-space-4); line-height: 1.6; }
+
+.sma-muted   { color: var(--sma-ink-muted); }
+.sma-subtle  { color: var(--sma-ink-subtle); }
+.sma-small   { font-size: var(--sma-text-sm); }
+.sma-mono    { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
+
+/* Visible focus everywhere — keyboard navigation is a requirement (section 111) */
+.sma :focus-visible { outline: none; box-shadow: var(--sma-focus); border-radius: var(--sma-radius-sm); }
+
+/* Screen-reader-only text, for labels that must exist but not display */
+.sma-sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+
+/* ==========================================================================
+   Layout
+   ========================================================================== */
+
+.sma-shell { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+.sma-main  { padding: var(--sma-space-6); max-width: 1400px; width: 100%; }
+
+.sma-sidebar {
+    background: var(--sma-chrome-900);
+    color: #fff;
+    padding: var(--sma-space-5) var(--sma-space-4);
+}
+.sma-sidebar__brand {
+    display: flex; align-items: center; gap: var(--sma-space-3);
+    padding-bottom: var(--sma-space-5); margin-bottom: var(--sma-space-4);
+    border-bottom: 1px solid rgba(255,255,255,.12);
+}
+.sma-sidebar__brand-mark {
+    width: 38px; height: 38px; border-radius: var(--sma-radius-sm);
+    display: grid; place-items: center; font-weight: 800; color: var(--sma-chrome-900);
+    flex-shrink: 0;
+}
+
+/* When the mark is the real logo (a transparent PNG) it must sit on nothing.
+   The gradient below is only the fallback for the text placeholder. */
+div.sma-sidebar__brand-mark {
+    background: linear-gradient(135deg, var(--sma-orange-500), var(--sma-orange-600));
+}
+img.sma-sidebar__brand-mark {
+    background: none;
+    object-fit: contain;   /* never distort the official logo */
+}
+.sma-sidebar__brand-text { line-height: 1.2; }
+.sma-sidebar__brand-name { font-weight: 700; font-size: var(--sma-text-base); }
+.sma-sidebar__brand-sub  { font-size: var(--sma-text-xs); color: rgba(255,255,255,.6); }
+
+.sma-nav-group { margin-bottom: var(--sma-space-5); }
+.sma-nav-group__label {
+    font-size: var(--sma-text-xs); text-transform: uppercase; letter-spacing: .08em;
+    color: rgba(255,255,255,.45); padding: 0 var(--sma-space-3); margin-bottom: var(--sma-space-2);
+}
+.sma-nav-link {
+    display: flex; align-items: center; gap: var(--sma-space-3);
+    padding: var(--sma-space-3); border-radius: var(--sma-radius-sm);
+    color: rgba(255,255,255,.82); text-decoration: none; font-size: var(--sma-text-sm);
+}
+.sma-nav-link:hover { background: rgba(255,255,255,.08); color: #fff; }
+.sma-nav-link.is-active { background: var(--sma-brand-strong); color: #fff; font-weight: 600; }
+
+.sma-topbar {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--sma-space-4);
+    padding: var(--sma-space-4) var(--sma-space-6);
+    background: var(--sma-surface); border-bottom: 1px solid var(--sma-line);
+}
+
+.sma-breadcrumb { display: flex; gap: var(--sma-space-2); font-size: var(--sma-text-sm); color: var(--sma-ink-muted); margin-bottom: var(--sma-space-4); }
+.sma-breadcrumb a { color: var(--sma-brand-strong); text-decoration: none; }
+.sma-breadcrumb a:hover { text-decoration: underline; }
+
+/* ==========================================================================
+   Cards
+   ========================================================================== */
+
+.sma-card {
+    background: var(--sma-surface-raised);
+    border: 1px solid var(--sma-line);
+    border-radius: var(--sma-radius);
+    box-shadow: var(--sma-shadow-sm);
+}
+.sma-card__header {
+    padding: var(--sma-space-4) var(--sma-space-5);
+    border-bottom: 1px solid var(--sma-line);
+    display: flex; align-items: center; justify-content: space-between; gap: var(--sma-space-3);
+}
+.sma-card__title { font-size: var(--sma-text-lg); font-weight: 650; margin: 0; }
+.sma-card__body { padding: var(--sma-space-5); }
+
+.sma-grid { display: grid; gap: var(--sma-space-4); }
+.sma-grid--2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.sma-grid--3 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.sma-grid--4 { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+
+/* Stat tile */
+.sma-stat { padding: var(--sma-space-5); }
+.sma-stat__label { font-size: var(--sma-text-sm); color: var(--sma-ink-muted); margin-bottom: var(--sma-space-2); }
+.sma-stat__value { font-size: var(--sma-text-2xl); font-weight: 700; line-height: 1; }
+.sma-stat__meta  { font-size: var(--sma-text-xs); color: var(--sma-ink-subtle); margin-top: var(--sma-space-2); }
+
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
+
+.sma-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: var(--sma-space-2);
+    padding: var(--sma-space-3) var(--sma-space-5);
+    border-radius: var(--sma-radius-sm); border: 1px solid transparent;
+    font-family: inherit; font-size: var(--sma-text-sm); font-weight: 600;
+    cursor: pointer; text-decoration: none; white-space: nowrap;
+    transition: background-color .12s ease, border-color .12s ease;
+}
+.sma-btn--primary   { background: var(--sma-brand-strong); color: #fff; }
+.sma-btn--primary:hover { background: var(--sma-chrome-800); color: #fff; }
+.sma-btn--gold      { background: var(--sma-orange-500); color: var(--sma-chrome-900); }
+.sma-btn--gold:hover{ background: var(--sma-orange-600); color: #fff; }
+.sma-btn--ghost     { background: transparent; border-color: var(--sma-line-strong); color: var(--sma-ink); }
+.sma-btn--ghost:hover { background: var(--sma-surface-sunken); }
+.sma-btn--danger    { background: var(--sma-danger); color: #fff; }
+.sma-btn--lg        { padding: var(--sma-space-4) var(--sma-space-6); font-size: var(--sma-text-lg); }
+.sma-btn--block     { width: 100%; }
+
+.sma-btn:disabled, .sma-btn[aria-disabled="true"] { opacity: .55; cursor: not-allowed; }
+
+/* Loading state — prevents duplicate submissions (section 105) */
+.sma-btn.is-loading { pointer-events: none; opacity: .75; }
+.sma-btn.is-loading::before {
+    content: ""; width: 1em; height: 1em; border-radius: 50%;
+    border: 2px solid currentColor; border-top-color: transparent;
+    animation: sma-spin .6s linear infinite;
+}
+@keyframes sma-spin { to { transform: rotate(360deg); } }
+
+/* ==========================================================================
+   Badges — glyph + text, never colour alone (section 111)
+   ========================================================================== */
+
+.sma-badge {
+    display: inline-flex; align-items: center; gap: var(--sma-space-1);
+    padding: var(--sma-space-1) var(--sma-space-3);
+    border-radius: 999px; font-size: var(--sma-text-xs); font-weight: 650;
+    border: 1px solid transparent;
+}
+.sma-badge--success { background: var(--sma-success-bg); color: var(--sma-success); border-color: currentColor; }
+.sma-badge--warning { background: var(--sma-warning-bg); color: var(--sma-warning); border-color: currentColor; }
+.sma-badge--danger  { background: var(--sma-danger-bg);  color: var(--sma-danger);  border-color: currentColor; }
+.sma-badge--info    { background: var(--sma-info-bg);    color: var(--sma-info);    border-color: currentColor; }
+.sma-badge--neutral { background: var(--sma-surface-sunken); color: var(--sma-ink-muted); border-color: var(--sma-line-strong); }
+
+/* ==========================================================================
+   Forms
+   ========================================================================== */
+
+.sma-field { margin-bottom: var(--sma-space-4); }
+.sma-label { display: block; font-size: var(--sma-text-sm); font-weight: 600; margin-bottom: var(--sma-space-2); }
+.sma-label .sma-required { color: var(--sma-danger); margin-left: 2px; }
+.sma-hint  { font-size: var(--sma-text-xs); color: var(--sma-ink-muted); margin-top: var(--sma-space-1); }
+
+.sma-input, .sma-select, .sma-textarea {
+    width: 100%; padding: var(--sma-space-3);
+    border: 1px solid var(--sma-line-strong); border-radius: var(--sma-radius-sm);
+    font-family: inherit; font-size: var(--sma-text-base); background: var(--sma-surface);
+    color: var(--sma-ink);
+}
+.sma-input:focus, .sma-select:focus, .sma-textarea:focus { border-color: var(--sma-brand-strong); }
+.sma-input[aria-invalid="true"] { border-color: var(--sma-danger); }
+.sma-error { font-size: var(--sma-text-sm); color: var(--sma-danger); margin-top: var(--sma-space-1); }
+
+/* Segmented choice, used for loan period (section 96) */
+.sma-choice-row { display: flex; flex-wrap: wrap; gap: var(--sma-space-3); }
+.sma-choice { position: relative; }
+.sma-choice input { position: absolute; opacity: 0; width: 0; height: 0; }
+.sma-choice span {
+    display: block; padding: var(--sma-space-3) var(--sma-space-5);
+    border: 2px solid var(--sma-line-strong); border-radius: var(--sma-radius-sm);
+    font-weight: 600; cursor: pointer; user-select: none;
+}
+.sma-choice input:checked + span { border-color: var(--sma-brand-strong); background: var(--sma-info-bg); color: var(--sma-chrome-800); }
+.sma-choice input:focus-visible + span { box-shadow: var(--sma-focus); }
+
+/* ==========================================================================
+   Tables
+   ========================================================================== */
+
+.sma-table-wrap { overflow-x: auto; }
+.sma-table { width: 100%; border-collapse: collapse; font-size: var(--sma-text-sm); }
+.sma-table th {
+    text-align: left; padding: var(--sma-space-3) var(--sma-space-4);
+    background: var(--sma-surface-sunken); color: var(--sma-ink-muted);
+    font-weight: 650; font-size: var(--sma-text-xs); text-transform: uppercase; letter-spacing: .04em;
+    border-bottom: 1px solid var(--sma-line);
+    white-space: nowrap;
+}
+.sma-table td { padding: var(--sma-space-4); border-bottom: 1px solid var(--sma-line); vertical-align: middle; }
+.sma-table tbody tr:hover { background: var(--sma-surface-sunken); }
+
+/* ==========================================================================
+   Alerts
+   ========================================================================== */
+
+.sma-alert {
+    display: flex; gap: var(--sma-space-3); align-items: flex-start;
+    padding: var(--sma-space-4); border-radius: var(--sma-radius);
+    border: 1px solid; margin-bottom: var(--sma-space-4);
+}
+.sma-alert__icon { font-weight: 800; flex-shrink: 0; }
+.sma-alert--success { background: var(--sma-success-bg); border-color: var(--sma-success); color: #125c37; }
+.sma-alert--warning { background: var(--sma-warning-bg); border-color: var(--sma-warning); color: #7a5200; }
+.sma-alert--danger  { background: var(--sma-danger-bg);  border-color: var(--sma-danger);  color: #8c1b13; }
+.sma-alert--info    { background: var(--sma-info-bg);    border-color: var(--sma-info);    color: #10428f; }
+
+/* ==========================================================================
+   Empty states (section 104)
+   ========================================================================== */
+
+.sma-empty { text-align: center; padding: var(--sma-space-7) var(--sma-space-5); }
+.sma-empty__icon  { font-size: var(--sma-text-3xl); margin-bottom: var(--sma-space-3); opacity: .5; }
+.sma-empty__title { font-size: var(--sma-text-lg); font-weight: 650; margin-bottom: var(--sma-space-2); }
+.sma-empty__body  { color: var(--sma-ink-muted); max-width: 46ch; margin: 0 auto var(--sma-space-4); }
+
+/* ==========================================================================
+   Skeleton loaders (section 105)
+   ========================================================================== */
+
+.sma-skeleton {
+    background: linear-gradient(90deg, var(--sma-line) 25%, var(--sma-surface-sunken) 50%, var(--sma-line) 75%);
+    background-size: 200% 100%; animation: sma-shimmer 1.4s ease-in-out infinite;
+    border-radius: var(--sma-radius-sm); height: 1em;
+}
+@keyframes sma-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+/* ==========================================================================
+   RFID circulation desk (sections 46, 96, 97)
+   Readable from the librarian's normal working position.
+   ========================================================================== */
+
+.sma-desk { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--sma-space-5); }
+
+.sma-desk-panel {
+    background: var(--sma-surface); border: 2px solid var(--sma-line);
+    border-radius: var(--sma-radius-lg); padding: var(--sma-space-5);
+    min-height: 220px;
+}
+.sma-desk-panel.is-filled  { border-color: var(--sma-success); }
+.sma-desk-panel.is-waiting { border-style: dashed; }
+.sma-desk-panel.is-error   { border-color: var(--sma-danger); }
+
+.sma-desk-panel__label {
+    font-size: var(--sma-text-xs); text-transform: uppercase; letter-spacing: .1em;
+    color: var(--sma-ink-muted); font-weight: 700; margin-bottom: var(--sma-space-3);
+}
+.sma-desk-panel__primary { font-size: var(--sma-text-2xl); font-weight: 700; line-height: 1.2; margin-bottom: var(--sma-space-2); }
+.sma-desk-panel__secondary { color: var(--sma-ink-muted); margin-bottom: var(--sma-space-1); }
+
+/* The big result banner after issue/return */
+.sma-desk-result {
+    padding: var(--sma-space-6); border-radius: var(--sma-radius-lg);
+    text-align: center; border: 2px solid;
+}
+.sma-desk-result--success { background: var(--sma-success-bg); border-color: var(--sma-success); color: #125c37; }
+.sma-desk-result--failure { background: var(--sma-danger-bg);  border-color: var(--sma-danger);  color: #8c1b13; }
+.sma-desk-result__headline { font-size: var(--sma-text-desk); font-weight: 800; line-height: 1.1; margin-bottom: var(--sma-space-3); }
+.sma-desk-result__detail   { font-size: var(--sma-text-lg); }
+
+/* Live scan indicator */
+.sma-scan-dot {
+    display: inline-block; width: .7em; height: .7em; border-radius: 50%;
+    background: var(--sma-ink-subtle); margin-right: var(--sma-space-2);
+}
+.sma-scan-dot--online  { background: var(--sma-success); animation: sma-pulse 2s ease-in-out infinite; }
+.sma-scan-dot--offline { background: var(--sma-danger); }
+@keyframes sma-pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+
+/* ==========================================================================
+   Responsive (section 102)
+   ========================================================================== */
+
+@media (max-width: 1024px) {
+    .sma-shell { grid-template-columns: 1fr; }
+    .sma-sidebar { display: none; }
+    .sma-main { padding: var(--sma-space-4); }
+}
+
+@media (max-width: 640px) {
+    :root { --sma-text-3xl: 1.75rem; --sma-text-2xl: 1.375rem; --sma-text-desk: 2rem; }
+    .sma-desk { grid-template-columns: 1fr; }
+    .sma-card__body { padding: var(--sma-space-4); }
+}
+
+/* Respect reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+    .sma *, .sma *::before, .sma *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* Print — reports should print cleanly */
+@media print {
+    .sma-sidebar, .sma-topbar, .sma-btn { display: none !important; }
+    .sma-card { border: 1px solid #999; box-shadow: none; }
+}

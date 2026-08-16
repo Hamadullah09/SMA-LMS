@@ -1,0 +1,1335 @@
+/* ============================================================================
+   SMA Library — staff interface (admin + circulation desk)
+
+   One stylesheet for every staff screen. It replaces ten per-page files
+   (AdminLayout, AdminAccount, AdminResponsive, dashboard, Managebooks,
+   ManageUsers, ManageBorrowing, ManageCategory, ManageEvent, Feedback,
+   Reports) which between them hardcoded 82 distinct hex colours and twelve
+   different border-radius values, so no two admin pages looked alike and none
+   of them looked like the desk.
+
+   Every value here is a design token from sma-design-system.css. Adding a
+   colour literal below re-creates exactly the problem this file removed.
+
+   The selectors match the markup the existing views and wwwroot/js/admin/*.js
+   already use. That is deliberate: restyling the established DOM keeps every
+   modal, filter, sort link and AJAX badge working, where renaming classes
+   across ~3,100 lines of views would have broken them silently.
+
+   Contents
+     1. Shell: topbar, sidebar, main
+     2. Topbar actions: notifications, contacts, account
+     3. Page furniture: headers, panels
+     4. Statistic cards
+     5. Controls: search, filters, tabs, buttons
+     6. Tables and row actions
+     7. Pagination
+     8. Forms, alerts, modals
+     9. Responsive
+   ============================================================================ */
+
+/* ---------------------------------------------------------------- 1. Shell */
+
+body.staff-shell {
+    /* The sidebar sticks directly beneath the topbar, so both must agree on its
+       height. Deriving it from content made the sidebar 56px too tall and let it
+       slide under the topbar on scroll, so the height is fixed here and used by
+       both rules. */
+    --staff-topbar-h: 68px;
+
+    margin: 0;
+    background: var(--sma-surface-sunken);
+    color: var(--sma-ink);
+    font-family: var(--sma-font);
+}
+
+.staff-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 1030;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sma-space-4);
+    padding: var(--sma-space-2) var(--sma-space-5);
+    background: var(--sma-surface);
+    border-bottom: 1px solid var(--sma-line);
+    height: var(--staff-topbar-h);
+}
+
+.staff-topbar__left {
+    display: flex;
+    align-items: center;
+    gap: var(--sma-space-3);
+    min-width: 0;
+}
+
+.staff-topbar__heading { min-width: 0; }
+
+/* Scoped to the topbar so it outranks `.sma h1` in the design system, which is
+   also specificity (0,1,1) and would otherwise render this at 2.25rem. */
+.staff-topbar .staff-topbar__title {
+    margin: 0;
+    font-size: var(--sma-text-lg);
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: normal;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.staff-topbar__subtitle {
+    margin: 2px 0 0;
+    font-size: var(--sma-text-sm);
+    color: var(--sma-ink-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.staff-topbar__right {
+    display: flex;
+    align-items: center;
+    gap: var(--sma-space-2);
+}
+
+.staff-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border: 1px solid var(--sma-line);
+    border-radius: var(--sma-radius);
+    background: var(--sma-surface);
+    color: var(--sma-ink-muted);
+    font-size: 1.05rem;
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+
+.staff-icon-btn:hover {
+    background: var(--sma-brand-tint);
+    border-color: var(--sma-brand);
+    color: var(--sma-brand-strong);
+}
+
+.staff-layout {
+    display: grid;
+    grid-template-columns: 264px minmax(0, 1fr);
+    align-items: start;
+}
+
+/* Collapsed state is toggled on <body> by js/admin/sidebar.js and remembered
+   in localStorage, so it must be driven from the body class, not the aside. */
+body.sidebar-collapsed .staff-layout { grid-template-columns: 0 minmax(0, 1fr); }
+body.sidebar-collapsed .staff-sidebar { transform: translateX(-100%); visibility: hidden; }
+
+.staff-sidebar {
+    position: sticky;
+    top: var(--staff-topbar-h);
+    height: calc(100vh - var(--staff-topbar-h));
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sma-space-2);
+    padding: var(--sma-space-4) var(--sma-space-3);
+    background: var(--sma-chrome-900);
+    border-right: 1px solid var(--sma-chrome-700);
+    transition: transform .18s ease;
+}
+
+.staff-sidebar .sma-sidebar__brand {
+    display: flex;
+    align-items: center;
+    gap: var(--sma-space-3);
+    padding: var(--sma-space-2) var(--sma-space-2) var(--sma-space-4);
+    text-decoration: none;
+    border-bottom: 1px solid var(--sma-chrome-700);
+    margin-bottom: var(--sma-space-2);
+}
+
+.staff-sidebar__nav {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sma-space-4);
+}
+
+.staff-sidebar .sma-nav-link {
+    display: flex;
+    align-items: center;
+    gap: var(--sma-space-3);
+}
+
+.staff-sidebar .sma-nav-link i { width: 1.1em; text-align: center; flex: none; }
+
+.staff-main {
+    padding: var(--sma-space-5);
+    min-width: 0;
+}
+
+/* Dense tables need the room; reading-heavy pages do not. */
+.staff-main--wide { max-width: none; }
+
+.staff-offcanvas { background: var(--sma-chrome-900); color: #fff; width: 280px; }
+.staff-offcanvas .offcanvas-header { border-bottom: 1px solid var(--sma-chrome-700); }
+.staff-offcanvas .sma-sidebar__brand-name { color: #fff; font-weight: 700; }
+.staff-offcanvas .btn-close { filter: invert(1) grayscale(1) brightness(2); }
+
+/* -------------------------------------------------- 2. Topbar action menus */
+
+.topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--sma-space-2);
+}
+
+.action-icon-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border: 1px solid var(--sma-line);
+    border-radius: var(--sma-radius);
+    background: var(--sma-surface);
+    color: var(--sma-ink-muted);
+    font-size: 1.05rem;
+    cursor: pointer;
+}
+
+.action-icon-btn:hover {
+    background: var(--sma-brand-tint);
+    border-color: var(--sma-brand);
+    color: var(--sma-brand-strong);
+}
+
+.action-icon-btn.dropdown-toggle::after { display: none; }
+
+.action-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--sma-danger);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+}
+
+.action-menu {
+    width: min(360px, calc(100vw - 2rem));
+    padding: 0;
+    border: 1px solid var(--sma-line);
+    border-radius: var(--sma-radius);
+    box-shadow: var(--sma-shadow-lg);
+    overflow: hidden;
+}
+
+.action-menu-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sma-space-3);
+    padding: var(--sma-space-3) var(--sma-space-4);
+    background: var(--sma-surface-sunken);
+    border-bottom: 1px solid var(--sma-line);
+    font-weight: 700;
+    font-size: var(--sma-text-sm);
+}
+
+.notification-header-right,
+.contact-header-right {
+    display: flex;
+    align-items: center;
+    gap: var(--sma-space-2);
+    font-weight: 400;
+    color: var(--sma-ink-subtle);
+    font-size: var(--sma-text-xs);
+}
+
+.mark-all-notification-read-btn,
+.mark-all-contact-read-btn,
+.mark-contact-read-btn {
+    border: 1px solid var(--sma-line-strong);
+    border-radius: var(--sma-radius-sm);
+    background: var(--sma-surface);
+    color: var(--sma-brand-strong);
+    font-size: var(--sma-text-xs);
+    font-weight: 700;
+    padding: 3px 8px;
+    cursor: pointer;
+}
+
+.mark-all-notification-read-btn:hover,
+.mark-all-contact-read-btn:hover,
+.mark-contact-read-btn:hover { background: var(--sma-brand-tint); }
+
+.action-menu-empty {
+    padding: var(--sma-space-5);
+    text-align: center;
+    color: var(--sma-ink-subtle);
+    font-size: var(--sma-text-sm);
+}
+
+.action-item {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sma-space-3);
+    padding: var(--sma-space-3) var(--sma-space-4);
+    border-bottom: 1px solid var(--sma-line);
+    white-space: normal;
+}
+
+.action-item:last-of-type { border-bottom: 0; }
+.action-item:hover { background: var(--sma-brand-tint); }
+
+.action-item-left {
+    display: flex;
+    align-items: center;
+    gap: var(--sma-space-3);
+    min-width: 0;
+}
+
+.action-item-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    flex: none;
+    border-radius: var(--sma-radius-sm);
+    background: var(--sma-brand-tint);
+    color: var(--sma-brand-strong);
+}
+
+.action-item-stack { display: flex; flex-direction: column; min-width: 0; }
+.action-item-title { font-weight: 600; font-size: var(--sma-text-sm); }
+.action-item-sub { font-size: var(--sma-text-xs); color: var(--sma-ink-subtle); }
+
+.action-item-meta {
+    flex: none;
+    font-size: var(--sma-text-xs);
+    font-weight: 700;
+    color: var(--sma-brand-strong);
+}
+
+.action-menu-footer {
+    padding: var(--sma-space-3) var(--sma-space-4);
+    background: var(--sma-surface-sunken);
+    border-top: 1px solid var(--sma-line);
+    text-align: center;
+}
+
+.action-menu-footer a {
+    font-size: var(--sma-text-sm);
+    font-weight: 700;
+    color: var(--sma-brand-strong);
+    text-decoration: none;
+}
+
+.contact-item {
+    padding: var(--sma-space-3) var(--sma-space-4);
+    border-bottom: 1px solid var(--sma-line);
+}
+
+.contact-item.is-unread { background: var(--sma-brand-tint); }
+
+.contact-item-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sma-space-2);
+}
+
+.contact-email {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sma-space-2);
+    font-weight: 600;
+    font-size: var(--sma-text-sm);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.contact-unread-dot {
+    width: 8px;
+    height: 8px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--sma-brand);
+}
+
+.contact-item.is-read .contact-unread-dot { background: var(--sma-line-strong); }
+
+.contact-time { font-size: var(--sma-text-xs); color: var(--sma-ink-subtle); flex: none; }
+
+.contact-message {
+    margin: var(--sma-space-1) 0 var(--sma-space-2);
+    font-size: var(--sma-text-sm);
+    color: var(--sma-ink-muted);
+}
+
+.contact-item-actions { display: flex; justify-content: flex-end; }
+.contact-read-label { font-size: var(--sma-text-xs); color: var(--sma-ink-subtle); }
+
+.user-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sma-space-2);
+    padding: 4px 10px 4px 4px;
+    border: 1px solid var(--sma-line);
+    border-radius: 999px;
+    background: var(--sma-surface);
+    cursor: pointer;
+}
+
+.user-btn:hover { border-color: var(--sma-brand); background: var(--sma-brand-tint); }
+.user-btn.dropdown-toggle::after { margin-left: 2px; color: var(--sma-ink-subtle); }
+
+.avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--sma-brand-strong);
+    color: #fff;
+    font-weight: 700;
+    font-size: var(--sma-text-xs);
+    overflow: hidden;
+}
+
+.avatar-img { width: 100%; height: 100%; object-fit: cover; }
+
+.user-meta { display: flex; flex-direction: column; line-height: 1.15; text-align: left; }
+.user-name { font-size: var(--sma-text-sm); font-weight: 600; }
+.user-role { font-size: var(--sma-text-xs); color: var(--sma-ink-subtle); }
+
+.user-menu-head { padding: var(--sma-space-3) var(--sma-space-4); }
+.user-menu-name { font-weight: 700; }
+.user-menu-role { font-size: var(--sma-text-xs); color: var(--sma-ink-subtle); }
+.user-menu-foot { padding: var(--sma-space-2) var(--sma-space-3) var(--sma-space-3); }
+.user-menu-foot .sma-btn { justify-content: center; }
+
+/* ------------------------------------------------------ 3. Page furniture */
+
+/* Kept because ten views already wrap themselves in these. Bootstrap's
+   .container-fluid padding is neutralised so the shell controls the gutter. */
+.dashboard-page.container-fluid,
+.dashboard-page { padding: 0; }
+
+.page-header { margin-bottom: var(--sma-space-5); }
+
+.page-title {
+    margin: 0;
+    font-size: var(--sma-text-xl);
+    font-weight: 700;
+    color: var(--sma-ink);
+}
+
+.page-subtitle {
+    margin: var(--sma-space-1) 0 0;
+    color: var(--sma-ink-muted);
+    font-size: var(--sma-text-sm);
+}
+
+.panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sma-space-3);
+    margin-bottom: var(--sma-space-3);
+    flex-wrap: wrap;
+}
+
+.panel-title {
+    margin: 0;
+    font-size: var(--sma-text-base);
+    font-weight: 700;
+}
+
+.quick-panel,
+.table-container,
+.table-wrap {
+    background: var(--sma-surface);
+    border: 1px solid var(--sma-line);
+    border-radius: var(--sma-radius);
+    box-shadow: var(--sma-shadow-sm);
+    overflow: hidden;
+}
+
+.quick-panel { padding: var(--sma-space-4); margin-bottom: var(--sma-space-5); }
+
+/* ---------------------------------------------------- 4. Statistic cards */
+
+.card-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--sma-space-4);
+    margin-bottom: var(--sma-space-5);
+}
+
+.stat-card,
+.sum-card {
+    display: flex;
+    align-items: center;
+    gap: var(--sma-space-4);
+    padding: var(--sma-space-4);
+    background: var(--sma-surface);
+    border: 1px solid var(--sma-line);
+    border-radius: var(--sma-radius);
+    box-shadow: var(--sma-shadow-sm);
+    transition: box-shadow .15s ease, border-color .15s ease;
+}
+
+.stat-card:hover,
+.sum-card:hover { box-shadow: var(--sma-shadow); border-color: var(--sma-line-strong); }
+
+.icon-box,
+.sum-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 46px;
+    flex: none;
+    border-radius: var(--sma-radius);
+    background: var(--sma-brand-tint);
+    color: var(--sma-brand-strong);
+    font-size: 1.25rem;
+}
+
+.card-content,
+.sum-info { display: flex; flex-direction: column; min-width: 0; }
+
+.card-label,
+.sum-title {
+    font-size: var(--sma-text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--sma-ink-subtle);
+}
+
+.card-value,
+.sum-value {
+    font-size: var(--sma-text-2xl);
+    font-weight: 700;
+    color: var(--sma-ink);
+    line-height: 1.2;
+}
+
+/* --------------------------------------------------------- 5. Controls */
+
+.controls-section {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sma-space-3);
+    flex-wrap: wrap;
+    margin-bottom: var(--sma-space-4);
+}
+
+.action-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--sma-space-2);
+    flex-wrap: wrap;
+}
+
+.tabs,
+.tab-list {
+    display: inline-flex;
+    gap: var(--sma-space-1);
+    padding: var(--sma-space-1);
+    background: var(--sma-surface);
+    border: 1px solid var(--sma-line);
+    border-radius: var(--sma-radius);
+}
+
+.tab,
+.tab-item,
+.qtab {
+    padding: var(--sma-space-2) var(--sma-space-4);
+    border: 0;
+    border-radius: var(--sma-radius-sm);
+    background: transparent;
+    color: var(--sma-ink-muted);
+    font-size: var(--sma-text-sm);
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+}
+
+.tab:hover,
+.tab-item:hover,
+.qtab:hover { background: var(--sma-brand-tint); color: var(--sma-brand-strong); }
+
+.tab.active,
+.tab-item.active,
+.qtab.active {
+    background: var(--sma-brand-strong);
+    color: #fff;
+}
+
+.qtab-badge {
+    display: inline-block;
+    margin-left: var(--sma-space-2);
+    padding: 0 6px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, .12);
+    font-size: var(--sma-text-xs);
+    font-weight: 700;
+}
+
+.search-form {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.search-icon {
+    position: absolute;
+    left: 12px;
+    color: var(--sma-ink-subtle);
+    pointer-events: none;
+    font-size: .9rem;
+}
+
+.search-input,
+.setting-input,
+.custom-select-wrapper select,
+.export-select {
+    height: 38px;
+    padding: 0 var(--sma-space-3);
+    border: 1px solid var(--sma-line-strong);
+    border-radius: var(--sma-radius);
+    background: var(--sma-surface);
+    color: var(--sma-ink);
+    font-size: var(--sma-text-sm);
+    font-family: inherit;
+}
+
+.search-input { padding-left: 34px; min-width: 220px; }
+
+.search-input:focus,
+.setting-input:focus,
+.custom-select-wrapper select:focus,
+.export-select:focus {
+    outline: none;
+    border-color: var(--sma-brand);
+    box-shadow: 0 0 0 3px var(--sma-brand-tint);
+}
+
+.custom-select-wrapper { position: relative; display: inline-flex; }
+.field-wrap { display: flex; flex-direction: column; gap: var(--sma-space-1); }
+
+.add-btn,
+.filter-btn,
+.clear-filter-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sma-space-2);
+    height: 38px;
+    padding: 0 var(--sma-space-4);
+    border-radius: var(--sma-radius);
+    font-size: var(--sma-text-sm);
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+
+/* Brand orange is 2.76:1 on white and must never sit behind white text, so
+   primary actions use the darker interactive step. */
+.add-btn,
+.filter-btn {
+    background: var(--sma-brand-strong);
+    color: #fff;
+    border-color: var(--sma-brand-strong);
+}
+
+.add-btn:hover,
+.filter-btn:hover { background: var(--sma-brand-deep); color: #fff; }
+
+.clear-filter-btn {
+    background: var(--sma-surface);
+    color: var(--sma-ink-muted);
+    border-color: var(--sma-line-strong);
+}
+
+.clear-filter-btn:hover {
+    background: var(--sma-brand-tint);
+    color: var(--sma-brand-strong);
+    border-color: var(--sma-brand);
+}
+
+/* ----------------------------------------------- 6. Tables and row actions */
+
+.table-container,
+.table-wrap { margin-bottom: var(--sma-space-5); }
+
+.table-container > .table-responsive,
+.table-wrap > .table-responsive { overflow-x: auto; }
+
+.table,
+.user-table,
+.dash-table,
+.category-table {
+    width: 100%;
+    margin: 0;
+    border-collapse: collapse;
+    font-size: var(--sma-text-sm);
+}
+
+.table thead th,
+.user-table thead th,
+.dash-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: var(--sma-space-3) var(--sma-space-4);
+    background: var(--sma-surface-sunken);
+    border-bottom: 1px solid var(--sma-line);
+    color: var(--sma-ink-subtle);
+    font-size: var(--sma-text-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.table tbody td,
+.user-table tbody td,
+.dash-table tbody td {
+    padding: var(--sma-space-3) var(--sma-space-4);
+    border-bottom: 1px solid var(--sma-line);
+    vertical-align: middle;
+    color: var(--sma-ink);
+}
+
+.table tbody tr:last-child td,
+.user-table tbody tr:last-child td { border-bottom: 0; }
+
+.table tbody tr:hover,
+.user-table tbody tr:hover,
+.dash-table tbody tr:hover { background: var(--sma-brand-tint); }
+
+.action-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sma-space-2);
+}
+
+.edit-user-btn,
+.delete-user-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--sma-line-strong);
+    border-radius: var(--sma-radius-sm);
+    background: var(--sma-surface);
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+
+.edit-user-btn { color: var(--sma-brand-strong); }
+.edit-user-btn:hover { background: var(--sma-brand-tint); border-color: var(--sma-brand); }
+
+.delete-user-btn { color: var(--sma-danger); }
+.delete-user-btn:hover { background: var(--sma-danger-bg); border-color: var(--sma-danger); }
+
+.category-id,
+.book-count-pill {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: var(--sma-surface-sunken);
+    border: 1px solid var(--sma-line);
+    font-size: var(--sma-text-xs);
+    font-weight: 700;
+    color: var(--sma-ink-muted);
+}
+
+.category-name { font-weight: 600; }
+
+/* ------------------------------------------------------- 7. Pagination */
+
+.pagination-wrapper {
+    display: flex;
+    justify-content: center;
+    padding: var(--sma-space-4) 0 0;
+}
+
+/* These set the pagination look outright rather than through Bootstrap's
+   --bs-pagination-* variables, so the staff tables get one consistent control
+   whatever the bridge sets for the public site. */
+.pagination {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sma-space-1);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.page-item .page-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 var(--sma-space-2);
+    border: 1px solid var(--sma-line);
+    border-radius: var(--sma-radius-sm);
+    background: var(--sma-surface);
+    color: var(--sma-ink-muted);
+    font-size: var(--sma-text-sm);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.page-item .page-link:hover {
+    background: var(--sma-brand-tint);
+    border-color: var(--sma-brand);
+    color: var(--sma-brand-strong);
+}
+
+.page-item.active .page-link {
+    background: var(--sma-brand-strong);
+    border-color: var(--sma-brand-strong);
+    color: #fff;
+}
+
+.page-item.disabled .page-link {
+    opacity: .5;
+    pointer-events: none;
+}
+
+/* -------------------------------------------- 8. Forms, alerts, modals */
+
+/* sma-theme-bridge.css already owns .modal-content's radius and border, every
+   .alert variant, and the Bootstrap pagination colour variables — and it loads
+   after this file, so restating them here would be dead weight that silently
+   loses. Only what the bridge does not set is defined below. */
+
+.modal-content { box-shadow: var(--sma-shadow-lg); }
+
+.modal-header,
+.modal-footer {
+    border-color: var(--sma-line);
+    background: var(--sma-surface-sunken);
+}
+
+.modal-title { font-size: var(--sma-text-base); font-weight: 700; }
+
+.form-label { font-size: var(--sma-text-sm); font-weight: 600; color: var(--sma-ink); }
+
+.hidden { display: none !important; }
+
+/* ---------------------------------------- 9. Per-page vocabularies, unified
+
+   The ten replaced stylesheets each invented their own names for the same few
+   things: eight different "edit this row" buttons, six different tables, three
+   different primary-add buttons. Rather than rename them across the views (and
+   break the JS that binds to them) they are grouped here, so one rule now
+   defines how every edit button in the product looks.
+   ---------------------------------------------------------------------- */
+
+/* Primary "add" actions --------------------------------------------------- */
+.add-event-btn,
+.new-borrowing-btn,
+.quick-add-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sma-space-2);
+    height: 38px;
+    padding: 0 var(--sma-space-4);
+    border: 1px solid var(--sma-brand-strong);
+    border-radius: var(--sma-radius);
+    background: var(--sma-brand-strong);
+    color: #fff;
+    font-size: var(--sma-text-sm);
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.add-event-btn:hover,
+.new-borrowing-btn:hover,
+.quick-add-btn:hover { background: var(--sma-brand-deep); color: #fff; }
+
+/* Row actions ------------------------------------------------------------- */
+.edit-book-btn,
+.edit-category-btn,
+.edit-author-btn,
+.edit-event-btn,
+.edit-borrowing-btn,
+.edit-reservation-btn,
+.open-edit-staff,
+.open-edit-student,
+.delete-book-btn,
+.delete-category-btn,
+.delete-author-btn,
+.delete-event-btn,
+.delete-feedback-btn,
+.mark-read-btn,
+.approve-user-btn,
+.approve-reservation-btn,
+.process-borrowing-btn,
+.mark-fine-paid-btn,
+.cancel-user-btn,
+.reject-reservation-btn,
+.ico-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sma-space-2);
+    min-width: 32px;
+    height: 32px;
+    padding: 0 var(--sma-space-2);
+    border: 1px solid var(--sma-line-strong);
+    border-radius: var(--sma-radius-sm);
+    background: var(--sma-surface);
+    color: var(--sma-ink-muted);
+    font-size: var(--sma-text-sm);
+    cursor: pointer;
+    text-decoration: none;
+    transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+
+.edit-book-btn,
+.edit-category-btn,
+.edit-author-btn,
+.edit-event-btn,
+.edit-borrowing-btn,
+.edit-reservation-btn,
+.open-edit-staff,
+.open-edit-student { color: var(--sma-brand-strong); }
+
+.edit-book-btn:hover,
+.edit-category-btn:hover,
+.edit-author-btn:hover,
+.edit-event-btn:hover,
+.edit-borrowing-btn:hover,
+.edit-reservation-btn:hover,
+.open-edit-staff:hover,
+.open-edit-student:hover,
+.ico-btn:hover { background: var(--sma-brand-tint); border-color: var(--sma-brand); color: var(--sma-brand-strong); }
+
+.approve-user-btn,
+.approve-reservation-btn,
+.process-borrowing-btn,
+.mark-fine-paid-btn,
+.mark-read-btn { color: var(--sma-success); }
+
+.approve-user-btn:hover,
+.approve-reservation-btn:hover,
+.process-borrowing-btn:hover,
+.mark-fine-paid-btn:hover,
+.mark-read-btn:hover { background: var(--sma-success-bg); border-color: var(--sma-success); }
+
+.delete-book-btn,
+.delete-category-btn,
+.delete-author-btn,
+.delete-event-btn,
+.delete-feedback-btn,
+.cancel-user-btn,
+.reject-reservation-btn { color: var(--sma-danger); }
+
+.delete-book-btn:hover,
+.delete-category-btn:hover,
+.delete-author-btn:hover,
+.delete-event-btn:hover,
+.delete-feedback-btn:hover,
+.cancel-user-btn:hover,
+.reject-reservation-btn:hover { background: var(--sma-danger-bg); border-color: var(--sma-danger); }
+
+.mark-all-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sma-space-2);
+    height: 38px;
+    padding: 0 var(--sma-space-4);
+    border: 1px solid var(--sma-line-strong);
+    border-radius: var(--sma-radius);
+    background: var(--sma-surface);
+    color: var(--sma-brand-strong);
+    font-size: var(--sma-text-sm);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.mark-all-btn:hover:not(:disabled) { background: var(--sma-brand-tint); border-color: var(--sma-brand); }
+.mark-all-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.action-group { display: inline-flex; align-items: center; gap: var(--sma-space-2); }
+
+/* Forms that only wrap a single row action must not add layout of their own. */
+.approve-user-form,
+.cancel-user-form,
+.delete-user-form,
+.delete-feedback-form,
+.mark-read-form { display: inline; margin: 0; }
+
+/* Tables: every per-page table name resolves to the same table ------------- */
+.book-table,
+.event-table,
+.borrowing-book-table,
+.report-table,
+.reservation-book-table,
+.user-feedback-table,
+.book-review-table {
+    width: 100%;
+    margin: 0;
+    border-collapse: collapse;
+    font-size: var(--sma-text-sm);
+}
+
+.book-table thead th,
+.event-table thead th,
+.borrowing-book-table thead th,
+.report-table thead th,
+.reservation-book-table thead th,
+.user-feedback-table thead th,
+.book-review-table thead th {
+    padding: var(--sma-space-3) var(--sma-space-4);
+    background: var(--sma-surface-sunken);
+    border-bottom: 1px solid var(--sma-line);
+    color: var(--sma-ink-subtle);
+    font-size: var(--sma-text-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.book-table tbody td,
+.event-table tbody td,
+.borrowing-book-table tbody td,
+.report-table tbody td,
+.reservation-book-table tbody td,
+.user-feedback-table tbody td,
+.book-review-table tbody td {
+    padding: var(--sma-space-3) var(--sma-space-4);
+    border-bottom: 1px solid var(--sma-line);
+    vertical-align: middle;
+}
+
+.report-table-wrapper { overflow-x: auto; }
+.message-cell { max-width: 380px; color: var(--sma-ink-muted); }
+
+.book-cover,
+.book-img,
+.event-cover {
+    width: 44px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: var(--sma-radius-sm);
+    border: 1px solid var(--sma-line);
+    background: var(--sma-surface-sunken);
+}
+
+.event-cover { width: 72px; height: 48px; }
+
+/* Dashboard --------------------------------------------------------------- */
+.dash-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--sma-space-4);
+    flex-wrap: wrap;
+    margin-bottom: var(--sma-space-5);
+}
+
+.dash-header-left { min-width: 0; }
+
+.welcome {
+    margin: 0;
+    font-size: var(--sma-text-xl);
+    font-weight: 700;
+}
+
+.date-row,
+.date-line { color: var(--sma-ink-muted); font-size: var(--sma-text-sm); }
+
+.summary-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--sma-space-4);
+    margin-bottom: var(--sma-space-5);
+}
+
+.charts-row,
+.two-col {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: var(--sma-space-4);
+    margin-bottom: var(--sma-space-5);
+}
+
+.chart-col,
+.module-section,
+.quick-section,
+.feedback-section,
+.restricted-section,
+.security-side-panel,
+.panel-body {
+    background: var(--sma-surface);
+    border: 1px solid var(--sma-line);
+    border-radius: var(--sma-radius);
+    box-shadow: var(--sma-shadow-sm);
+    padding: var(--sma-space-4);
+}
+
+.chart-area { position: relative; min-height: 260px; }
+
+.legend-area,
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sma-space-3);
+    margin-top: var(--sma-space-3);
+    font-size: var(--sma-text-xs);
+    color: var(--sma-ink-muted);
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sma-space-3);
+    flex-wrap: wrap;
+    margin-bottom: var(--sma-space-3);
+}
+
+.section-title,
+.quick-title {
+    margin: 0;
+    font-size: var(--sma-text-base);
+    font-weight: 700;
+}
+
+.section-caption,
+.section-caption-first,
+.report-meta,
+.avatar-note,
+.security-help {
+    color: var(--sma-ink-muted);
+    font-size: var(--sma-text-sm);
+}
+
+.quick-tabs { display: inline-flex; gap: var(--sma-space-1); flex-wrap: wrap; }
+
+.controls-row,
+.filters {
+    display: flex;
+    align-items: center;
+    gap: var(--sma-space-2);
+    flex-wrap: wrap;
+}
+
+.filters.full { width: 100%; }
+.controls-row .right,
+.filters .right { margin-left: auto; }
+
+.divider { height: 1px; background: var(--sma-line); border: 0; margin: var(--sma-space-4) 0; }
+
+/* Pills and small status text --------------------------------------------- */
+.pill,
+.rating-pill,
+.read-label {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: var(--sma-surface-sunken);
+    border: 1px solid var(--sma-line);
+    font-size: var(--sma-text-xs);
+    font-weight: 700;
+    color: var(--sma-ink-muted);
+}
+
+.pill.danger,
+.rating-pill.danger { background: var(--sma-danger-bg); border-color: var(--sma-danger); color: var(--sma-danger); }
+
+.feedback-counts {
+    display: flex;
+    gap: var(--sma-space-4);
+    font-size: var(--sma-text-sm);
+    color: var(--sma-ink-muted);
+}
+
+.header-main { min-width: 0; }
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--sma-space-3);
+    flex-wrap: wrap;
+}
+
+/* Native select wrappers used by the filter bars --------------------------- */
+.custom-select {
+    height: 38px;
+    padding: 0 var(--sma-space-3);
+    border: 1px solid var(--sma-line-strong);
+    border-radius: var(--sma-radius);
+    background: var(--sma-surface);
+    color: var(--sma-ink);
+    font-size: var(--sma-text-sm);
+    font-family: inherit;
+}
+
+.custom-select:focus {
+    outline: none;
+    border-color: var(--sma-brand);
+    box-shadow: 0 0 0 3px var(--sma-brand-tint);
+}
+
+/* Account pages (Profile, Change password) -------------------------------- */
+.setting-shell { max-width: 900px; }
+
+.setting-card {
+    background: var(--sma-surface);
+    border: 1px solid var(--sma-line);
+    border-radius: var(--sma-radius);
+    box-shadow: var(--sma-shadow-sm);
+    padding: var(--sma-space-5);
+}
+
+.setting-title-wrap { margin-bottom: var(--sma-space-4); }
+
+.setting-title {
+    margin: 0;
+    font-size: var(--sma-text-lg);
+    font-weight: 700;
+}
+
+.setting-tabs {
+    display: inline-flex;
+    gap: var(--sma-space-1);
+    padding: var(--sma-space-1);
+    margin-bottom: var(--sma-space-4);
+    background: var(--sma-surface-sunken);
+    border: 1px solid var(--sma-line);
+    border-radius: var(--sma-radius);
+}
+
+.setting-tabs .tab-item,
+.setting-tabs .tab-link {
+    border: 0;
+    background: transparent;
+    color: var(--sma-ink-muted);
+    text-decoration: none;
+}
+
+.setting-body,
+.setting-body-security,
+.setting-form,
+.security-form {
+    display: grid;
+    gap: var(--sma-space-4);
+}
+
+.setting-body,
+.setting-body-security { grid-template-columns: minmax(0, 1fr); }
+
+.avatar-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sma-space-2);
+}
+
+.avatar-editor { position: relative; display: inline-block; }
+
+.setting-avatar,
+.setting-avatar-img {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--sma-brand-strong);
+    color: #fff;
+    font-size: var(--sma-text-2xl);
+    font-weight: 700;
+    overflow: hidden;
+}
+
+.avatar-camera-btn {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid var(--sma-surface);
+    background: var(--sma-brand-strong);
+    color: #fff;
+    cursor: pointer;
+}
+
+.security-rules {
+    margin: 0;
+    padding-left: 1.1rem;
+    color: var(--sma-ink-muted);
+    font-size: var(--sma-text-sm);
+    line-height: 1.8;
+}
+
+/* --------------------------------------------------------- 10. Responsive */
+
+@media (max-width: 991.98px) {
+    .staff-layout { grid-template-columns: minmax(0, 1fr); }
+    .staff-main { padding: var(--sma-space-4); }
+    .staff-topbar { padding: var(--sma-space-3) var(--sma-space-4); }
+    .user-meta { display: none; }
+    .user-btn { padding: 4px; }
+}
+
+@media (max-width: 575.98px) {
+    .staff-topbar__subtitle { display: none; }
+    .controls-section { align-items: stretch; }
+    .action-controls,
+    .search-form { width: 100%; }
+    .search-input { width: 100%; min-width: 0; }
+    .card-container { grid-template-columns: 1fr; }
+}
+
+/* Respect a reduced-motion preference across every transition above. */
+@media (prefers-reduced-motion: reduce) {
+    .staff-sidebar,
+    .staff-icon-btn,
+    .stat-card,
+    .sum-card,
+    .add-btn,
+    .filter-btn,
+    .clear-filter-btn,
+    .edit-user-btn,
+    .delete-user-btn,
+    .tab,
+    .tab-item,
+    .qtab { transition: none; }
+}

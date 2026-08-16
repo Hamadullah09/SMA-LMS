@@ -1,0 +1,98 @@
+@model Library_Management_system.Application.Search.GlobalSearchResults
+@using Library_Management_system.Application.Search
+@{
+    ViewData["Title"] = "Search";
+    ViewBag.SmaActive = "search";
+    ViewBag.SmaSubtitle = "Student, book, tag, accession number or transaction reference.";
+    Layout = "~/Views/Shared/_StaffLayout.cshtml";
+}
+
+@functions {
+    string Group(string kind, IReadOnlyList<SearchHit> hits)
+    {
+        return hits.Count == 0 ? "" : kind;
+    }
+}
+
+<form method="get" action="/desk/search" class="sma-card" style="margin-bottom:var(--sma-space-5)">
+    <div class="sma-card__body">
+        <div class="sma-field" style="margin-bottom:0">
+            <label class="sma-label" for="q">Search everything</label>
+            <input class="sma-input" id="q" name="q" value="@Model.Query" autofocus autocomplete="off"
+                   placeholder="Roll number, name, title, ISBN, tag EPC, or SMA-LIB-…" />
+            <p class="sma-hint">Results are grouped by what they are. Enter at least two characters.</p>
+        </div>
+        <button type="submit" class="sma-btn sma-btn--primary" style="margin-top:var(--sma-space-4)">Search</button>
+    </div>
+</form>
+
+@if (!string.IsNullOrWhiteSpace(Model.Query))
+{
+    if (Model.IsEmpty)
+    {
+        <div class="sma-card">
+            <div class="sma-card__body">
+                <div class="sma-empty">
+                    <div class="sma-empty__icon" aria-hidden="true">⌕</div>
+                    <div class="sma-empty__title">Nothing matched “@Model.Query”</div>
+                    <p class="sma-empty__body">
+                        Try a partial roll number or title. Tag searches match from the start of the
+                        EPC, so paste the whole code if you have it.
+                    </p>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <p class="sma-muted" role="status">@Model.TotalCount result(s) for “@Model.Query”</p>
+
+        @foreach (var group in new (string Label, IReadOnlyList<SearchHit> Hits)[]
+        {
+            ("Students", Model.Students),
+            ("Books", Model.Books),
+            ("Copies", Model.Copies),
+            ("Loans", Model.Transactions),
+            ("RFID tags", Model.Tags)
+        })
+        {
+            if (group.Hits.Count == 0) { continue; }
+
+            <div class="sma-card" style="margin-bottom:var(--sma-space-4)">
+                <div class="sma-card__header">
+                    <h2 class="sma-card__title">@group.Label</h2>
+                    <span class="sma-badge sma-badge--neutral">@group.Hits.Count</span>
+                </div>
+                <div class="sma-card__body">
+                    <div class="sma-table-wrap">
+                        <table class="sma-table">
+                            <caption class="sma-sr-only">@group.Label matching @Model.Query</caption>
+                            <tbody>
+                            @foreach (var hit in group.Hits)
+                            {
+                                <tr>
+                                    <td>
+                                        <strong>@hit.Title</strong>
+                                        <div class="sma-small sma-muted">@hit.Subtitle</div>
+                                    </td>
+                                    <td style="width:1%;white-space:nowrap">
+                                        @if (hit.Badge is not null)
+                                        {
+                                            <span class="sma-badge @(hit.IsWarning ? "sma-badge--warning" : "sma-badge--success")">
+                                                @(hit.IsWarning ? "▲" : "✓") @hit.Badge
+                                            </span>
+                                        }
+                                    </td>
+                                    <td style="width:1%">
+                                        <a class="sma-btn sma-btn--ghost" href="@hit.Url">Open</a>
+                                    </td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+}

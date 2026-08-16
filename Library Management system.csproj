@@ -1,0 +1,66 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>aspnet-Library_Management_system-c36309a0-bbb3-4114-818c-eccef33c7d17</UserSecretsId>
+    <RootNamespace>Library_Management_system</RootNamespace>
+    <!-- Tests/ lives inside the web project folder, so it must be excluded from the web
+         project's source glob or its files compile into both projects. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);artifacts\**;artifacts\**\*;Tests\**</DefaultItemExcludes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="artifacts\**\*.cs" />
+    <Content Remove="artifacts\**\*" />
+    <EmbeddedResource Remove="artifacts\**\*" />
+    <None Remove="artifacts\**\*" />
+    <Compile Remove="Views\NewFolder\**" />
+    <Compile Remove="wwwroot\images\NewFolder\**" />
+    <Compile Remove="wwwroot\images\User\slide_show\**" />
+    <Content Remove="Views\NewFolder\**" />
+    <Content Remove="wwwroot\images\NewFolder\**" />
+    <Content Remove="wwwroot\images\User\slide_show\**" />
+    <EmbeddedResource Remove="Views\NewFolder\**" />
+    <EmbeddedResource Remove="wwwroot\images\NewFolder\**" />
+    <EmbeddedResource Remove="wwwroot\images\User\slide_show\**" />
+    <None Remove="Views\NewFolder\**" />
+    <None Remove="wwwroot\images\NewFolder\**" />
+    <None Remove="wwwroot\images\User\slide_show\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Pure calculation helpers (fine arithmetic, transaction numbering) are internal so they
+         are not part of the public surface, but they are exactly what most needs unit testing. -->
+    <InternalsVisibleTo Include="SMA.Lms.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MailKit" Version="4.16.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="10.0.11" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.11" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="10.0.11" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.11" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.11" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.11">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <_ContentIncludedByDefault Remove="Views\Admin\Books\Create.cshtml" />
+    <_ContentIncludedByDefault Remove="Views\Admin\Books\Edit.cshtml" />
+    <_ContentIncludedByDefault Remove="Views\Admin\Books\Index.cshtml" />
+    <_ContentIncludedByDefault Remove="Views\Admin\Borrow\Index.cshtml" />
+    <_ContentIncludedByDefault Remove="Views\Admin\Report\Index.cshtml" />
+    <_ContentIncludedByDefault Remove="Views\Admin\Users\Index.cshtml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Pages\NewFolder\" />
+    <Folder Include="wwwroot\images\Admin\Categories\" />
+  </ItemGroup>
+
+</Project>

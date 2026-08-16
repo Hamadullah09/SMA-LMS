@@ -1,0 +1,116 @@
+@model Library_Management_system.ViewComponents.StaffShellModel
+@*
+    The single navigation for every staff screen, rendered twice: once in the desktop sidebar and
+    once in the mobile offcanvas.
+
+    Before this existed there were two shells with two different menus. The admin menu had no way
+    to reach the circulation desk or any RFID screen; the desk menu had no way to reach books,
+    students, feedback or even a logout button. Whichever one you were in, part of the product was
+    invisible. This lists everything once and hides only what the signed-in role genuinely cannot
+    open, so the menu never offers a link that will bounce to Access Denied.
+*@
+@{
+    var path = ViewContext.HttpContext.Request.Path.Value ?? string.Empty;
+
+    // Active state is matched on the URL rather than controller names: these screens are a mix of
+    // attribute-routed desk controllers and conventionally routed admin ones, so the route values
+    // are not a consistent key.
+    Func<string, string> Nav = prefix =>
+        path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ? "is-active" : string.Empty;
+
+    // Admin sees everything. Librarian is blocked by [Authorize] from user management, the legacy
+    // report and the SMA admin area, so those are not shown to them.
+    var isAdmin = Model.IsAdmin;
+}
+
+<div class="sma-nav-group">
+    <div class="sma-nav-group__label">Overview</div>
+    <a class="sma-nav-link @Nav("/admin/dashboard")" href="/admin/dashboard">
+        <i class="bi bi-speedometer2" aria-hidden="true"></i> <span>Dashboard</span>
+    </a>
+    @if (isAdmin)
+    {
+        <a class="sma-nav-link @Nav("/admin/sma/dashboard")" href="/admin/sma/dashboard">
+            <i class="bi bi-activity" aria-hidden="true"></i> <span>Library overview</span>
+        </a>
+    }
+</div>
+
+<div class="sma-nav-group">
+    <div class="sma-nav-group__label">Circulation</div>
+    <a class="sma-nav-link @Nav("/desk/checkout")" href="/desk/checkout">
+        <i class="bi bi-box-arrow-right" aria-hidden="true"></i> <span>Issue book</span>
+    </a>
+    <a class="sma-nav-link @Nav("/desk/return")" href="/desk/return">
+        <i class="bi bi-box-arrow-in-left" aria-hidden="true"></i> <span>Return book</span>
+    </a>
+    <a class="sma-nav-link @Nav("/desk/manual")" href="/desk/manual">
+        <i class="bi bi-pencil-square" aria-hidden="true"></i> <span>Manual issue</span>
+    </a>
+    <a class="sma-nav-link @Nav("/desk/reservations")" href="/desk/reservations">
+        <i class="bi bi-bookmark-check" aria-hidden="true"></i> <span>Reservations</span>
+    </a>
+    <a class="sma-nav-link @Nav("/admin/manageborrowingbook")" href="/admin/manageborrowingbook">
+        <i class="bi bi-clock-history" aria-hidden="true"></i> <span>Loans &amp; overdue</span>
+    </a>
+</div>
+
+<div class="sma-nav-group">
+    <div class="sma-nav-group__label">Catalogue</div>
+    <a class="sma-nav-link @Nav("/admin/managebooks")" href="/admin/managebooks">
+        <i class="bi bi-book" aria-hidden="true"></i> <span>Books</span>
+    </a>
+    <a class="sma-nav-link @Nav("/admin/managecategory")" href="/admin/managecategory">
+        <i class="bi bi-tags" aria-hidden="true"></i> <span>Categories &amp; authors</span>
+    </a>
+    <a class="sma-nav-link @Nav("/admin/manageevent")" href="/admin/manageevent">
+        <i class="bi bi-calendar-event" aria-hidden="true"></i> <span>Events</span>
+    </a>
+</div>
+
+<div class="sma-nav-group">
+    <div class="sma-nav-group__label">RFID</div>
+    <a class="sma-nav-link @Nav("/desk/tags")" href="/desk/tags">
+        <i class="bi bi-upc-scan" aria-hidden="true"></i> <span>Tag assignment</span>
+    </a>
+    <a class="sma-nav-link @Nav("/desk/scans")" href="/desk/scans">
+        <i class="bi bi-broadcast" aria-hidden="true"></i> <span>Live scans</span>
+    </a>
+    <a class="sma-nav-link @Nav("/desk/readers")" href="/desk/readers">
+        <i class="bi bi-router" aria-hidden="true"></i> <span>Reader health</span>
+    </a>
+</div>
+
+<div class="sma-nav-group">
+    <div class="sma-nav-group__label">People</div>
+    @if (isAdmin)
+    {
+        <a class="sma-nav-link @Nav("/admin/manageuser")" href="/admin/manageuser">
+            <i class="bi bi-people" aria-hidden="true"></i> <span>Students &amp; staff</span>
+        </a>
+    }
+    @* No unread badge here on purpose: the topbar envelope already carries that count, and
+       duplicating it would mean a second query per page render just to say the same thing. *@
+    <a class="sma-nav-link @Nav("/admin/managefeedback")" href="/admin/managefeedback">
+        <i class="bi bi-envelope-exclamation" aria-hidden="true"></i> <span>Feedback inbox</span>
+    </a>
+</div>
+
+<div class="sma-nav-group">
+    <div class="sma-nav-group__label">Insights</div>
+    <a class="sma-nav-link @Nav("/desk/search")" href="/desk/search">
+        <i class="bi bi-search" aria-hidden="true"></i> <span>Search everything</span>
+    </a>
+    <a class="sma-nav-link @Nav("/admin/sma/reports")" href="/admin/sma/reports">
+        <i class="bi bi-bar-chart" aria-hidden="true"></i> <span>Reports</span>
+    </a>
+    @if (isAdmin)
+    {
+        <a class="sma-nav-link @Nav("/admin/managereport")" href="/admin/managereport">
+            <i class="bi bi-receipt" aria-hidden="true"></i> <span>Transaction log</span>
+        </a>
+        <a class="sma-nav-link @Nav("/admin/sma/policies")" href="/admin/sma/policies">
+            <i class="bi bi-sliders" aria-hidden="true"></i> <span>Loan policies</span>
+        </a>
+    }
+</div>

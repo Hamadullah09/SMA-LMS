@@ -1,0 +1,124 @@
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewBag.Title = "Support";
+}
+
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Support</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="~/css/users/support.css" asp-append-version="true" />
+</head>
+
+<body>
+    <div class="wrapper">
+
+        <div class="header">
+            <h1>Support</h1>
+            <p>Get help or contact us for assistance.</p>
+        </div>
+
+        <div class="container">
+
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <a class="nav-button @(ViewContext.HttpContext.Request.Path == "/about/faq" ? "active" : "")"
+                   asp-controller="Home" asp-action="AboutFaq">
+                    <i class="bi bi-grid-3x3-gap nav-icon" aria-hidden="true"></i>
+                    <span class="nav-label">General</span>
+                </a>
+
+                <a class="nav-button @(ViewContext.HttpContext.Request.Path == "/about/account" ? "active" : "")"
+                   asp-controller="Home" asp-action="AboutAccount">
+                    <i class="bi bi-person-lock nav-icon" aria-hidden="true"></i>
+                    <span class="nav-label">Account & Login</span>
+                </a>
+
+                <a class="nav-button @(ViewContext.HttpContext.Request.Path == "/about/support" ? "active" : "")"
+                   asp-controller="Home" asp-action="AboutSupport">
+                    <i class="bi bi-life-preserver nav-icon" aria-hidden="true"></i>
+                    <span class="nav-label">Support</span>
+                </a>
+
+                <a class="nav-button @(ViewContext.HttpContext.Request.Path == "/about/policies" ? "active" : "")"
+                   asp-controller="Home" asp-action="AboutPolicies">
+                    <i class="bi bi-journal-text nav-icon" aria-hidden="true"></i>
+                    <span class="nav-label">Libraries Policy</span>
+                </a>
+
+            </aside>
+
+            <!-- Main Content -->
+            <main class="main-content">
+                <h1>About</h1>
+
+                <p>
+                    This service provides online access to a digital library that includes books,
+                    documents, and educational resources.
+                </p>
+
+                <p>
+                    You register on the website and sign in with a password, using either your
+                    email address or your phone number. New accounts are reviewed by a librarian
+                    before they can be used.
+                </p>
+
+                <p>
+                    If you forget your password, use the Forgot Password link on the sign-in page.
+                    The library emails you a single-use link for choosing a new one.
+                </p>
+
+                <h1>Support</h1>
+
+                <p>
+                    If you experience issues with registration, login, or access to library content,
+                    support is available through the following channels:
+                </p>
+
+                <ul>
+                    <li>The Support page on the website</li>
+                    <li>The circulation desk, where staff can also reset your password</li>
+                </ul>
+
+                <p>
+                    For security, staff will ask to see your student card before making changes to
+                    an account.
+                </p>
+
+                <!-- Example in your History page -->
+                <p>
+                    By using this service, you agree to our
+                    <a asp-page="/User/TermsAndConditions">Terms and Conditions</a>.
+                </p>
+
+                <p>
+                    Or visit our
+                    <a asp-page="/User/About/Fq/Polices/Support">Support Center</a>.
+                </p>
+
+                <p>
+                    <a asp-page="/User/About/Policies">Read Terms and Conditions</a>
+                </p>
+
+            </main>
+
+        </div>
+    </div>
+
+    <script>
+                                function navigateTo(section) {
+                                    if (section === 'General') {
+                                        window.location.href = '@Url.Action("Index", "FAQ")';
+                                    } else if (section === 'Support') {
+                                        window.location.href = '@Url.Action("Support", "FAQ")';
+                                    } else if (section === 'Libraries') {
+                                        window.location.href = '@Url.Action("LibrariesPolicy", "FAQ")';
+                                    }
+                                }
+    </script>
+
+</body>
+
+</html>

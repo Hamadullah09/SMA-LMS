@@ -1,0 +1,36 @@
+name: SMA LMS build and test
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
+
+jobs:
+  build:
+    # The project targets net10.0 and the test project references
+    # Microsoft.EntityFrameworkCore.SqlServer, which builds cross-platform.
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET 10
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.0.x
+
+    - name: Restore
+      run: dotnet restore "Library Management system.csproj"
+
+    - name: Restore tests
+      run: dotnet restore Tests/SMA.Lms.Tests/SMA.Lms.Tests.csproj
+
+    - name: Build
+      # Warnings are worth seeing on a pull request; the build is currently warning-free.
+      run: dotnet build "Library Management system.csproj" --no-restore -c Release
+
+    - name: Test
+      # The suite is self-contained: unit tests plus in-memory integration tests, so no
+      # SQL Server instance is required in CI.
+      run: dotnet test Tests/SMA.Lms.Tests/SMA.Lms.Tests.csproj -c Release --verbosity normal

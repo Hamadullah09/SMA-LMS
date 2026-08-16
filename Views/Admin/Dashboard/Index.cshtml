@@ -1,0 +1,370 @@
+@model Library_Management_system.Models.Admin.DashboardViewModel
+@using System.Text.Json
+@{
+    ViewBag.Title = "Dashboard";
+    var now = DateTime.Now;
+    var dashboard = Model ?? new Library_Management_system.Models.Admin.DashboardViewModel();
+    var categoryLabelsJson = JsonSerializer.Serialize(dashboard.CategoryDistribution.Select(x => x.CategoryName).ToArray());
+    var categoryDataJson = JsonSerializer.Serialize(dashboard.CategoryDistribution.Select(x => x.BookCount).ToArray());
+    var borrowingTrendLabelsJson = JsonSerializer.Serialize(
+        dashboard.BorrowingTrends.Select(x => x.Label).ToArray());
+    var borrowingTrendCountsJson = JsonSerializer.Serialize(
+        dashboard.BorrowingTrends.Select(x => x.Count).ToArray());
+}
+
+
+<div class="dashboard-page container-fluid" id="adminDashboard">
+
+    <header class="dash-header">
+        <div class="dash-header-left">
+            <h2 class="welcome">Welcome! Admin</h2>
+            <div class="date-line">@now.ToString("MMM dd yyyy") | @now.ToString("dddd, hh tt")</div>
+        </div>
+    </header>
+
+    <div class="divider"></div>
+
+    <section class="summary-row" aria-label="Dashboard summary">
+        <article class="sum-card">
+            <div class="sum-icon"><i class="bi bi-book"></i></div>
+            <div class="sum-info">
+                <span class="sum-title">Total Books</span>
+                <span class="sum-value">@dashboard.TotalBooks</span>
+            </div>
+        </article>
+
+        <article class="sum-card">
+            <div class="sum-icon"><i class="bi bi-journal-bookmark"></i></div>
+            <div class="sum-info">
+                <div class="sum-title">Borrowed Books</div>
+                <div class="sum-value">@dashboard.BorrowedBooks</div>
+            </div>
+        </article>
+
+        <article class="sum-card">
+            <div class="sum-icon"><i class="bi bi-people"></i></div>
+            <div class="sum-info">
+                <div class="sum-title">Total Users</div>
+                <div class="sum-value">@dashboard.TotalUsers</div>
+            </div>
+        </article>
+
+        <article class="sum-card">
+            <div class="sum-icon"><i class="bi bi-currency-dollar"></i></div>
+            <div class="sum-info">
+                <div class="sum-title">Total Fines</div>
+                <div class="sum-value">$ @dashboard.TotalFines.ToString("N2")</div>
+            </div>
+        </article>
+    </section>
+
+    <section class="quick-section">
+        <h3 class="quick-title">Quick Actions</h3>
+
+        <nav class="quick-tabs" aria-label="Quick action tabs">
+            <button type="button" class="qtab active" data-target="#panel-overview">Overview</button>
+            <button type="button" class="qtab" data-target="#panel-members">New Member(s) <span class="qtab-badge">@dashboard.NewMembers.Count</span></button>
+            <button type="button" class="qtab" data-target="#panel-books">New Book(s) <span class="qtab-badge">@dashboard.NewBooks.Count</span></button>
+            <button type="button" class="qtab" data-target="#panel-borrow">Borrowing Book(s) <span class="qtab-badge">@dashboard.RecentBorrowings.Count</span></button>
+        </nav>
+
+        <div class="quick-panel">
+            <section class="qtab-content show" id="panel-overview">
+                <h4 class="panel-title">Overdue Books</h4>
+
+                <div class="table-wrap">
+                    <table class="dash-table">
+                        <thead>
+                            <tr>
+                                <th>BOOK TITLE</th>
+                                <th>BORROWER</th>
+                                <th>DUE DATE</th>
+                                <th>DAYS OVERDUE</th>
+                                <th>FINE</th>
+                                <th class="text-center">ACTIONS</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (dashboard.OverdueBorrowings.Any())
+                            {
+                                foreach (var row in dashboard.OverdueBorrowings)
+                                {
+                                    <tr>
+                                        <td>@row.BookTitle</td>
+                                        <td>@row.Borrower</td>
+                                        <td>@row.DueDate.ToString("yyyy-MM-dd")</td>
+                                        <td>
+                                            <span class="pill danger">
+                                                <i class="bi bi-exclamation-triangle"></i> @row.DaysOverdue Day(s)
+                                            </span>
+                                        </td>
+                                        <td>$ @row.Fine.ToString("N2")</td>
+                                        <td class="text-center">
+                                            <a class="ico-btn" aria-label="Open borrowing management" href="@Url.Action("Index", "ManageBorrowingBook")">
+                                                <i class="bi bi-box-arrow-up-right"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">No overdue books.</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="qtab-content" id="panel-members">
+                <div class="panel-head">
+                    <h4 class="panel-title">New Register</h4>
+                    <a class="quick-add-btn" href="@Url.Action("Index", "ManageUser", new { tab = "students", quickAction = "add-user" })">
+                        <i class="bi bi-person-plus"></i>
+                        Add New User
+                    </a>
+                </div>
+
+                <div class="table-wrap">
+                    <table class="dash-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Gender</th>
+                                <th>Phone Number</th>
+                                <th>Email Address</th>
+                                <th>Register Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (dashboard.NewMembers.Any())
+                            {
+                                @foreach (var member in dashboard.NewMembers)
+                                {
+                                    <tr>
+                                        <td>@member.FullName</td>
+                                        <td>@member.Gender</td>
+                                        <td>@(string.IsNullOrWhiteSpace(member.PhoneNumber) ? "-" : member.PhoneNumber)</td>
+                                        <td>@member.Email</td>
+                                        <td>@(member.CreatedDate?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "-")</td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">No new members found.</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="qtab-content" id="panel-books">
+                <div class="panel-head">
+                    <h4 class="panel-title">New Books</h4>
+                    <a class="quick-add-btn" href="@Url.Action("Index", "ManageBooks", new { quickAction = "add-book" })">
+                        <i class="bi bi-plus-lg"></i>
+                        Add New Book
+                    </a>
+                </div>
+
+                <div class="table-wrap">
+                    <table class="dash-table">
+                        <thead>
+                            <tr>
+                                <th style="width:120px; text-align:center;">New Arrival</th>
+                                <th style="min-width:240px;">Title</th>
+                                <th style="width:160px;">Category</th>
+                                <th style="width:180px;">Author Name</th>
+                                <th style="width:170px; text-align:center;">Created At</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (dashboard.NewBooks.Any())
+                            {
+                                @foreach (var book in dashboard.NewBooks)
+                                {
+                                    var imagePath = string.IsNullOrWhiteSpace(book.ImageUrl)
+                                        ? Url.Content("~/images/User/Book/book2.png")
+                                        : Url.Content(book.ImageUrl);
+
+                                    <tr>
+                                        <td class="text-center">
+                                            <img class="book-img" src="@imagePath" alt="@book.Title" />
+                                        </td>
+                                        <td>@book.Title</td>
+                                        <td>@book.CategoryName</td>
+                                        <td>@book.Author</td>
+                                        <td class="text-center">@(book.CreatedDate?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "-")</td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">No new books found.</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="qtab-content" id="panel-borrow">
+                <h4 class="panel-title">New Borrowing Books</h4>
+                <div class="table-wrap">
+                    <table class="dash-table">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Book Title</th>
+                                <th class="text-center">Borrow Date</th>
+                                <th class="text-center">Due Date</th>
+                                <th class="text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (dashboard.RecentBorrowings.Any())
+                            {
+                                foreach (var row in dashboard.RecentBorrowings)
+                                {
+                                    var statusClass = row.Status switch
+                                    {
+                                        "active" => "status active",
+                                        "overdue" => "status overdue",
+                                        "returned" => "status returned",
+                                        _ => "status rejected"
+                                    };
+                                    var statusLabel = row.Status switch
+                                    {
+                                        "active" => "Active",
+                                        "overdue" => "Overdue",
+                                        "returned" => "Returned",
+                                        _ => "Rejected"
+                                    };
+
+                                    <tr>
+                                        <td>@row.Username</td>
+                                        <td>@row.BookTitle</td>
+                                        <td class="text-center">@row.BorrowDate.ToString("yyyy-MM-dd")</td>
+                                        <td class="text-center">@row.DueDate.ToString("yyyy-MM-dd")</td>
+                                        <td class="text-center"><span class="@statusClass">@statusLabel</span></td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">No borrowing records found.</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </section>
+
+    <section class="charts-row">
+        <div class="chart-col">
+            <div class="quick-panel">
+                <h4 class="panel-title">Book Categories</h4>
+
+                <div class="panel-body categories-body">
+                    <div class="chart-area">
+                        <canvas id="chartCategories" height="220"></canvas>
+                    </div>
+
+                    <div class="legend-area">
+                        <ul class="legend" id="categoryLegend"></ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-col">
+            <div class="quick-panel">
+                <h4 class="panel-title">Book Borrowing Trends</h4>
+
+                <div class="panel-body trends-body">
+                    <div class="chart-area full">
+                        <canvas id="chartTrends" height="220"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="restricted-section" style="margin-top:18px;">
+        <div class="quick-panel">
+            <div class="panel-head">
+                <h4 class="panel-title">Restricted Members</h4>
+                <span class="pill danger">
+                    <i class="bi bi-shield-exclamation"></i>
+                    @dashboard.RestrictedMembersCount restricted
+                </span>
+            </div>
+
+            <div class="table-wrap">
+                <table class="dash-table">
+                    <thead>
+                        <tr>
+                            <th style="width:160px;">MEMBER ID</th>
+                            <th>NAME</th>
+                            <th>EMAIL</th>
+                            <th style="width:190px;">RESTRICTED UNTIL</th>
+                            <th style="width:120px;" class="text-center">ACTION</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (dashboard.RestrictedMembers.Any())
+                        {
+                            foreach (var member in dashboard.RestrictedMembers)
+                            {
+                                <tr>
+                                    <td>@member.MemberId</td>
+                                    <td>@member.FullName</td>
+                                    <td>@(string.IsNullOrWhiteSpace(member.Email) ? "-" : member.Email)</td>
+                                    <td>@member.RestrictedUntilUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                                    <td class="text-center">
+                                        <a class="ico-btn"
+                                           aria-label="Open user management"
+                                           href="@Url.Action("Index", "ManageUser", new { search = member.FullName })">
+                                            <i class="bi bi-box-arrow-up-right"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">No restricted members.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+</div>
+
+@section Scripts {
+    <script>
+        window.dashboardCategoryChart = {
+            labels: @Html.Raw(categoryLabelsJson),
+            counts: @Html.Raw(categoryDataJson)
+        };
+        window.dashboardBorrowingTrend = {
+            labels: @Html.Raw(borrowingTrendLabelsJson),
+            counts: @Html.Raw(borrowingTrendCountsJson)
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="~/js/admin/dashboard.js" asp-append-version="true"></script>
+}

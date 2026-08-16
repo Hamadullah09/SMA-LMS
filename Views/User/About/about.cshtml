@@ -1,0 +1,105 @@
+﻿@{
+    @* The layout already appends the product name, so the page title is just the page. *@
+    ViewData["Title"] = "About the Library";
+}
+
+
+<!-- Slide Show -->
+<div id="aboutPage" class="container px-0 mt-0 about-page">
+    <div id="heroCarousel" class="carousel slide mx-2 about-hero" data-bs-ride="carousel">
+        <div class="carousel-indicators custom-indicators">
+            <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="0" class="active"
+                    aria-current="true"></button>
+            <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="1"></button>
+            <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="2"></button>
+            <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="3"></button>
+        </div>
+
+        <div class="carousel-inner">
+            <div class="carousel-item active">
+                <img src="/images/User/Slideshow/img_library1.jpg" class="d-block w-100 main-slider-img" alt="slide 1">
+            </div>
+            <div class="carousel-item">
+                <img src="/images/User/Slideshow/img_library2.jpg" class="d-block w-100 main-slider-img" alt="Slide 2">
+            </div>
+        </div>
+
+        <button class="carousel-control-prev" type="button" data-bs-target="#heroCarousel" data-bs-slide="prev">
+            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+        </button>
+        <button class="carousel-control-next" type="button" data-bs-target="#heroCarousel" data-bs-slide="next">
+            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+        </button>
+    </div>
+
+    <!-- About -->
+    <div class="container-about about-content">
+        <h2>About Us</h2>
+        <p>
+            SMA has built a 28m × 28m library with a total area of
+            784 square meters and a height of 10 meters. The library consists of three floors
+            designed to meet high-quality standards, offering a clean, quiet, and comfortable
+            environment for study and research.
+        </p>
+        <p>
+            The library contains more than 5,000 books and over 2,000 titles,
+            with 38% in Khmer and 62% in foreign languages, supporting students,
+            staff, and the public.
+        </p>
+
+        <!-- Service Hours -->
+        <h2>Service Hours</h2>
+        <p>The library opens daily:</p>
+        <ul>
+            <li>Monday – Friday: 07:30 – 20:30 (Except holidays)</li>
+            <li>Saturday – Sunday: 07:30 – 16:30 (Except holidays)</li>
+        </ul>
+
+        <!-- Visit Us -->
+        <section class="d-flex align-items-center gap-3 mb-3 about-feature">
+            <img src="~/images/User/About/visitus.png"
+                 class="img-fluid"
+                 style="max-width:300px;"
+                 alt="Visit Us">
+            <div>
+                <h5 class="text-center">Visit Us</h5>
+                <p class="mb-0">
+                    All SMA affiliates with a valid ID have access to
+                    our resources. We are committed to supporting learning and research.
+                </p>
+            </div>
+        </section>
+
+        <!-- Leadership -->
+        <section class="d-flex align-items-center gap-3 mb-3 about-feature">
+            <img src="~/images/User/About/leadership.png"
+                 class="img-fluid"
+                 style="max-width:300px;"
+                 alt="Leadership">
+            <div>
+                <h5 class="text-center">Leadership</h5>
+                <p class="mb-0">
+                    Our professional staff are approachable, solution-oriented,
+                    and dedicated to supporting academic success.
+                </p>
+            </div>
+        </section>
+
+        <!-- Support -->
+        <section class="d-flex align-items-center gap-3 about-feature">
+            <img src="~/images/User/About/support.png"
+                 class="img-fluid"
+                 style="max-width:300px;"
+                 alt="Support Library">
+            <div>
+                <h5 class="text-center">Support the Library</h5>
+                <p class="mb-0">
+                    We value research, innovation, cultural preservation,
+                    and creating inspiring learning spaces.
+                </p>
+            </div>
+        </section>
+    </div>
+</div>
+
+@await Html.PartialAsync("_StaticChatbot")

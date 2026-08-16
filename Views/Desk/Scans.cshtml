@@ -1,0 +1,119 @@
+@model List<Library_Management_system.Models.Desk.ScanLine>
+@using Library_Management_system.Domain.Entities
+@{
+    ViewData["Title"] = "Live Scans";
+    ViewBag.SmaActive = "scans";
+    ViewBag.SmaSubtitle = "Every tag the readers have seen, after duplicate suppression.";
+    Layout = "~/Views/Shared/_StaffLayout.cshtml";
+
+    var canSimulate = (bool)(ViewBag.CanSimulate ?? false);
+    var readers = (List<RfidReader>)(ViewBag.Readers ?? new List<RfidReader>());
+}
+
+@if (TempData["ScanMessage"] is string message)
+{
+    <div class="sma-alert sma-alert--info" role="status">
+        <span class="sma-alert__icon" aria-hidden="true">i</span>
+        <div>@message</div>
+    </div>
+}
+
+@if (canSimulate)
+{
+    <div class="sma-card" style="margin-bottom:var(--sma-space-5)">
+        <div class="sma-card__header">
+            <h2 class="sma-card__title">Simulator</h2>
+            <span class="sma-badge sma-badge--warning">▲ Development only</span>
+        </div>
+        <div class="sma-card__body">
+            <p class="sma-muted">
+                Presenting a tag here runs the same pipeline a real reader would: observation →
+                duplicate suppression → persistence. Repeats let you see the debouncer collapse a
+                burst into one logical scan.
+            </p>
+            <form method="post" action="/desk/scans/simulate">
+                @Html.AntiForgeryToken()
+                <div class="sma-grid sma-grid--3">
+                    <div class="sma-field" style="margin-bottom:0">
+                        <label class="sma-label" for="readerId">Reader</label>
+                        <select class="sma-select" id="readerId" name="readerId">
+                            @foreach (var r in readers)
+                            {
+                                <option value="@r.Id">@r.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="sma-field" style="margin-bottom:0">
+                        <label class="sma-label" for="epc">Tag EPC</label>
+                        <input class="sma-input sma-mono" id="epc" name="epc" autocomplete="off"
+                               placeholder="SMAB00000000000000000001" />
+                    </div>
+                    <div class="sma-field" style="margin-bottom:0">
+                        <label class="sma-label" for="repeats">Raw reads</label>
+                        <input class="sma-input" id="repeats" name="repeats" type="number" value="1" min="1" max="50" />
+                    </div>
+                </div>
+                <button type="submit" class="sma-btn sma-btn--primary" style="margin-top:var(--sma-space-4)">
+                    Present tag
+                </button>
+            </form>
+        </div>
+    </div>
+}
+
+<div class="sma-card">
+    <div class="sma-card__header">
+        <h2 class="sma-card__title">Recent scans</h2>
+        <span class="sma-badge sma-badge--neutral">@Model.Count</span>
+    </div>
+    <div class="sma-card__body">
+        @if (Model.Count == 0)
+        {
+            <div class="sma-empty">
+                <div class="sma-empty__icon" aria-hidden="true">📡</div>
+                <div class="sma-empty__title">No scans recorded yet</div>
+                <p class="sma-empty__body">
+                    Tags read by any reader appear here, newest first, with what they resolved to.
+                    Repeated reads of the same tag inside the duplicate window count as one scan.
+                </p>
+            </div>
+        }
+        else
+        {
+            <div class="sma-table-wrap">
+                <table class="sma-table">
+                    <caption class="sma-sr-only">Recent RFID scans</caption>
+                    <thead>
+                    <tr><th>Seen</th><th>Reader</th><th>Tag</th><th>Resolved to</th><th>Reads</th><th>Signal</th></tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var scan in Model)
+                    {
+                        <tr>
+                            <td class="sma-small">@scan.ObservedUtc.ToString("dd MMM HH:mm:ss")</td>
+                            <td class="sma-small">@scan.ReaderName</td>
+                            <td class="sma-mono sma-small">@scan.Epc</td>
+                            <td>
+                                @if (scan.IsUnknown)
+                                {
+                                    <span class="sma-badge sma-badge--warning">▲ Unknown tag</span>
+                                }
+                                else
+                                {
+                                    <span class="sma-badge sma-badge--success">✓ @scan.Kind</span>
+                                    <div class="sma-small sma-muted">@scan.Resolved</div>
+                                }
+                            </td>
+                            <td class="sma-small">@scan.ReadCount</td>
+                            <td class="sma-small sma-muted">
+                                @(scan.Rssi is null ? "—" : $"RSSI {scan.Rssi}")
+                                @(scan.Antenna is null ? "" : $" • ant {scan.Antenna}")
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

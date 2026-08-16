@@ -1,0 +1,132 @@
+@page
+@model LoginModel
+@{
+    Layout = null;
+    ViewData["Title"] = "Log in";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <partial name="_SmaFavicon" />
+    <title>Sign in — SMA Library</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+
+    <!-- Your custom css -->
+    <link rel="stylesheet" href="~/css/Login/login.css" asp-append-version="true" />
+    @* SMA design tokens + Bootstrap theming. Must load last so it wins. *@
+    <link rel="stylesheet" href="~/css/sma-theme-bridge.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/page-loader.css" asp-append-version="true" />
+</head>
+
+<body>
+    <div id="pageLoader" class="page-loader" aria-hidden="false">
+        <div class="page-loader__dots" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+
+            <!-- Right Section -->
+            <div class="right">
+
+                
+                <div class="auth-logo">
+                    <img src="~/images/brand/sma-logo.png" alt="SMA Library" />
+                </div>
+
+                <!-- Identity Login Form -->
+                <form id="account" method="post" asp-route-returnUrl="@Model.ReturnUrl">
+                    @if (!string.IsNullOrWhiteSpace(Model.InfoMessage))
+                    {
+                        <div class="info-banner" role="status">@Model.InfoMessage</div>
+                    }
+                    <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+
+                    <div>
+                        <div class="input-group">
+                            <div class="icon-email">
+                                <i class="fa-regular fa-envelope"></i>
+                            </div>
+
+                            <input asp-for="Input.Email" type="text" placeholder="Your Email or Phone" autocomplete="username"
+                                   aria-required="true" required />
+                        </div>
+                        <span asp-validation-for="Input.Email" class="text-danger"></span>
+
+                        <div class="input-group">
+                            <div class="icon-password">
+                                <i class="fa-solid fa-lock"></i>
+                            </div>
+
+                            <input asp-for="Input.Password" type="password" class="password" placeholder="Your Password"
+                                   autocomplete="current-password" aria-required="true" required />
+
+                            <span class="toggle-password" role="button" tabindex="0" data-target="#Input_Password">
+                                <i class="bi bi-eye-slash" id="togglePassword1"></i>
+                            </span>
+                        </div>
+                        <span asp-validation-for="Input.Password" class="text-danger"></span>
+
+                    </div>
+
+                    <button id="login-submit" type="submit" class="btn-signin">
+                        <span class="btn-text">Sign in</span>
+                        <span class="btn-loader" aria-hidden="true"></span>
+                    </button>
+                </form>
+
+                <div class="links">
+                    <div class="forgot">
+                        <a asp-area="Identity" asp-page="/Account/ForgotPassword">Reset Password</a>
+                    </div>
+
+                    <p>
+                        Don’t have an account?
+                        <a class="sign-up-link" asp-page="./Register" asp-route-returnUrl="@Model.ReturnUrl">
+                            Sign up
+                        </a>
+                    </p>
+
+
+                </div>
+
+                <!-- External Login (Optional) -->
+                @if ((Model.ExternalLogins?.Count ?? 0) > 0)
+                {
+                    <div style="margin-top:18px;">
+                        <div class="divider"><span>OR</span></div>
+
+                        <form id="external-account" asp-page="./ExternalLogin" asp-route-returnUrl="@Model.ReturnUrl"
+                              method="post">
+                            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                                @foreach (var provider in Model.ExternalLogins!)
+                                {
+                                    <button type="submit" class="btn-signin" name="provider" value="@provider.Name"
+                                            title="Log in using your @provider.DisplayName account"
+                                            style="width:auto; padding:10px 16px;">
+                                        @provider.DisplayName
+                                    </button>
+                                }
+                            </div>
+                        </form>
+                    </div>
+                }
+            </div>
+
+        </div>
+    </div>
+
+    <script src="~/js/page-loader.js" asp-append-version="true"></script>
+    <script src="~/js/admin/login.js"></script>
+    <partial name="_ValidationScriptsPartial" />
+</body>
+
+</html>

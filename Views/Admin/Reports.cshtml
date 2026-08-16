@@ -1,0 +1,95 @@
+@model Library_Management_system.Application.Reporting.ReportResult
+@using Library_Management_system.Application.Reporting
+@{
+    ViewData["Title"] = "Reports";
+    ViewBag.SmaActive = "reports";
+    ViewBag.SmaSubtitle = Model.Description;
+    Layout = "~/Views/Shared/_StaffLayout.cshtml";
+
+    var definitions = (IReadOnlyList<ReportDefinition>)ViewBag.Definitions;
+    var from = (DateTime)ViewBag.From;
+    var to = (DateTime)ViewBag.To;
+}
+
+<div class="sma-card" style="margin-bottom:var(--sma-space-5)">
+    <div class="sma-card__body">
+        <form method="get" action="/admin/sma/reports">
+            <div class="sma-grid sma-grid--3">
+                <div class="sma-field" style="margin-bottom:0">
+                    <label class="sma-label" for="report">Report</label>
+                    <select class="sma-select" id="report" name="report">
+                        @foreach (var d in definitions)
+                        {
+                            <option value="@d.Key" selected="@(d.Key == Model.Key)">@d.Title</option>
+                        }
+                    </select>
+                </div>
+                <div class="sma-field" style="margin-bottom:0">
+                    <label class="sma-label" for="from">From</label>
+                    <input class="sma-input" type="date" id="from" name="from" value="@from.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="sma-field" style="margin-bottom:0">
+                    <label class="sma-label" for="to">To</label>
+                    <input class="sma-input" type="date" id="to" name="to" value="@to.ToString("yyyy-MM-dd")" />
+                </div>
+            </div>
+            <div style="margin-top:var(--sma-space-4);display:flex;gap:var(--sma-space-3)">
+                <button type="submit" class="sma-btn sma-btn--primary">Run report</button>
+                <a class="sma-btn sma-btn--ghost"
+                   href="/admin/sma/reports/export?report=@Model.Key&from=@from.ToString("yyyy-MM-dd")&to=@to.ToString("yyyy-MM-dd")">
+                    Export CSV
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="sma-card">
+    <div class="sma-card__header">
+        <div>
+            <h2 class="sma-card__title">@Model.Title</h2>
+            <div class="sma-small sma-muted">@Model.Description</div>
+        </div>
+        <span class="sma-badge sma-badge--neutral">@Model.Rows.Count row(s)</span>
+    </div>
+    <div class="sma-card__body">
+        @if (Model.IsEmpty)
+        {
+            <div class="sma-empty">
+                <div class="sma-empty__icon" aria-hidden="true">▤</div>
+                <div class="sma-empty__title">Nothing to report for this period</div>
+                <p class="sma-empty__body">
+                    No records matched @from.ToString("dd MMM yyyy") to @to.ToString("dd MMM yyyy").
+                    Widen the date range, or pick a different report.
+                </p>
+            </div>
+        }
+        else
+        {
+            <div class="sma-table-wrap">
+                <table class="sma-table">
+                    <caption class="sma-sr-only">@Model.Title</caption>
+                    <thead>
+                    <tr>
+                        @foreach (var column in Model.Columns)
+                        {
+                            <th>@column</th>
+                        }
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var row in Model.Rows)
+                    {
+                        <tr>
+                            @foreach (var cell in row.Cells)
+                            {
+                                <td>@cell</td>
+                            }
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

@@ -1,0 +1,741 @@
+/* ==========================================================================
+   SMA LMS — Bootstrap theme bridge
+   Specification sections 91, 92, 113.
+
+   The inherited views are Bootstrap 5 plus ~14 per-page stylesheets. Rewriting
+   all of them at once would be a large, risky change with no functional gain,
+   so instead this maps the SMA design tokens onto Bootstrap's own CSS custom
+   properties. Every Bootstrap component in every inherited view picks up the
+   SMA palette, radius and typography without its markup being touched.
+
+   Views then migrate to the `sma-` component classes individually, at whatever
+   pace suits, and look consistent the whole way through rather than only at the
+   end.
+
+   MUST be loaded LAST, after bootstrap.min.css and the per-page stylesheets, so
+   these values win.
+   ========================================================================== */
+
+:root {
+    /* ---- SMA palette, duplicated from sma-design-system.css so this file
+            works even on pages that do not load the design system ---------- */
+    /* Sampled from the official SMA logo. See sma-design-system.css for the
+       contrast measurements behind these choices. */
+    --sma-orange-400: #f8a05a;
+    --sma-orange-500: #f07c20;
+    --sma-orange-600: #d2691e;
+    --sma-orange-700: #b85c0a;
+    --sma-orange-800: #8f4209;
+    --sma-orange-050: #fff4ea;
+    --sma-brand: var(--sma-orange-500);
+    --sma-brand-strong: var(--sma-orange-700);
+    --sma-brand-deep: var(--sma-orange-800);
+    --sma-brand-tint: var(--sma-orange-050);
+    --sma-chrome-900: #1a1614;
+    --sma-chrome-800: #2b2320;
+    --sma-chrome-700: #3d332e;
+
+    --sma-ink: #1a1614;
+    --sma-ink-muted: #5c534e;
+    --sma-ink-subtle: #8a807a;
+
+    --sma-surface: #ffffff;
+    --sma-surface-sunken: #faf7f4;
+    --sma-line: #e7e1dc;
+    --sma-line-strong: #cfc6bf;
+
+    --sma-success: #1a7f4b;
+    --sma-success-bg: #e8f6ee;
+    --sma-warning: #9a6700;
+    --sma-warning-bg: #fdf5e3;
+    --sma-danger: #b42318;
+    --sma-danger-bg: #fdeceb;
+    --sma-info: #175cd3;
+    --sma-info-bg: #eaf1fd;
+
+    /* ---- Bootstrap theme colours -------------------------------------- */
+    --bs-primary: var(--sma-brand-strong);
+    --bs-primary-rgb: 184, 92, 10;
+    --bs-secondary: var(--sma-ink-muted);
+    --bs-secondary-rgb: 92, 83, 78;
+    --bs-success: var(--sma-success);
+    --bs-success-rgb: 26, 127, 75;
+    --bs-danger: var(--sma-danger);
+    --bs-danger-rgb: 180, 35, 24;
+    --bs-warning: var(--sma-warning);
+    --bs-warning-rgb: 154, 103, 0;
+    --bs-info: var(--sma-info);
+    --bs-info-rgb: 23, 92, 211;
+    --bs-light: var(--sma-surface-sunken);
+    --bs-dark: var(--sma-chrome-900);
+
+    --bs-body-color: var(--sma-ink);
+    --bs-body-font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --bs-border-color: var(--sma-line);
+    --bs-border-radius: 10px;
+    --bs-border-radius-sm: 6px;
+    --bs-border-radius-lg: 16px;
+    --bs-link-color: var(--sma-brand-strong);
+    --bs-link-hover-color: var(--sma-brand-deep);
+
+    /* ---- Shared panel treatment ---------------------------------------
+       Every surface on the site - quick actions, category tiles, book
+       cards, info blocks, the hero - uses these three tokens. Changing a
+       panel's look is one edit here rather than six, which is what stops
+       the pages drifting apart again. */
+    --sma-panel-radius: 12px;
+    --sma-panel-border: 1px solid var(--sma-line);
+    --sma-panel-shadow: 0 1px 2px rgba(26,22,20,.05), 0 1px 3px rgba(26,22,20,.07);
+    --sma-panel-shadow-hover: 0 6px 18px rgba(26,22,20,.10);
+}
+
+/* ==========================================================================
+   Buttons — section 113 forbids inconsistent button styles
+   ========================================================================== */
+
+.btn {
+    --bs-btn-border-radius: 6px;
+    --bs-btn-font-weight: 600;
+    --bs-btn-padding-y: .55rem;
+    --bs-btn-padding-x: 1.15rem;
+}
+
+.btn-primary {
+    --bs-btn-bg: var(--sma-brand-strong);
+    --bs-btn-border-color: var(--sma-brand-strong);
+    --bs-btn-hover-bg: var(--sma-brand-deep);
+    --bs-btn-hover-border-color: var(--sma-brand-deep);
+    --bs-btn-active-bg: var(--sma-chrome-900);
+    --bs-btn-disabled-bg: var(--sma-brand-strong);
+    --bs-btn-disabled-border-color: var(--sma-brand-strong);
+}
+
+.btn-warning {
+    --bs-btn-bg: var(--sma-orange-500);
+    --bs-btn-border-color: var(--sma-orange-500);
+    --bs-btn-color: var(--sma-chrome-900);
+    --bs-btn-hover-bg: var(--sma-orange-600);
+    --bs-btn-hover-border-color: var(--sma-orange-600);
+    --bs-btn-hover-color: #fff;
+}
+
+.btn-outline-primary {
+    --bs-btn-color: var(--sma-brand-strong);
+    --bs-btn-border-color: var(--sma-brand-strong);
+    --bs-btn-hover-bg: var(--sma-brand-strong);
+    --bs-btn-hover-border-color: var(--sma-brand-strong);
+}
+
+/* ==========================================================================
+   Surfaces
+   ========================================================================== */
+
+.card {
+    --bs-card-border-color: var(--sma-line);
+    --bs-card-border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(26, 22, 20, .06), 0 1px 3px rgba(26, 22, 20, .08);
+}
+
+.card-header {
+    background: #fff;
+    border-bottom-color: var(--sma-line);
+    font-weight: 650;
+}
+
+.modal-content { border-radius: 16px; border-color: var(--sma-line); }
+.dropdown-menu { --bs-dropdown-border-color: var(--sma-line); --bs-dropdown-border-radius: 10px; }
+
+/* ==========================================================================
+   Forms
+   ========================================================================== */
+
+.form-control, .form-select {
+    border-color: var(--sma-line-strong);
+    border-radius: 6px;
+    padding: .6rem .75rem;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--sma-brand-strong);
+    box-shadow: 0 0 0 3px rgba(184, 92, 10, .28);
+}
+
+.form-label { font-weight: 600; font-size: .875rem; }
+
+/* Keyboard focus must be visible everywhere (section 111). */
+a:focus-visible, button:focus-visible, .btn:focus-visible,
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(184, 92, 10, .38) !important;
+}
+
+/* ==========================================================================
+   Tables
+   ========================================================================== */
+
+.table {
+    --bs-table-border-color: var(--sma-line);
+    font-size: .9375rem;
+}
+
+.table > thead th {
+    background: var(--sma-surface-sunken);
+    color: var(--sma-ink-muted);
+    font-size: .75rem;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    border-bottom-color: var(--sma-line);
+}
+
+/* ==========================================================================
+   Badges — the inherited views use colour alone, which section 111 forbids.
+   Colour cannot be fixed from CSS without markup changes, but contrast and
+   legibility can be, and a border keeps them distinguishable in greyscale.
+   ========================================================================== */
+
+.badge {
+    font-weight: 650;
+    border-radius: 999px;
+    padding: .35em .7em;
+    border: 1px solid rgba(0, 0, 0, .12);
+}
+
+.badge.bg-success { background: #e8f6ee !important; color: var(--sma-success) !important; border-color: currentColor; }
+.badge.bg-danger  { background: #fdeceb !important; color: var(--sma-danger)  !important; border-color: currentColor; }
+.badge.bg-warning { background: #fdf5e3 !important; color: var(--sma-warning) !important; border-color: currentColor; }
+.badge.bg-info    { background: #eaf1fd !important; color: var(--sma-info)    !important; border-color: currentColor; }
+.badge.bg-secondary { background: var(--sma-surface-sunken) !important; color: var(--sma-ink-muted) !important; }
+
+/* ==========================================================================
+   Alerts
+   ========================================================================== */
+
+.alert { border-radius: 10px; border-width: 1px; }
+.alert-success { background: #e8f6ee; border-color: var(--sma-success); color: #125c37; }
+.alert-danger  { background: #fdeceb; border-color: var(--sma-danger);  color: #8c1b13; }
+.alert-warning { background: #fdf5e3; border-color: var(--sma-warning); color: #7a5200; }
+.alert-info    { background: #eaf1fd; border-color: var(--sma-info);    color: #10428f; }
+
+/* ==========================================================================
+   Navigation — the inherited navbar is hardcoded navy in Navbar.css; align
+   the remaining Bootstrap nav pieces with it rather than fighting that file.
+   ========================================================================== */
+
+.navbar { --bs-navbar-brand-font-weight: 700; }
+.nav-link { font-weight: 600; }
+.nav-pills { --bs-nav-pills-link-active-bg: var(--sma-brand-strong); --bs-nav-pills-border-radius: 6px; }
+.pagination { --bs-pagination-active-bg: var(--sma-brand-strong); --bs-pagination-active-border-color: var(--sma-brand-strong); }
+.page-link { color: var(--sma-brand-strong); }
+
+/* ==========================================================================
+   Accessibility and motion
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* ==========================================================================
+   Brand lockup — header / navbar
+   The supplied logo is a raster lockup at 1.9:1. Scaled to header height its
+   wordmark is unreadable, and scaled to header width it overflows. So the
+   square mark carries the identity and the product name is live text.
+   ========================================================================== */
+
+.sma-brand-lockup {
+    display: inline-flex;
+    align-items: center;
+    gap: .625rem;
+    text-decoration: none;
+    color: inherit;
+    line-height: 1.1;
+}
+
+.sma-brand-lockup__mark {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;   /* never distort the official logo */
+    flex-shrink: 0;
+}
+
+.sma-brand-lockup__text { display: flex; flex-direction: column; }
+
+.sma-brand-lockup__name {
+    font-weight: 800;
+    font-size: 1.15rem;
+    letter-spacing: .04em;
+    color: var(--sma-brand-strong);
+}
+
+.sma-brand-lockup__sub {
+    font-size: .6875rem;
+    font-weight: 600;
+    letter-spacing: .02em;
+    color: var(--sma-ink-muted);
+    text-transform: uppercase;
+}
+
+/* On a dark header the sub-label needs to lift off the background. */
+.top-header .sma-brand-lockup__sub,
+.sma-sidebar .sma-brand-lockup__sub { color: rgba(255,255,255,.72); }
+
+@media (max-width: 576px) {
+    .sma-brand-lockup__sub { display: none; }
+    .sma-brand-lockup__mark { width: 34px; height: 34px; }
+}
+
+/* ==========================================================================
+   Home hero — purpose-built SMA panel, no photography
+   ========================================================================== */
+
+.sma-hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--sma-panel-radius);
+    padding: clamp(2rem, 5vw, 3.5rem);
+    background:
+        radial-gradient(1200px 400px at 88% -10%, rgba(240,124,32,.28), transparent 60%),
+        linear-gradient(135deg, var(--sma-chrome-900) 0%, var(--sma-chrome-800) 62%, #4a2f19 100%);
+    color: #fff;
+}
+
+.sma-hero__body { position: relative; max-width: 46rem; }
+
+.sma-hero__mark { width: 60px; height: 60px; object-fit: contain; margin-bottom: 1rem; }
+
+.sma-hero__eyebrow {
+    margin: 0 0 .5rem;
+    font-size: .75rem;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--sma-orange-400);
+}
+
+.sma-hero__title {
+    margin: 0 0 .75rem;
+    font-size: clamp(1.75rem, 4vw, 2.75rem);
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -.02em;
+    color: #fff;
+}
+
+.sma-hero__lead {
+    margin: 0 0 1.75rem;
+    font-size: 1.0625rem;
+    line-height: 1.6;
+    color: rgba(255,255,255,.82);
+    max-width: 38rem;
+}
+
+.sma-hero__search { display: flex; gap: .5rem; flex-wrap: wrap; max-width: 34rem; }
+
+.sma-hero__search input {
+    flex: 1 1 16rem;
+    padding: .8rem 1rem;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    font-size: 1rem;
+    background: #fff;
+    color: var(--sma-ink);
+}
+
+.sma-hero__search input:focus {
+    outline: none;
+    border-color: var(--sma-orange-400);
+    box-shadow: 0 0 0 3px rgba(240,124,32,.45);
+}
+
+.sma-hero__search button {
+    padding: .8rem 1.6rem;
+    border: 0;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    background: var(--sma-orange-500);
+    color: var(--sma-chrome-900);   /* dark on orange: 6.45:1 */
+}
+
+.sma-hero__search button:hover { background: var(--sma-orange-400); }
+
+.sma-hero__actions { display: flex; gap: 1.25rem; flex-wrap: wrap; margin-top: 1.25rem; }
+
+.sma-hero__actions a {
+    color: #fff;
+    font-weight: 600;
+    font-size: .9375rem;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    text-decoration-color: rgba(255,255,255,.4);
+}
+
+.sma-hero__actions a:hover { text-decoration-color: var(--sma-orange-400); color: #fff; }
+
+.sma-sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+
+@media (max-width: 576px) {
+    .sma-hero { padding: 1.75rem 1.25rem; border-radius: 12px; }
+    .sma-hero__search button { flex: 1 1 100%; }
+}
+
+/* ==========================================================================
+   Homepage — SMA LMS
+   ========================================================================== */
+
+.sma-home {
+    /* Full-bleed rather than a centred column: the catalogue grids have more to
+       show than a 1280px well allows, and the narrow well left large empty
+       gutters on wide screens. */
+    width: 100%;
+    max-width: none;
+    padding: 1.25rem clamp(1rem, 3vw, 2.5rem) 3rem;
+    display: flex;
+    flex-direction: column;
+    gap: 3rem;
+}
+
+/* ---- Quick actions ---- */
+.sma-quick {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.sma-quick__item {
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+    padding: 1.15rem 1.25rem;
+    border: var(--sma-panel-border);
+    border-radius: var(--sma-panel-radius);
+    background: var(--sma-surface);
+    box-shadow: var(--sma-panel-shadow);
+    text-decoration: none;
+    color: var(--sma-ink);
+    transition: border-color .12s ease, transform .12s ease;
+}
+.sma-quick__item:hover {
+    border-color: var(--sma-orange-400);
+    box-shadow: var(--sma-panel-shadow-hover);
+    color: var(--sma-ink);
+}
+.sma-quick__icon  { font-size: 1.35rem; color: var(--sma-brand-strong); line-height: 1; }
+.sma-quick__label { font-weight: 700; font-size: 1rem; }
+.sma-quick__hint  { font-size: .8125rem; color: var(--sma-ink-muted); }
+
+/* ---- Section headings ---- */
+.sma-home-section__head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+}
+.sma-home-section__title {
+    margin: 0;
+    font-size: clamp(1.25rem, 2.4vw, 1.6rem);
+    font-weight: 750;
+    letter-spacing: -.01em;
+    color: var(--sma-ink);
+}
+.sma-home-section__sub { margin: .25rem 0 0; color: var(--sma-ink-muted); font-size: .9375rem; }
+.sma-home-link { font-weight: 650; font-size: .9375rem; color: var(--sma-brand-strong); text-decoration: none; white-space: nowrap; }
+.sma-home-link:hover { text-decoration: underline; color: var(--sma-brand-deep); }
+
+.sma-home-empty {
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    border: 1px dashed var(--sma-line-strong);
+    border-radius: var(--sma-panel-radius);
+    background: var(--sma-surface);
+    color: var(--sma-ink-muted);
+}
+.sma-home-empty p { margin: 0 0 .35rem; }
+.sma-home-empty strong { color: var(--sma-ink); }
+
+/* ---- Category tiles ---- */
+.sma-cat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 1rem;
+}
+.sma-cat {
+    display: flex;
+    flex-direction: column;
+    border-radius: var(--sma-panel-radius);
+    overflow: hidden;
+    text-decoration: none;
+    border: var(--sma-panel-border);
+    background: var(--sma-surface);
+    box-shadow: var(--sma-panel-shadow);
+    transition: border-color .12s ease, box-shadow .12s ease;
+}
+.sma-cat:hover { border-color: var(--sma-orange-400); box-shadow: var(--sma-panel-shadow-hover); }
+.sma-cat__media { display: block; aspect-ratio: 16 / 9; background: var(--sma-surface-sunken); }
+.sma-cat__media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sma-cat__name {
+    padding: .8rem .9rem;
+    font-weight: 700;
+    font-size: .9375rem;
+    color: var(--sma-ink);
+}
+
+/* ---- Book rail + grid ---- */
+.sma-book-rail {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    padding-bottom: .75rem;
+    scroll-snap-type: x proximity;
+}
+.sma-book-rail > .sma-book { flex: 0 0 220px; scroll-snap-align: start; }
+
+.sma-book-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+}
+
+/* ---- Book card ---- */
+.sma-book {
+    display: flex;
+    flex-direction: column;
+    border: var(--sma-panel-border);
+    border-radius: var(--sma-panel-radius);
+    background: var(--sma-surface);
+    box-shadow: var(--sma-panel-shadow);
+    overflow: hidden;
+    transition: border-color .12s ease, box-shadow .12s ease;
+}
+.sma-book:hover { border-color: var(--sma-orange-400); box-shadow: var(--sma-panel-shadow-hover); }
+
+.sma-book__cover { display: block; background: var(--sma-surface-sunken); }
+.sma-book__cover img { width: 100%; height: 190px; object-fit: cover; display: block; }
+
+.sma-book__body { display: flex; flex-direction: column; gap: .3rem; padding: .9rem; flex: 1; }
+.sma-book__cat {
+    margin: 0; font-size: .6875rem; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--sma-brand-strong);
+}
+.sma-book__title { margin: 0; font-size: .9375rem; font-weight: 700; line-height: 1.3; }
+.sma-book__title a { color: var(--sma-ink); text-decoration: none; }
+.sma-book__title a:hover { color: var(--sma-brand-strong); }
+.sma-book__author { margin: 0; font-size: .8125rem; color: var(--sma-ink-muted); }
+
+.sma-book__status { margin: .15rem 0 0; font-size: .8125rem; font-weight: 650; }
+.sma-book__status--ok  { color: var(--sma-success); }
+.sma-book__status--out { color: var(--sma-ink-muted); }
+
+.sma-book__actions {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: .5rem; margin-top: auto; padding-top: .75rem;
+}
+.sma-book__view {
+    font-size: .8125rem; font-weight: 700; text-decoration: none;
+    color: var(--sma-brand-strong); padding: .4rem .75rem;
+    border: 1px solid var(--sma-line-strong); border-radius: 6px;
+}
+.sma-book__view:hover { background: var(--sma-brand-tint); border-color: var(--sma-orange-400); color: var(--sma-brand-deep); }
+
+.sma-book__icons { display: flex; align-items: center; gap: .25rem; }
+.sma-book__fav { display: inline; margin: 0; }
+.sma-icon-btn {
+    background: none; border: 0; cursor: pointer; padding: .35rem;
+    color: var(--sma-ink-subtle); font-size: .9375rem; line-height: 1; border-radius: 6px;
+}
+.sma-icon-btn:hover { color: var(--sma-brand-strong); background: var(--sma-brand-tint); }
+.sma-icon-btn.is-active { color: var(--sma-danger); }
+
+/* ---- Using the library ---- */
+.sma-info {
+    border: var(--sma-panel-border);
+    border-radius: var(--sma-panel-radius);
+    background: var(--sma-surface);
+    box-shadow: var(--sma-panel-shadow);
+    padding: 1.75rem;
+}
+.sma-info__title { margin: 0 0 1.25rem; font-size: 1.25rem; font-weight: 750; color: var(--sma-ink); }
+.sma-info__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; }
+.sma-info__item h3 { margin: 0 0 .35rem; font-size: .9375rem; font-weight: 700; color: var(--sma-brand-strong); }
+.sma-info__item p  { margin: 0; font-size: .875rem; line-height: 1.6; color: var(--sma-ink-muted); }
+.sma-info__item a  { color: var(--sma-brand-strong); font-weight: 600; }
+
+@media (max-width: 576px) {
+    .sma-home { gap: 2rem; padding: 1rem .75rem 2rem; }
+    .sma-book-rail > .sma-book { flex-basis: 165px; }
+    .sma-book__cover img { height: 150px; }
+    .sma-info { padding: 1.25rem; }
+}
+
+/* ==========================================================================
+   Header — single bar
+   Overrides the inherited Navbar.css, which styled two stacked bars.
+   ========================================================================== */
+
+#main-header { position: sticky; top: 0; z-index: 1030; }
+
+.sma-nav {
+    background: var(--sma-chrome-900);
+    border-bottom: 3px solid var(--sma-orange-500);
+}
+
+.sma-nav__inner {
+    max-width: none;
+    padding-inline: clamp(1rem, 3vw, 2.5rem);
+    padding: .6rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.sma-nav__brand { display: inline-flex; align-items: center; gap: .55rem; text-decoration: none; flex-shrink: 0; }
+.sma-nav__brand img { width: 34px; height: 34px; object-fit: contain; }
+.sma-nav__brand span { font-weight: 700; font-size: 1.0625rem; color: #fff; letter-spacing: .01em; white-space: nowrap; }
+
+.sma-nav__links { display: flex; align-items: center; gap: .25rem; list-style: none; margin: 0; padding: 0; }
+.sma-nav__links a {
+    display: block; padding: .5rem .8rem; border-radius: 6px;
+    color: rgba(255,255,255,.82); text-decoration: none; font-size: .9375rem; font-weight: 600;
+    white-space: nowrap;
+}
+.sma-nav__links a:hover { background: rgba(255,255,255,.10); color: #fff; }
+
+.sma-nav__search { position: relative; display: flex; align-items: center; flex: 1 1 auto; max-width: 420px; margin-inline: auto; }
+.sma-nav__search input {
+    width: 100%; padding: .5rem .8rem .5rem 2.2rem;
+    border: 1px solid rgba(255,255,255,.18); border-radius: 999px;
+    background: rgba(255,255,255,.10); color: #fff; font-size: .9375rem;
+}
+.sma-nav__search input::placeholder { color: rgba(255,255,255,.55); }
+.sma-nav__search input:focus {
+    outline: none; background: #fff; color: var(--sma-ink);
+    border-color: var(--sma-orange-400); box-shadow: 0 0 0 3px rgba(240,124,32,.35);
+}
+.sma-nav__search input:focus::placeholder { color: var(--sma-ink-subtle); }
+.sma-nav__search .search-submit {
+    position: absolute; left: .55rem; background: none; border: 0; padding: 0;
+    color: rgba(255,255,255,.7); cursor: pointer; line-height: 1;
+}
+.sma-nav__search input:focus ~ .search-submit,
+.sma-nav__search:focus-within .search-submit { color: var(--sma-ink-muted); }
+
+.sma-nav__actions { display: flex; align-items: center; gap: .15rem; }
+.sma-nav .icon-btn {
+    position: relative; display: grid; place-items: center;
+    width: 38px; height: 38px; border-radius: 8px; color: rgba(255,255,255,.85);
+}
+.sma-nav .icon-btn:hover { background: rgba(255,255,255,.10); color: #fff; }
+.sma-nav .icon-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; }
+.sma-nav .icon-btn .badge {
+    position: absolute; top: 2px; right: 2px; min-width: 17px; height: 17px;
+    display: grid; place-items: center; padding: 0 4px;
+    border-radius: 999px; font-size: .625rem; font-weight: 700;
+    background: var(--sma-orange-500); color: var(--sma-chrome-900);
+}
+
+.sma-nav__account { display: flex; align-items: center; gap: .5rem; flex-shrink: 0; }
+.sma-nav__user { display: inline-flex; align-items: center; gap: .4rem; color: #fff; text-decoration: none; font-size: .9375rem; font-weight: 600; }
+.sma-nav__signin { color: rgba(255,255,255,.85); text-decoration: none; font-size: .9375rem; font-weight: 600; padding: .45rem .6rem; }
+.sma-nav__signin:hover { color: #fff; }
+.sma-nav__register {
+    background: var(--sma-orange-500); color: var(--sma-chrome-900);
+    padding: .45rem 1rem; border-radius: 999px; font-weight: 700; font-size: .9375rem; text-decoration: none;
+    white-space: nowrap;
+}
+.sma-nav__register:hover { background: var(--sma-orange-400); color: var(--sma-chrome-900); }
+
+/* No link list any more, so no burger and no drawer - the bar just reflows. */
+@media (max-width: 768px) {
+    .sma-nav__inner { flex-wrap: wrap; }
+    .sma-nav__search { order: 5; flex-basis: 100%; max-width: none; margin: .5rem 0 0; }
+}
+
+@media (max-width: 576px) {
+    .sma-nav__brand span { font-size: .95rem; }
+    .sma-nav__account .sma-nav__signin { display: none; }
+}
+
+/* ==========================================================================
+   Footer
+   ========================================================================== */
+
+.sma-footer { background: var(--sma-chrome-900); color: rgba(255,255,255,.75); margin-top: 3rem; }
+.sma-footer__inner { max-width: none; padding: 2.5rem clamp(1rem, 3vw, 2.5rem) 1.5rem; }
+.sma-footer__links { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 2rem; }
+.sma-footer__col { display: flex; flex-direction: column; gap: .5rem; }
+.sma-footer__col h3 {
+    margin: 0 0 .25rem; font-size: .75rem; font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--sma-orange-400);
+}
+.sma-footer__col a { color: rgba(255,255,255,.72); text-decoration: none; font-size: .9375rem; }
+.sma-footer__col a:hover { color: #fff; text-decoration: underline; }
+
+.sma-footer__bottom {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem; flex-wrap: wrap;
+    margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid rgba(255,255,255,.12);
+}
+.sma-footer__copy { margin: 0; font-size: .875rem; color: rgba(255,255,255,.6); }
+.sma-footer__legal { display: flex; gap: 1.25rem; flex-wrap: wrap; }
+.sma-footer__legal a { color: rgba(255,255,255,.6); text-decoration: none; font-size: .875rem; }
+.sma-footer__legal a:hover { color: #fff; text-decoration: underline; }
+
+/* ==========================================================================
+   Chatbot — live assistant additions
+   The widget now answers from /assistant/ask, so it needs a pending state and
+   a way to render the links the assistant returns.
+   ========================================================================== */
+
+/* Multi-line answers (a list of loans, one per line) must keep their breaks. */
+.home-chatbot__answer { margin: 0; white-space: pre-line; line-height: 1.55; }
+
+.home-chatbot__answer-links {
+    display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .6rem;
+}
+.home-chatbot__answer-links a {
+    display: inline-block;
+    padding: .3rem .7rem;
+    border: 1px solid var(--sma-line-strong);
+    border-radius: 999px;
+    background: var(--sma-surface);
+    color: var(--sma-brand-strong);
+    font-size: .8125rem;
+    font-weight: 650;
+    text-decoration: none;
+}
+.home-chatbot__answer-links a:hover {
+    background: var(--sma-brand-tint);
+    border-color: var(--sma-orange-400);
+    color: var(--sma-brand-deep);
+}
+
+/* Pending state — the request hits the database, so it is not instant. */
+.home-chatbot__msg--typing { display: inline-flex; gap: .25rem; align-items: center; }
+.home-chatbot__msg--typing span {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--sma-ink-subtle);
+    animation: sma-chat-blink 1.2s infinite ease-in-out;
+}
+.home-chatbot__msg--typing span:nth-child(2) { animation-delay: .18s; }
+.home-chatbot__msg--typing span:nth-child(3) { animation-delay: .36s; }
+
+@keyframes sma-chat-blink {
+    0%, 80%, 100% { opacity: .25; transform: translateY(0); }
+    40%           { opacity: 1;   transform: translateY(-2px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .home-chatbot__msg--typing span { animation: none; opacity: .6; }
+}

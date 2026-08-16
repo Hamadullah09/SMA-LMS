@@ -1,0 +1,196 @@
+@model Library_Management_system.Models.Desk.CheckoutViewModel
+@{
+    ViewData["Title"] = "Issue Book";
+    ViewBag.SmaActive = "checkout";
+    ViewBag.SmaSubtitle = "Scan a student card and a book, then choose a loan period.";
+    Layout = "~/Views/Shared/_StaffLayout.cshtml";
+}
+
+@* Result banner. Deliberately the first thing on the page and large enough to read from
+   the librarian's normal working position (specification sections 46, 96). *@
+@if (Model.Succeeded is not null)
+{
+    <div class="sma-desk-result @(Model.Succeeded == true ? "sma-desk-result--success" : "sma-desk-result--failure")"
+         role="status" aria-live="polite">
+        <div class="sma-desk-result__headline">
+            @* Glyph as well as colour — section 111 forbids colour-only status. *@
+            @(Model.Succeeded == true ? "✓ BOOK ISSUED" : "✕ NOT ISSUED")
+        </div>
+        <div class="sma-desk-result__detail">@Model.ResultMessage</div>
+
+        @if (Model.Succeeded == true && Model.TransactionNumber is not null)
+        {
+            <div style="margin-top:var(--sma-space-4)">
+                <div class="sma-small">Transaction</div>
+                <div class="sma-mono" style="font-size:var(--sma-text-xl);font-weight:700">@Model.TransactionNumber</div>
+            </div>
+        }
+    </div>
+    <div style="height:var(--sma-space-5)"></div>
+}
+
+<form method="get" id="scanForm">
+    <div class="sma-desk">
+
+        @* ---------------- Student ---------------- *@
+        <section class="sma-desk-panel @(Model.Student is not null ? "is-filled" : Model.StudentTagError is not null ? "is-error" : "is-waiting")"
+                 aria-labelledby="studentPanelLabel">
+            <div class="sma-desk-panel__label" id="studentPanelLabel">Student</div>
+
+            @if (Model.Student is not null)
+            {
+                <div class="sma-desk-panel__primary">@Model.Student.FullName</div>
+                <div class="sma-desk-panel__secondary">Roll No: @Model.Student.RollNumber</div>
+                <div class="sma-desk-panel__secondary">@(Model.Student.Department?.Name ?? "Department not recorded")</div>
+
+                <div style="margin-top:var(--sma-space-4)">
+                    @if (Model.Student.Status == Library_Management_system.Domain.Enums.StudentStatus.Active
+                         && !Model.Student.IsBorrowingBlocked)
+                    {
+                        <span class="sma-badge sma-badge--success">✓ Account active</span>
+                    }
+                    else
+                    {
+                        <span class="sma-badge sma-badge--danger">✕ @Model.Student.Status.ToString()</span>
+                    }
+                </div>
+            }
+            else
+            {
+                <p class="sma-muted">Scan the student card, or type a roll number.</p>
+                @if (Model.StudentTagError is not null)
+                {
+                    <div class="sma-alert sma-alert--danger">
+                        <span class="sma-alert__icon" aria-hidden="true">✕</span>
+                        <div>@Model.StudentTagError</div>
+                    </div>
+                }
+            }
+
+            <div class="sma-field" style="margin-top:var(--sma-space-4)">
+                <label class="sma-label" for="studentTag">Card / roll number</label>
+                <input class="sma-input sma-mono" id="studentTag" name="studentTag" value="@Model.StudentTag"
+                       autocomplete="off" autofocus
+                       aria-invalid="@(Model.StudentTagError is not null ? "true" : "false")" />
+            </div>
+        </section>
+
+        @* ---------------- Book ---------------- *@
+        <section class="sma-desk-panel @(Model.Copy is not null ? "is-filled" : Model.BookTagError is not null ? "is-error" : "is-waiting")"
+                 aria-labelledby="bookPanelLabel">
+            <div class="sma-desk-panel__label" id="bookPanelLabel">Book</div>
+
+            @if (Model.Copy is not null)
+            {
+                <div class="sma-desk-panel__primary">@(Model.Copy.Book?.Title ?? "Untitled")</div>
+                <div class="sma-desk-panel__secondary">ISBN @(Model.Copy.Book?.Isbn ?? "—")</div>
+                <div class="sma-desk-panel__secondary">Copy @Model.Copy.CopyNumber</div>
+                <div class="sma-desk-panel__secondary">@Model.LocationText</div>
+
+                <div style="margin-top:var(--sma-space-4)">
+                    @if (Model.Copy.IsBorrowable)
+                    {
+                        <span class="sma-badge sma-badge--success">✓ Available</span>
+                    }
+                    else
+                    {
+                        <span class="sma-badge sma-badge--danger">✕ @Model.Copy.Status.ToString()</span>
+                    }
+                </div>
+            }
+            else
+            {
+                <p class="sma-muted">Place the book on the reader, or type its accession number.</p>
+                @if (Model.BookTagError is not null)
+                {
+                    <div class="sma-alert sma-alert--danger">
+                        <span class="sma-alert__icon" aria-hidden="true">✕</span>
+                        <div>@Model.BookTagError</div>
+                    </div>
+                }
+            }
+
+            <div class="sma-field" style="margin-top:var(--sma-space-4)">
+                <label class="sma-label" for="bookTag">Book tag / accession</label>
+                <input class="sma-input sma-mono" id="bookTag" name="bookTag" value="@Model.BookTag" autocomplete="off" />
+            </div>
+        </section>
+    </div>
+
+    <div style="margin-top:var(--sma-space-4)">
+        <button type="submit" class="sma-btn sma-btn--ghost">Look up</button>
+    </div>
+</form>
+
+@* ---------------- Loan period and issue ---------------- *@
+@if (Model.BothScanned)
+{
+    <div style="height:var(--sma-space-5)"></div>
+
+    @if (!Model.IsEligible)
+    {
+        <div class="sma-alert sma-alert--danger" role="alert">
+            <span class="sma-alert__icon" aria-hidden="true">✕</span>
+            <div>
+                <strong>This book cannot be issued</strong>
+                <ul style="margin:var(--sma-space-2) 0 0;padding-left:1.2em">
+                    @foreach (var message in Model.EligibilityMessages)
+                    {
+                        <li>@message</li>
+                    }
+                </ul>
+            </div>
+        </div>
+    }
+
+    <div class="sma-card">
+        <div class="sma-card__header"><h2 class="sma-card__title">Loan period</h2></div>
+        <div class="sma-card__body">
+            <form method="post" id="issueForm">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="StudentTag" value="@Model.StudentTag" />
+                <input type="hidden" name="BookTag" value="@Model.BookTag" />
+
+                <div class="sma-choice-row" role="radiogroup" aria-label="Loan period">
+                    @foreach (var days in Model.LoanOptions)
+                    {
+                        <label class="sma-choice">
+                            <input type="radio" name="LoanDays" value="@days" checked="@(days == Model.LoanDays)" />
+                            <span>@days days</span>
+                        </label>
+                    }
+                </div>
+
+                <p class="sma-hint">Maximum loan period is @Model.MaximumLoanDays days.</p>
+
+                <div style="margin-top:var(--sma-space-5)">
+                    <button type="submit" class="sma-btn sma-btn--gold sma-btn--lg sma-btn--block"
+                            id="issueButton" @(Model.IsEligible ? "" : "disabled")>
+                        Issue Book
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+<div style="height:var(--sma-space-5)"></div>
+<a class="sma-btn sma-btn--ghost" href="/desk/manual">Reader unavailable? Use manual issue</a>
+
+@section Scripts {
+    <script>
+        // Prevent a double submission producing two issue attempts (section 105).
+        document.getElementById('issueForm')?.addEventListener('submit', function () {
+            var button = document.getElementById('issueButton');
+            if (button) { button.classList.add('is-loading'); button.disabled = true; }
+        });
+
+        // A hardware RFID reader in keyboard-wedge mode ends its input with Enter, so each
+        // field submits the lookup as soon as a tag is presented.
+        ['studentTag', 'bookTag'].forEach(function (id) {
+            document.getElementById(id)?.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); document.getElementById('scanForm').submit(); }
+            });
+        });
+    </script>
+}

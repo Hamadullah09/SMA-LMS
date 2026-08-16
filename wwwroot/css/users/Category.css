@@ -1,0 +1,149 @@
+﻿.text-navy {
+    color: var(--sma-navy-900);
+}
+
+.filter-scroll-container {
+    overflow-x: auto;
+    white-space: nowrap;
+    display: flex;
+    gap: 10px;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    padding: 6px 0;
+}
+
+.filter-scroll-container::-webkit-scrollbar {
+    display: none;
+}
+
+.btn-filter {
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+    background: white;
+    padding: 8px 20px;
+    font-weight: 500;
+    color: #4a5568;
+    flex: 0 0 auto;
+    transition: 0.2s;
+    margin-right: 10px;
+    box-sizing: border-box;
+}
+
+.btn-filter.active,
+.btn-filter:hover {
+    background-color: var(--sma-navy-900) !important;
+    color: white !important;
+    border-color: var(--sma-navy-900);
+}
+
+/*.page-node {
+    padding: 8px 16px;
+    text-decoration: none;
+    color: var(--sma-navy-900);
+    border-right: 1px solid #dee2e6;
+    background: white;
+}
+
+    .page-node.active {
+        background-color: var(--sma-navy-900);
+        color: white;
+    }
+
+    .page-node:hover:not(.active) {
+        background-color: #f1f3f5;
+    }*/
+
+/* The base style for your page buttons */
+.page-node {
+    padding: 8px 16px;
+    text-decoration: none;
+    color: #003366;
+    /* Your navy color */
+    border-right: 1px solid #dee2e6;
+    background-color: var(--sma-surface);
+}
+
+/* The style that triggers when the condition is met */
+.page-node.active {
+    background-color: #003366;
+    /* Navy background */
+    color: var(--sma-surface);
+    /* White text */
+    font-weight: bold;
+    pointer-events: none;
+    /* Prevents clicking the page you are already on */
+}
+
+.page-node:hover:not(.active) {
+    background-color: #f8f9fa;
+}
+
+.book-category-page.motion-enabled .category-heading,
+.book-category-page.motion-enabled .category-subheading,
+.book-category-page.motion-enabled .category-chip,
+.book-category-page.motion-enabled .category-card,
+.book-category-page.motion-enabled .pagination-wrapper {
+    opacity: 0;
+    transform: translateY(22px);
+}
+
+.book-category-page .is-visible {
+    animation: categoryReveal 0.62s cubic-bezier(0.2, 0.84, 0.26, 1) both;
+    animation-delay: var(--reveal-delay, 0ms);
+}
+
+.book-category-page .category-card {
+    transition: transform 0.28s ease, box-shadow 0.28s ease;
+    transform-origin: center;
+}
+
+.book-category-page .category-card:hover {
+    transform: translateY(-7px) scale(1.01);
+    box-shadow: 0 14px 28px rgba(12, 42, 74, 0.16) !important;
+}
+
+.book-category-page .category-card img {
+    transition: transform 0.4s ease;
+}
+
+.book-category-page .category-card:hover img {
+    transform: scale(1.04);
+}
+
+.book-category-page .category-chip {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.book-category-page .category-chip:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(12, 42, 74, 0.14);
+}
+
+@keyframes categoryReveal {
+    0% {
+        opacity: 0;
+        transform: translateY(22px);
+    }
+
+    70% {
+        opacity: 1;
+        transform: translateY(-1px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .book-category-page.motion-enabled .category-heading,
+    .book-category-page.motion-enabled .category-subheading,
+    .book-category-page.motion-enabled .category-chip,
+    .book-category-page.motion-enabled .category-card,
+    .book-category-page.motion-enabled .pagination-wrapper {
+        opacity: 1 !important;
+        transform: none !important;
+        animation: none !important;
+    }
+}

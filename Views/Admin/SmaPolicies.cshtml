@@ -1,0 +1,66 @@
+@model List<Library_Management_system.Domain.Entities.LibraryPolicy>
+@{
+    ViewData["Title"] = "Library Policies";
+    ViewBag.SmaRole = "Administrator";
+    ViewBag.SmaSubtitle = "Borrowing rules, fines and thresholds. Changes take effect immediately.";
+    Layout = "~/Views/Shared/_StaffLayout.cshtml";
+}
+
+@if (TempData["PolicySaved"] is string saved)
+{
+    <div class="sma-alert sma-alert--success" role="status">
+        <span class="sma-alert__icon" aria-hidden="true">✓</span>
+        <div>@saved</div>
+    </div>
+}
+
+<div class="sma-alert sma-alert--info">
+    <span class="sma-alert__icon" aria-hidden="true">i</span>
+    <div>
+        These values drive the circulation engine directly. Nothing here is hardcoded — changing the
+        daily fine rate or maximum loan period changes how every future issue and return behaves.
+    </div>
+</div>
+
+@foreach (var group in Model.GroupBy(p => p.Category ?? "Other"))
+{
+    <div class="sma-card" style="margin-bottom:var(--sma-space-5)">
+        <div class="sma-card__header"><h2 class="sma-card__title">@group.Key</h2></div>
+        <div class="sma-card__body">
+            <div class="sma-table-wrap">
+                <table class="sma-table">
+                    <caption class="sma-sr-only">@group.Key policies</caption>
+                    <thead>
+                    <tr><th>Setting</th><th>Value</th><th>What it does</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var policy in group)
+                    {
+                        <tr>
+                            <td class="sma-mono sma-small">@policy.Key</td>
+                            <td>
+                                <form method="post" action="/admin/sma/policies"
+                                      style="display:flex;gap:var(--sma-space-2);align-items:center">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@policy.Id" />
+                                    <label class="sma-sr-only" for="value-@policy.Id">@policy.Key value</label>
+                                    <input class="sma-input" id="value-@policy.Id" name="value"
+                                           value="@policy.Value" style="max-width:160px" />
+                                    <button type="submit" class="sma-btn sma-btn--ghost">Save</button>
+                                </form>
+                            </td>
+                            <td class="sma-small sma-muted">@policy.Description</td>
+                            <td class="sma-small sma-subtle">
+                                @if (policy.UpdatedBy is not null)
+                                {
+                                    <text>@policy.UpdatedBy<br />@policy.UpdatedUtc.ToString("dd MMM yyyy")</text>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}

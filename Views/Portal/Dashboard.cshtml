@@ -1,0 +1,234 @@
+@model Library_Management_system.Models.Portal.StudentDashboardViewModel
+@{
+    ViewData["Title"] = "My Library";
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>My Library — SMA Library</title>
+    <link rel="stylesheet" href="~/css/sma-design-system.css" asp-append-version="true" />
+</head>
+<body class="sma">
+@* Student portal is mobile-first (section 109) and so uses a top bar, not the desk sidebar. *@
+<header class="sma-topbar">
+    <div style="display:flex;align-items:center;gap:var(--sma-space-3)">
+        <img src="/images/brand/sma-mark.png" alt="" aria-hidden="true"
+             width="38" height="38" class="sma-sidebar__brand-mark" />
+        <div>
+            <div style="font-weight:700">SMA Library</div>
+            <div class="sma-small sma-muted">My Library</div>
+        </div>
+    </div>
+    <nav style="display:flex;gap:var(--sma-space-2)" aria-label="Student actions">
+        <a class="sma-btn sma-btn--ghost" href="/book">Search Books</a>
+        <a class="sma-btn sma-btn--ghost" href="/">Home</a>
+    </nav>
+</header>
+
+<main class="sma-main">
+
+    <h1>Hello, @Model.DisplayName</h1>
+
+    @if (!Model.HasStudentRecord)
+    {
+        <div class="sma-alert sma-alert--info" role="status">
+            <span class="sma-alert__icon" aria-hidden="true">i</span>
+            <div>
+                <strong>Your student record is not linked yet.</strong>
+                <div>
+                    You can browse and search the catalogue now. A librarian needs to link your
+                    account and issue an RFID card before you can borrow.
+                </div>
+            </div>
+        </div>
+
+        <a class="sma-btn sma-btn--primary" href="/book">Browse the catalogue</a>
+        return;
+    }
+
+    @* ---- The questions section 66 says a student must be able to answer ---- *@
+    <div class="sma-grid sma-grid--4" style="margin-bottom:var(--sma-space-6)">
+        <div class="sma-card sma-stat">
+            <div class="sma-stat__label">Books I have</div>
+            <div class="sma-stat__value">@Model.CurrentLoans.Count</div>
+            <div class="sma-stat__meta">You may borrow @Model.RemainingAllowance more</div>
+        </div>
+
+        <div class="sma-card sma-stat">
+            <div class="sma-stat__label">Due soon</div>
+            <div class="sma-stat__value">@Model.DueSoonCount</div>
+            <div class="sma-stat__meta">Within the next 3 days</div>
+        </div>
+
+        <div class="sma-card sma-stat">
+            <div class="sma-stat__label">Overdue</div>
+            <div class="sma-stat__value">@Model.OverdueCount</div>
+            <div class="sma-stat__meta">
+                @(Model.OverdueCount == 0 ? "Nothing late" : $"{Model.Currency} {Model.FinePerDay:0.00} per day")
+            </div>
+        </div>
+
+        <div class="sma-card sma-stat">
+            <div class="sma-stat__label">Fines owed</div>
+            <div class="sma-stat__value">@Model.Currency @Model.OutstandingFine.ToString("0.00")</div>
+            <div class="sma-stat__meta">
+                @(Model.OutstandingFine == 0 ? "Nothing to pay" : "Please settle at the desk")
+            </div>
+        </div>
+    </div>
+
+    @if (Model.OverdueCount > 0)
+    {
+        <div class="sma-alert sma-alert--danger" role="alert">
+            <span class="sma-alert__icon" aria-hidden="true">✕</span>
+            <div>
+                <strong>You have @Model.OverdueCount overdue book(s).</strong>
+                <div>
+                    A fine of @Model.Currency @Model.FinePerDay.ToString("0.00") per day is added for
+                    each day past the due date. Return them to stop the fine growing.
+                </div>
+            </div>
+        </div>
+    }
+
+    @* ---- Current loans ---- *@
+    <div class="sma-card" style="margin-bottom:var(--sma-space-6)">
+        <div class="sma-card__header">
+            <h2 class="sma-card__title">Books I currently have</h2>
+        </div>
+        <div class="sma-card__body">
+            @if (Model.CurrentLoans.Count == 0)
+            {
+                @* Useful empty state with a next action (section 104). *@
+                <div class="sma-empty">
+                    <div class="sma-empty__icon" aria-hidden="true">▤</div>
+                    <div class="sma-empty__title">You have no books out at the moment</div>
+                    <p class="sma-empty__body">
+                        You can borrow up to @Model.MaximumBooks books at a time, for up to
+                        @Model.MaximumLoanDays days each. Find something in the catalogue, then take
+                        it to the circulation desk with your student card.
+                    </p>
+                    <a class="sma-btn sma-btn--primary" href="/book">Search the catalogue</a>
+                </div>
+            }
+            else
+            {
+                <div class="sma-table-wrap">
+                    <table class="sma-table">
+                        <caption class="sma-sr-only">Books currently on loan to you</caption>
+                        <thead>
+                        <tr><th>Book</th><th>Copy</th><th>Due</th><th>Status</th><th>Reference</th></tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var loan in Model.CurrentLoans)
+                        {
+                            <tr>
+                                <td><strong>@loan.Title</strong></td>
+                                <td class="sma-mono">@loan.CopyNumber</td>
+                                <td>@loan.DueDate.ToString("dd MMM yyyy")</td>
+                                <td>
+                                    @if (loan.IsOverdue)
+                                    {
+                                        <span class="sma-badge sma-badge--danger">✕ @loan.DueDescription</span>
+                                    }
+                                    else if (loan.IsDueSoon)
+                                    {
+                                        <span class="sma-badge sma-badge--warning">▲ @loan.DueDescription</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="sma-badge sma-badge--success">✓ @loan.DueDescription</span>
+                                    }
+                                </td>
+                                <td class="sma-mono sma-small">@loan.TransactionNumber</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    @* ---- Reservations (section 26) ---- *@
+    @if (Model.Reservations.Count > 0)
+    {
+        <div class="sma-card" style="margin-bottom:var(--sma-space-6)">
+            <div class="sma-card__header"><h2 class="sma-card__title">Books I am waiting for</h2></div>
+            <div class="sma-card__body">
+                <div class="sma-table-wrap">
+                    <table class="sma-table">
+                        <caption class="sma-sr-only">Your reservations</caption>
+                        <thead><tr><th>Book</th><th>Status</th><th></th></tr></thead>
+                        <tbody>
+                        @foreach (var r in Model.Reservations)
+                        {
+                            <tr>
+                                <td><strong>@r.Title</strong></td>
+                                <td>
+                                    @if (r.IsReadyToCollect)
+                                    {
+                                        <span class="sma-badge sma-badge--success">✓ @r.StatusDescription</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="sma-badge sma-badge--info">◷ @r.StatusDescription</span>
+                                    }
+                                </td>
+                                <td><a class="sma-btn sma-btn--ghost" href="/catalogue/@r.BookId">View book</a></td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+
+    @* ---- History ---- *@
+    @if (Model.RecentlyReturned.Count > 0)
+    {
+        <div class="sma-card">
+            <div class="sma-card__header"><h2 class="sma-card__title">Recently returned</h2></div>
+            <div class="sma-card__body">
+                <div class="sma-table-wrap">
+                    <table class="sma-table">
+                        <caption class="sma-sr-only">Books you returned recently</caption>
+                        <thead><tr><th>Book</th><th>Returned</th><th>Reference</th></tr></thead>
+                        <tbody>
+                        @foreach (var line in Model.RecentlyReturned)
+                        {
+                            <tr>
+                                <td>@line.Title</td>
+                                <td>@line.ReturnedDate?.ToString("dd MMM yyyy")</td>
+                                <td class="sma-mono sma-small">@line.TransactionNumber</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+
+    @* ---- Plain-language rules (section 66, questions 4, 5, 8) ---- *@
+    <div class="sma-card" style="margin-top:var(--sma-space-6)">
+        <div class="sma-card__header"><h2 class="sma-card__title">How borrowing works</h2></div>
+        <div class="sma-card__body">
+            <ul style="margin:0;padding-left:1.2em;line-height:1.9">
+                <li>You can have up to <strong>@Model.MaximumBooks books</strong> at once.</li>
+                <li>You can keep a book for up to <strong>@Model.MaximumLoanDays days</strong>.</li>
+                <li>
+                    If you return a book late, a fine of
+                    <strong>@Model.Currency @Model.FinePerDay.ToString("0.00") per day</strong> is added.
+                </li>
+                <li>Take the book and your student card to the circulation desk to borrow it.</li>
+            </ul>
+        </div>
+    </div>
+</main>
+</body>
+</html>
