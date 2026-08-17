@@ -1,0 +1,186 @@
+@model Library_Management_system.Application.Kiosk.KioskState
+@{
+    ViewData["Title"] = "Self-Service";
+    Layout = "~/Views/Shared/_KioskLayout.cshtml";
+}
+
+@*
+    The shell only. Every value on this screen changes without a page load, so the markup is filled
+    in by kiosk.js from the state endpoint rather than rendered twice — once here and once in
+    JavaScript — which is how the two drift apart.
+*@
+<header class="kiosk-top">
+    <div class="kiosk-brand">
+        <img class="kiosk-brand__mark" src="~/images/brand/sma-mark.png" alt="" aria-hidden="true"
+             width="44" height="44" />
+        <span class="kiosk-brand__text">
+            <span class="kiosk-brand__name">SMA Library</span>
+            <span class="kiosk-brand__sub">Self-Service</span>
+        </span>
+    </div>
+
+    <div class="kiosk-top__right">
+        <span class="kiosk-station" id="stationName">@Model.ReaderName</span>
+        <span class="kiosk-link" id="readerState">◐ Checking reader</span>
+    </div>
+</header>
+
+@* Tells the student where they are in the process without them having to read anything. *@
+<ol class="kiosk-steps" id="steps" aria-label="Progress">
+    <li class="kiosk-step" data-step="1"><span class="kiosk-step__num">1</span><span class="kiosk-step__label" id="step1Label">Tap your card</span></li>
+    <li class="kiosk-step" data-step="2"><span class="kiosk-step__num">2</span><span class="kiosk-step__label">Add your books</span></li>
+    <li class="kiosk-step" data-step="3"><span class="kiosk-step__num">3</span><span class="kiosk-step__label">Confirm</span></li>
+</ol>
+
+<div class="kiosk-modes" role="tablist" aria-label="What would you like to do?">
+    <button class="kiosk-mode is-active" type="button" role="tab" id="modeBorrow"
+            aria-selected="true" data-mode="0">
+        <span class="kiosk-mode__icon" aria-hidden="true">↑</span> Borrow
+    </button>
+    <button class="kiosk-mode" type="button" role="tab" id="modeReturn"
+            aria-selected="false" data-mode="1">
+        <span class="kiosk-mode__icon" aria-hidden="true">↓</span> Return
+    </button>
+</div>
+
+<main class="kiosk-main">
+
+    @* ---------------- who ---------------- *@
+    <section class="kiosk-panel kiosk-who" aria-labelledby="whoLabel">
+        <div class="kiosk-panel__label" id="whoLabel">Your account</div>
+        <div id="whoBody"></div>
+
+        @* Set when the student arrived from their own cart. Rendered server-side and never touched
+           by the poll, so it stays put as a reminder while the basket fills underneath it. *@
+        @if (TempData["KioskCollectList"] is string collect && !string.IsNullOrWhiteSpace(collect))
+        {
+            <div class="kiosk-collect">
+                <div class="kiosk-collect__label">You came for</div>
+                <div class="kiosk-collect__items">@collect</div>
+                <p class="kiosk-collect__hint">
+                    Fetch these from the shelf and place them on the pad.
+                </p>
+            </div>
+        }
+    </section>
+
+    @* ---------------- pad ---------------- *@
+    <section class="kiosk-panel kiosk-pad" aria-labelledby="padLabel">
+        <div class="kiosk-pad__head">
+            <div class="kiosk-panel__label" id="padLabel">On the pad</div>
+            <span class="kiosk-pad__count" id="padCount"></span>
+        </div>
+
+        @* Announced politely so a screen reader hears each book as it is detected. *@
+        <div id="notices" role="status" aria-live="polite"></div>
+
+        <ul class="kiosk-basket" id="basket"></ul>
+
+        <div class="kiosk-actions">
+            <button class="kiosk-btn kiosk-btn--primary" type="button" id="commitButton" disabled>
+                Confirm
+            </button>
+            <button class="kiosk-btn kiosk-btn--ghost" type="button" id="resetButton">
+                Cancel
+            </button>
+        </div>
+    </section>
+</main>
+
+<footer class="kiosk-foot">
+    <span id="hint">Place your books on the pad and tap your student card.</span>
+    <span class="kiosk-foot__right">
+        Need help? Ask at the desk
+        <span class="kiosk-timer" id="timer"></span>
+    </span>
+</footer>
+
+@* ---------------- receipt overlay ---------------- *@
+<section class="kiosk-receipt" id="receipt" hidden aria-labelledby="receiptHeadline">
+    <div class="kiosk-receipt__card">
+        <div class="kiosk-receipt__headline" id="receiptHeadline"></div>
+        <div class="kiosk-receipt__who" id="receiptWho"></div>
+        <ul class="kiosk-receipt__lines" id="receiptLines"></ul>
+        <div class="kiosk-receipt__total" id="receiptTotal"></div>
+        <div class="kiosk-actions kiosk-receipt__actions">
+            <button class="kiosk-btn kiosk-btn--primary" type="button" id="doneButton">Done</button>
+            <button class="kiosk-btn kiosk-btn--ghost" type="button" id="printButton">Print receipt</button>
+        </div>
+    </div>
+</section>
+
+@*
+    ---------------- printable document ----------------
+
+    A separate document rather than a print stylesheet over the on-screen panel. Printing the screen
+    produced something that read like a debug dump: no letterhead, no reference, no terms, and columns
+    sized for a touch display. A student handed that has nothing they can take to the desk and quote.
+
+    Hidden on screen, and the only thing that prints. Populated by kiosk.js from the same receipt.
+*@
+<section class="kiosk-doc" id="printDoc" aria-hidden="true">
+    <header class="kiosk-doc__head">
+        <div class="kiosk-doc__brand">
+            <img src="~/images/brand/sma-mark.png" alt="" width="52" height="52" />
+            <div>
+                <div class="kiosk-doc__org">SMA Library</div>
+                <div class="kiosk-doc__orgsub">Library Management System</div>
+            </div>
+        </div>
+        <div class="kiosk-doc__title">
+            <div class="kiosk-doc__kind" id="docKind">LOAN RECEIPT</div>
+            <table class="kiosk-doc__meta">
+                <tr><th>Document</th><td class="kiosk-doc__mono" id="docNumber"></td></tr>
+                <tr><th>Issued</th><td id="docIssued"></td></tr>
+                <tr><th>Station</th><td id="docStation"></td></tr>
+            </table>
+        </div>
+    </header>
+
+    <section class="kiosk-doc__party">
+        <div class="kiosk-doc__partyLabel">Borrower</div>
+        <div class="kiosk-doc__partyName" id="docName"></div>
+        <div id="docRoll"></div>
+        <div id="docDept"></div>
+    </section>
+
+    <table class="kiosk-doc__items">
+        <thead>
+            <tr>
+                <th class="kiosk-doc__num">#</th>
+                <th>Title</th>
+                <th>Author</th>
+                <th>Copy / Accession</th>
+                <th>Reference</th>
+                <th class="kiosk-doc__right" id="docLastCol">Due date</th>
+            </tr>
+        </thead>
+        <tbody id="docItems"></tbody>
+    </table>
+
+    <section class="kiosk-doc__summary" id="docSummary"></section>
+
+    <section class="kiosk-doc__terms">
+        <div class="kiosk-doc__termsTitle">Terms</div>
+        <ul id="docTerms"></ul>
+    </section>
+
+    <footer class="kiosk-doc__foot">
+        <span>Generated by the SMA Library self-service station. Please retain this document.</span>
+        <span class="kiosk-doc__mono" id="docFootRef"></span>
+    </footer>
+</section>
+
+<noscript>
+    <div class="kiosk-panel" style="margin:var(--sma-space-6)">
+        <div class="kiosk-empty__title">Self-service needs JavaScript</div>
+        <p>This station cannot run without it. Please borrow at the circulation desk instead.</p>
+    </div>
+</noscript>
+
+@section Scripts {
+    <script>
+        window.smaKiosk = { readerId: @Model.ReaderId };
+    </script>
+    <script src="~/js/kiosk.js" asp-append-version="true"></script>
+}

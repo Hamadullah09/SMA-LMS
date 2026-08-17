@@ -1,4 +1,6 @@
 using Library_Management_system.Rfid.Abstractions;
+using Library_Management_system.Rfid.D2184;
+using Library_Management_system.Rfid.Hosting;
 using Library_Management_system.Rfid.Pipeline;
 
 namespace Library_Management_system.Rfid;
@@ -13,8 +15,39 @@ public sealed class RfidOptions
     /// <summary>Window within which repeated reads of one tag count as a single scan.</summary>
     public int DuplicateWindowMs { get; set; } = 1500;
 
+    /// <summary>
+    /// Fallback address for a reader row that has no host of its own. The reader row is the value an
+    /// administrator edits and always wins; this exists so a stock D2184 works with no data entry.
+    /// </summary>
+    public string Host { get; set; } = D2184Defaults.IpAddress;
+
+    public int Port { get; set; } = D2184Defaults.TcpPort;
+
+    /// <summary>
+    /// Reader address on the wire. Every D2184 leaves the factory as 1, and a multi-drop RS-485 bus
+    /// is the only reason to change it.
+    /// </summary>
+    public int ReaderAddress { get; set; } = D2184Defaults.ReaderAddress;
+
+    /// <summary>
+    /// Set false to run the application with RFID hardware present but untouched — useful when two
+    /// developers share one reader, since the D2184 accepts a single TCP client at a time.
+    /// </summary>
+    public bool AutoConnect { get; set; } = true;
+
+    /// <summary>Seconds between health checks on a connected reader.</summary>
+    public int HeartbeatSeconds { get; set; } = 15;
+
+    /// <summary>Base delay before redialling a reader; multiplied by the attempt count.</summary>
+    public int ReconnectDelaySeconds { get; set; } = 5;
+
+    public int MaxReconnectDelaySeconds { get; set; } = 60;
+
+
     public bool IsSimulator =>
         string.Equals(Provider, "Simulator", StringComparison.OrdinalIgnoreCase);
+
+    public byte ReaderAddressByte => (byte)Math.Clamp(ReaderAddress, 0, 255);
 }
 
 public static class RfidRegistration
@@ -47,6 +80,32 @@ public static class RfidRegistration
         // One processor for the whole application: duplicate suppression is stateful and must see
         // every observation from every reader.
         services.AddSingleton<IRfidScanProcessor, RfidScanProcessor>();
+
+        // Holds the gap between a push pipeline (sockets) and pull consumers (browser polls).
+        services.AddSingleton<IRfidLiveFeed, RfidLiveFeed>();
+
+        // Reachability check for the reader admin screen. Separate from the host service because a
+        // librarian needs to be able to test an address that is not connected, or not yet saved.
+        services.AddSingleton<IRfidConnectionProbe, RfidConnectionProbe>();
+
+        // Exit-gate alarm (§28, §29). One instance serving two interfaces: the reader host attaches
+        // live connections to it, and the gate policy sounds it. Singleton because an alarm already
+        // sounding must be extended rather than restarted by the next violation.
+        services.Configure<Application.Security.SecurityAlarmOptions>(
+            configuration.GetSection(Application.Security.SecurityAlarmOptions.SectionName));
+
+        services.AddSingleton<RfidBeeperAlarm>();
+        services.AddSingleton<Application.Security.ISecurityAlarm>(
+            sp => sp.GetRequiredService<RfidBeeperAlarm>());
+        services.AddSingleton<Application.Security.IRfidAlarmTransport>(
+            sp => sp.GetRequiredService<RfidBeeperAlarm>());
+
+        services.AddScoped<Application.Security.IGateSecurityService,
+                           Application.Security.GateSecurityService>();
+
+        // Opens and maintains the actual hardware connections. It no-ops for the simulator, so the
+        // registration is unconditional and the decision stays in one place.
+        services.AddHostedService<RfidReaderHostService>();
 
         return services;
     }

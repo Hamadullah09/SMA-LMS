@@ -18,6 +18,30 @@
     </div>
 }
 
+@* ---- Exit-gate alarms. First on the page: a book that left unissued outranks everything else
+     a librarian might be looking at here (specification sections 28, 55). ---- *@
+@{
+    var alerts = ViewBag.SecurityAlerts as IEnumerable<dynamic>;
+}
+@if (alerts is not null && alerts.Any())
+{
+    <div class="sma-alert sma-alert--danger" role="alert" style="margin-bottom:var(--sma-space-5)">
+        <span class="sma-alert__icon" aria-hidden="true">🔔</span>
+        <div>
+            <strong>@alerts.Count() unacknowledged security alert(s)</strong>
+            <ul style="margin:var(--sma-space-2) 0 0;padding-left:1.2em">
+                @foreach (var alert in alerts)
+                {
+                    <li class="sma-small">
+                        <span class="sma-mono">@alert.OccurredUtc.ToString("HH:mm:ss")</span>
+                        — @alert.Description
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+}
+
 @if (canSimulate)
 {
     <div class="sma-card" style="margin-bottom:var(--sma-space-5)">

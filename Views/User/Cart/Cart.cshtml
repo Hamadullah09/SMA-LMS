@@ -79,10 +79,13 @@
                             formaction="@Url.Action("DeleteSelectedCartItems", "Home")">
                         Delete
                     </button>
+                    @* Self-service checkout, not a librarian approval request. The books still have
+                       to be fetched and read by the reader at the station, so this only takes the
+                       student there — it does not issue anything on its own. *@
                     <button type="submit"
                             class="toolbar-btn toolbar-request"
-                            formaction="@Url.Action("ProceedToRequest", "Home")">
-                        Proceed to request
+                            formaction="@Url.Action("ProceedToSelfCheckout", "Home")">
+                        Proceed to checkout
                     </button>
                 }
             </div>

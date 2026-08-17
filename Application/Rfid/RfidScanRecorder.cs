@@ -45,15 +45,21 @@ public sealed class RfidScanRecorder : IRfidScanRecorder
 {
     private readonly ApplicationDbContext _db;
     private readonly IRfidScanProcessor _processor;
+    private readonly Security.IGateSecurityService _gate;
+    private readonly Security.ISecurityAlarm _alarm;
     private readonly ILogger<RfidScanRecorder> _logger;
 
     public RfidScanRecorder(
         ApplicationDbContext db,
         IRfidScanProcessor processor,
+        Security.IGateSecurityService gate,
+        Security.ISecurityAlarm alarm,
         ILogger<RfidScanRecorder> logger)
     {
         _db = db;
         _processor = processor;
+        _gate = gate;
+        _alarm = alarm;
         _logger = logger;
     }
 
@@ -160,6 +166,24 @@ public sealed class RfidScanRecorder : IRfidScanRecorder
         if (kind is null)
         {
             _logger.LogWarning("Unrecognised tag {Epc} at reader {ReaderId}.", epc, scan.ReaderId);
+        }
+
+        // ---- exit-gate enforcement (§28, §29) ----
+        //
+        // Runs here rather than in the reader host so the simulator behaves identically to hardware
+        // (§4G): a gate can be exercised without walking a book past a real antenna. The scan row is
+        // already committed above, so a violation is recorded against a scan that definitely exists.
+        if (bookTag is not null)
+        {
+            await _gate.EvaluateBookAsync(
+                scan.ReaderId, bookTag.BookCopyId, epc, scan.CorrelationId, ct);
+        }
+        else if (kind is null && await _gate.IsGateAsync(scan.ReaderId, ct))
+        {
+            // A tag nobody recognises leaving the building is worth the same noise as a known book
+            // with no loan. The SecurityEvent for it was already written above.
+            await _alarm.SoundAsync(
+                scan.ReaderId, $"Unrecognised tag {epc} passed the exit gate.", ct);
         }
 
         return new ScanResolution(

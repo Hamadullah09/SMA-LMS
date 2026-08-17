@@ -1,0 +1,804 @@
+/* ============================================================================
+   Self-service kiosk.
+
+   Built on the design-system tokens, but this screen is not an admin page with
+   bigger text. The reader is standing up, at arm's length, often with a book in
+   one hand and not looking directly at the screen. So:
+
+     * a deep branded header, so the station is identifiable across a room
+     * a numbered step strip, so progress is legible without reading prose
+     * book covers, so a student matches screen to hand without reading a title
+     * status as colour + glyph + a solid bar, never colour alone (§111)
+     * one hero action, sized to be hit without aiming
+
+   The page itself must never scroll: a station that can be scrolled will be
+   left scrolled by the previous student.
+   ============================================================================ */
+
+.kiosk {
+    /* A hard height, not a minimum. With min-height alone the body grows past
+       the screen when panels stack on a narrow window and the page becomes
+       scrollable again. Pinning it forces overflow inward, where it is handled. */
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+
+    background: var(--sma-surface-sunken);
+    color: var(--sma-ink);
+    font-family: var(--sma-font);
+    overflow: hidden;
+
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .kiosk *, .kiosk *::before, .kiosk *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+    }
+}
+
+/* ---------------------------------------------------------------- header */
+
+.kiosk-top {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sma-space-4);
+    padding: var(--sma-space-5) var(--sma-space-6);
+    color: #fff;
+
+    /* Brand-forward rather than neutral chrome: this is the one element that
+       says at a glance which machine you are standing at. */
+    background: linear-gradient(105deg, var(--sma-brand-deep) 0%, var(--sma-brand) 55%, var(--sma-orange-400) 100%);
+    box-shadow: 0 6px 20px -8px rgb(140 60 8 / 0.55);
+}
+
+.kiosk-brand { display: flex; align-items: center; gap: var(--sma-space-4); }
+
+.kiosk-brand__mark {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 12px;
+    background: rgb(255 255 255 / 0.92);
+    padding: 4px;
+}
+
+.kiosk-brand__text { display: flex; flex-direction: column; line-height: 1.1; }
+
+.kiosk-brand__name {
+    font-size: var(--sma-text-xl);
+    font-weight: 800;
+    letter-spacing: -0.01em;
+}
+
+.kiosk-brand__sub {
+    font-size: var(--sma-text-sm);
+    font-weight: 600;
+    opacity: 0.85;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+}
+
+.kiosk-top__right { display: flex; align-items: center; gap: var(--sma-space-4); font-size: var(--sma-text-sm); }
+.kiosk-station { opacity: 0.9; font-weight: 600; }
+
+.kiosk-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sma-space-2);
+    padding: 0.45rem 0.9rem;
+    border-radius: 999px;
+    font-weight: 800;
+    background: rgb(255 255 255 / 0.20);
+    backdrop-filter: blur(2px);
+}
+
+.kiosk-link.is-online { background: #fff; color: var(--sma-success); }
+.kiosk-link.is-offline { background: var(--sma-danger); color: #fff; }
+
+/* ---------------------------------------------------------------- step strip */
+
+.kiosk-steps {
+    flex: 0 0 auto;
+    list-style: none;
+    display: flex;
+    gap: var(--sma-space-2);
+    margin: 0;
+    padding: var(--sma-space-4) var(--sma-space-6) 0;
+    counter-reset: none;
+}
+
+.kiosk-step {
+    flex: 1 1 0;
+    display: flex;
+    align-items: center;
+    gap: var(--sma-space-3);
+    padding: var(--sma-space-3) var(--sma-space-4);
+    border-radius: 14px;
+    background: var(--sma-surface);
+    border: 1px solid var(--sma-line);
+    color: var(--sma-ink-subtle);
+    font-weight: 700;
+    font-size: var(--sma-text-base);
+    transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease;
+}
+
+.kiosk-step__num {
+    flex: 0 0 auto;
+    width: 2rem;
+    height: 2rem;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--sma-surface-sunken);
+    color: var(--sma-ink-subtle);
+    font-size: var(--sma-text-sm);
+    font-weight: 800;
+}
+
+/* Current step: brand-filled and unmistakable. */
+.kiosk-step.is-current {
+    background: var(--sma-orange-050);
+    border-color: var(--sma-brand);
+    color: var(--sma-brand-deep);
+    box-shadow: inset 0 0 0 1px var(--sma-brand);
+}
+
+.kiosk-step.is-current .kiosk-step__num { background: var(--sma-brand); color: #fff; }
+
+/* Completed steps recede but stay readable, with a tick instead of a number. */
+.kiosk-step.is-done { color: var(--sma-success); border-color: color-mix(in srgb, var(--sma-success) 40%, var(--sma-line)); }
+.kiosk-step.is-done .kiosk-step__num { background: var(--sma-success); color: #fff; font-size: 0; }
+.kiosk-step.is-done .kiosk-step__num::after { content: '✓'; font-size: var(--sma-text-sm); }
+
+/* ---------------------------------------------------------------- mode switch */
+
+.kiosk-modes {
+    flex: 0 0 auto;
+    display: flex;
+    gap: var(--sma-space-3);
+    margin: var(--sma-space-4) var(--sma-space-6) 0;
+}
+
+.kiosk-mode {
+    flex: 1 1 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sma-space-3);
+    border: 2px solid var(--sma-line);
+    background: var(--sma-surface);
+    color: var(--sma-ink-muted);
+    border-radius: 16px;
+    padding: var(--sma-space-4);
+    font-family: inherit;
+    font-size: var(--sma-text-xl);
+    font-weight: 800;
+    cursor: pointer;
+    transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.kiosk-mode__icon {
+    width: 1.9rem;
+    height: 1.9rem;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--sma-surface-sunken);
+    font-size: var(--sma-text-base);
+}
+
+.kiosk-mode:hover:not(.is-active) { border-color: var(--sma-line-strong); color: var(--sma-ink); }
+
+.kiosk-mode.is-active {
+    background: var(--sma-chrome-900);
+    border-color: var(--sma-chrome-900);
+    color: #fff;
+    box-shadow: 0 8px 20px -10px rgb(0 0 0 / 0.6);
+}
+
+.kiosk-mode.is-active .kiosk-mode__icon { background: var(--sma-brand); color: #fff; }
+
+/* ---------------------------------------------------------------- body */
+
+.kiosk-main {
+    flex: 1 1 auto;
+    display: grid;
+    grid-template-columns: minmax(0, 23rem) minmax(0, 1fr);
+    gap: var(--sma-space-4);
+    padding: var(--sma-space-4) var(--sma-space-6) var(--sma-space-5);
+    min-height: 0;
+}
+
+/* Stacked on a narrow window. The only place content may scroll, and it scrolls
+   inside main so the header, steps and footer stay put. */
+@media (max-width: 62rem) {
+    .kiosk-main { grid-template-columns: minmax(0, 1fr); grid-auto-rows: min-content; overflow-y: auto; }
+    .kiosk-who { order: -1; }
+    .kiosk-who .kiosk-who__prompt { flex-direction: row; text-align: left; gap: var(--sma-space-4); }
+    .kiosk-who .kiosk-card-glyph { width: 4.5rem; height: 4.5rem; font-size: 2.25rem; flex: 0 0 auto; }
+    .kiosk-basket { overflow-y: visible; }
+    .kiosk-steps { display: none; }
+}
+
+.kiosk-panel {
+    background: var(--sma-surface);
+    border: 1px solid var(--sma-line);
+    border-radius: 22px;
+    box-shadow: 0 1px 2px rgb(16 12 8 / 0.04), 0 18px 40px -24px rgb(16 12 8 / 0.30);
+    padding: var(--sma-space-5);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.kiosk-panel__label {
+    font-size: var(--sma-text-xs);
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--sma-ink-subtle);
+}
+
+.kiosk-pad__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sma-space-3);
+    margin-bottom: var(--sma-space-3);
+}
+
+.kiosk-pad__count {
+    font-size: var(--sma-text-lg);
+    font-weight: 800;
+    color: var(--sma-brand-deep);
+}
+
+/* ---- who: the identified student ---- */
+
+.kiosk-who__name {
+    font-size: var(--sma-text-2xl);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+}
+
+.kiosk-who__meta { color: var(--sma-ink-muted); font-size: var(--sma-text-base); margin-top: var(--sma-space-1); }
+
+.kiosk-who__prompt {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    flex: 1 1 auto;
+    gap: var(--sma-space-4);
+    color: var(--sma-ink-muted);
+}
+
+/* A ringed target that visibly radiates, so it reads as "present it here" from
+   across the room rather than as decoration. */
+.kiosk-card-glyph {
+    position: relative;
+    font-size: clamp(2.5rem, 6vh, 4rem);
+    line-height: 1;
+    width: clamp(5rem, 13vh, 8.5rem);
+    height: clamp(5rem, 13vh, 8.5rem);
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--sma-orange-050);
+    color: var(--sma-brand-deep);
+    box-shadow: inset 0 0 0 2px var(--sma-brand);
+}
+
+.kiosk-card-glyph::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 3px solid var(--sma-brand);
+    animation: kiosk-ring 2.2s ease-out infinite;
+}
+
+@keyframes kiosk-ring {
+    0% { transform: scale(1); opacity: 0.75; }
+    100% { transform: scale(1.35); opacity: 0; }
+}
+
+/* ---- came-from-cart reminder ---- */
+
+.kiosk-collect {
+    margin-top: var(--sma-space-4);
+    padding: var(--sma-space-4);
+    border-radius: 16px;
+    background: var(--sma-info-bg);
+    border: 1px solid var(--sma-info);
+    box-shadow: inset 4px 0 0 0 var(--sma-info);
+}
+
+.kiosk-collect__label {
+    font-size: var(--sma-text-xs);
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--sma-ink-subtle);
+}
+
+.kiosk-collect__items { font-size: var(--sma-text-base); font-weight: 700; margin-top: var(--sma-space-1); line-height: 1.35; }
+.kiosk-collect__hint { font-size: var(--sma-text-sm); color: var(--sma-ink-muted); margin: var(--sma-space-2) 0 0; }
+
+/* ---- basket ---- */
+
+.kiosk-basket {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sma-space-3);
+}
+
+.kiosk-item {
+    display: grid;
+    grid-template-columns: auto 3rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--sma-space-4);
+    padding: var(--sma-space-4);
+    border: 1px solid var(--sma-line);
+    border-left: 6px solid var(--sma-line-strong);
+    border-radius: 16px;
+    background: var(--sma-surface-raised);
+    animation: kiosk-item-in 200ms ease-out both;
+}
+
+@keyframes kiosk-item-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: none; }
+}
+
+.kiosk-item.is-ok {
+    border-color: color-mix(in srgb, var(--sma-success) 35%, var(--sma-line));
+    border-left-color: var(--sma-success);
+    background: var(--sma-success-bg);
+}
+
+.kiosk-item.is-blocked {
+    border-color: color-mix(in srgb, var(--sma-danger) 35%, var(--sma-line));
+    border-left-color: var(--sma-danger);
+    background: var(--sma-danger-bg);
+}
+
+/* Cover art. Fixed box so a missing image does not shift the row. */
+.kiosk-item__cover {
+    width: 3.25rem;
+    height: 4.5rem;
+    object-fit: cover;
+    border-radius: 8px;
+    background: var(--sma-surface-sunken);
+    box-shadow: 0 2px 8px -3px rgb(16 12 8 / 0.45);
+}
+
+.kiosk-item__cover--none {
+    display: grid;
+    place-items: center;
+    font-size: var(--sma-text-lg);
+    color: var(--sma-ink-subtle);
+}
+
+.kiosk-item__glyph {
+    font-size: var(--sma-text-xl);
+    font-weight: 800;
+    width: 3rem;
+    height: 3rem;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--sma-surface);
+    box-shadow: 0 0 0 1px var(--sma-line) inset;
+}
+
+.kiosk-item.is-ok .kiosk-item__glyph { color: var(--sma-success); box-shadow: 0 0 0 2px var(--sma-success) inset; }
+.kiosk-item.is-blocked .kiosk-item__glyph { color: var(--sma-danger); box-shadow: 0 0 0 2px var(--sma-danger) inset; }
+
+.kiosk-item__title { font-size: var(--sma-text-lg); font-weight: 800; line-height: 1.2; }
+.kiosk-item__meta { font-size: var(--sma-text-sm); color: var(--sma-ink-muted); margin-top: 0.15rem; }
+.kiosk-item__message { font-size: var(--sma-text-sm); font-weight: 700; margin-top: var(--sma-space-2); }
+.kiosk-item.is-blocked .kiosk-item__message { color: var(--sma-danger); }
+
+.kiosk-item__remove {
+    border: 1px solid var(--sma-line-strong);
+    background: var(--sma-surface);
+    color: var(--sma-ink-muted);
+    border-radius: 12px;
+    width: 3rem;
+    height: 3rem;
+    font-size: var(--sma-text-lg);
+    cursor: pointer;
+    font-family: inherit;
+    transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+
+.kiosk-item__remove:hover { background: var(--sma-danger); border-color: var(--sma-danger); color: #fff; }
+
+/* ---- empty pad ---- */
+
+.kiosk-empty {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: var(--sma-space-4);
+    color: var(--sma-ink-muted);
+    padding: var(--sma-space-5);
+}
+
+.kiosk-empty__glyph {
+    font-size: clamp(2rem, 5vh, 3.5rem);
+    line-height: 1;
+    width: clamp(4.5rem, 11vh, 7rem);
+    height: clamp(4.5rem, 11vh, 7rem);
+    display: grid;
+    place-items: center;
+    border-radius: 26px;
+    background: var(--sma-surface-sunken);
+    box-shadow: 0 0 0 1px var(--sma-line) inset;
+}
+
+.kiosk-empty__title { font-size: var(--sma-text-xl); font-weight: 800; color: var(--sma-ink); letter-spacing: -0.01em; }
+.kiosk-empty p { max-width: 36ch; margin: 0; line-height: 1.5; }
+
+/* ---------------------------------------------------------------- notices */
+
+.kiosk-notice {
+    display: flex;
+    gap: var(--sma-space-3);
+    align-items: flex-start;
+    padding: var(--sma-space-4);
+    border-radius: 14px;
+    background: var(--sma-warning-bg);
+    border: 1px solid var(--sma-warning);
+    box-shadow: inset 4px 0 0 0 var(--sma-warning);
+    font-size: var(--sma-text-base);
+    font-weight: 700;
+    margin-bottom: var(--sma-space-3);
+    animation: kiosk-item-in 200ms ease-out both;
+}
+
+.kiosk-notice--danger { background: var(--sma-danger-bg); border-color: var(--sma-danger); box-shadow: inset 4px 0 0 0 var(--sma-danger); }
+
+/* ---------------------------------------------------------------- actions */
+
+.kiosk-actions { flex: 0 0 auto; display: flex; gap: var(--sma-space-3); margin-top: var(--sma-space-4); }
+
+.kiosk-btn {
+    flex: 1 1 0;
+    border: 0;
+    border-radius: 18px;
+    padding: var(--sma-space-5);
+    font-family: inherit;
+    font-size: var(--sma-text-2xl);
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    cursor: pointer;
+    /* Well past the 44px minimum: pressed standing up, often one-handed. */
+    min-height: 5rem;
+    transition: transform 120ms ease, box-shadow 180ms ease, filter 180ms ease;
+}
+
+.kiosk-btn--primary {
+    background: linear-gradient(180deg, var(--sma-brand) 0%, var(--sma-brand-strong) 100%);
+    color: #fff;
+    box-shadow: 0 10px 26px -10px rgb(240 124 32 / 0.75);
+}
+
+.kiosk-btn--primary:hover:not(:disabled) { filter: brightness(1.05); box-shadow: 0 14px 32px -12px rgb(240 124 32 / 0.85); }
+
+.kiosk-btn--ghost {
+    flex: 0 0 auto;
+    background: var(--sma-surface);
+    color: var(--sma-ink-muted);
+    border: 2px solid var(--sma-line-strong);
+    font-size: var(--sma-text-lg);
+    padding-inline: var(--sma-space-6);
+}
+
+.kiosk-btn--ghost:hover { background: var(--sma-surface-sunken); color: var(--sma-ink); }
+.kiosk-btn:active:not(:disabled) { transform: translateY(2px); }
+.kiosk-btn:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
+
+.kiosk-btn:focus-visible, .kiosk-mode:focus-visible, .kiosk-item__remove:focus-visible {
+    outline: 3px solid var(--sma-focus);
+    outline-offset: 3px;
+}
+
+/* ---------------------------------------------------------------- receipt */
+
+.kiosk-receipt {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: grid;
+    place-items: center;
+    padding: var(--sma-space-5);
+    background: rgb(26 22 20 / 0.55);
+    backdrop-filter: blur(6px);
+    animation: kiosk-fade 200ms ease-out both;
+}
+
+/* MUST come after the rule above.
+   The overlay is shown and hidden through the `hidden` attribute, but that only works because the
+   browser's own stylesheet says [hidden] { display: none } — and ANY author `display` declaration
+   beats a UA one. So `display: grid` above silently defeated `hidden`, leaving an empty full-screen
+   panel permanently on top of the station: nothing to read, Done apparently dead, and Print
+   producing a blank page. Restating it here at higher specificity (class + attribute) is what makes
+   the attribute mean anything. */
+.kiosk-receipt[hidden] { display: none; }
+
+@keyframes kiosk-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* A card rather than a full bleed: it reads as a result handed to you, and the
+   station stays visible behind it. */
+.kiosk-receipt__card {
+    width: min(52rem, 100%);
+    max-height: 100%;
+    overflow-y: auto;
+    background: var(--sma-surface);
+    border-radius: 26px;
+    padding: var(--sma-space-6);
+    box-shadow: 0 30px 70px -20px rgb(0 0 0 / 0.55);
+    display: flex;
+    flex-direction: column;
+    animation: kiosk-pop 240ms cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
+}
+
+@keyframes kiosk-pop { from { transform: translateY(12px) scale(0.98); } to { transform: none; } }
+
+.kiosk-receipt__headline {
+    font-size: var(--sma-text-3xl);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: var(--sma-space-3);
+}
+
+.kiosk-receipt__headline.is-ok { color: var(--sma-success); }
+.kiosk-receipt__headline.is-partial { color: var(--sma-warning); }
+.kiosk-receipt__headline.is-fail { color: var(--sma-danger); }
+
+.kiosk-receipt__who { font-size: var(--sma-text-lg); color: var(--sma-ink-muted); margin-top: var(--sma-space-2); }
+
+.kiosk-receipt__lines {
+    list-style: none;
+    margin: var(--sma-space-5) 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sma-space-3);
+}
+
+.kiosk-receipt__line {
+    display: grid;
+    grid-template-columns: 2rem minmax(0, 1fr) auto;
+    gap: var(--sma-space-3);
+    align-items: baseline;
+    padding: var(--sma-space-4);
+    border-radius: 14px;
+    background: var(--sma-surface-sunken);
+    border-left: 5px solid var(--sma-success);
+}
+
+.kiosk-receipt__line.is-fail { border-left-color: var(--sma-danger); }
+.kiosk-receipt__due { font-weight: 800; font-size: var(--sma-text-lg); white-space: nowrap; }
+
+.kiosk-receipt__total {
+    margin-top: var(--sma-space-4);
+    font-size: var(--sma-text-xl);
+    font-weight: 800;
+}
+
+.kiosk-receipt__total:not(:empty) {
+    padding-top: var(--sma-space-4);
+    border-top: 2px solid var(--sma-line);
+}
+
+/* ---------------------------------------------------------------- footer */
+
+.kiosk-foot {
+    flex: 0 0 auto;
+    padding: var(--sma-space-3) var(--sma-space-6);
+    background: var(--sma-chrome-900);
+    color: rgb(255 255 255 / 0.72);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--sma-space-4);
+    font-size: var(--sma-text-sm);
+}
+
+.kiosk-foot__right { display: inline-flex; align-items: center; gap: var(--sma-space-3); }
+
+.kiosk-timer {
+    font-variant-numeric: tabular-nums;
+    font-weight: 800;
+    padding: 0.2rem 0.7rem;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.14);
+    color: #fff;
+}
+
+.kiosk-timer:empty { display: none; }
+.kiosk-timer.is-urgent { background: var(--sma-danger); color: #fff; }
+
+/* ---------------------------------------------------------------- printable document
+
+   Never shown on screen — the station is a touch display, and a document laid out for A4 would look
+   wrong on it. It exists purely so that printing produces something a student can hold, read and
+   quote at the desk. */
+
+.kiosk-doc { display: none; }
+
+@media print {
+    /* Only the document prints. Everything the station shows on screen is chrome. */
+    .kiosk-top, .kiosk-steps, .kiosk-modes, .kiosk-main, .kiosk-foot, .kiosk-receipt { display: none !important; }
+
+    @page { size: A4; margin: 16mm 14mm; }
+
+    html, body, .kiosk {
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+        background: #fff !important;
+        color: #000 !important;
+        display: block !important;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 10.5pt;
+        line-height: 1.45;
+    }
+
+    .kiosk-doc { display: block; }
+
+    /* ---- letterhead ---- */
+
+    .kiosk-doc__head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12mm;
+        padding-bottom: 4mm;
+        border-bottom: 2pt solid #000;
+    }
+
+    .kiosk-doc__brand { display: flex; gap: 4mm; align-items: center; }
+    .kiosk-doc__org { font-size: 17pt; font-weight: 700; letter-spacing: 0.01em; }
+    .kiosk-doc__orgsub { font-size: 9pt; letter-spacing: 0.18em; text-transform: uppercase; }
+
+    .kiosk-doc__kind {
+        font-size: 13pt;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-align: right;
+        margin-bottom: 2mm;
+    }
+
+    .kiosk-doc__meta { border-collapse: collapse; font-size: 9pt; margin-left: auto; }
+    .kiosk-doc__meta th {
+        text-align: right;
+        padding: 0.4mm 3mm 0.4mm 0;
+        font-weight: 400;
+        /* The labels are scaffolding; the values are the information. */
+        color: #444;
+        white-space: nowrap;
+    }
+    .kiosk-doc__meta td { text-align: right; font-weight: 700; white-space: nowrap; }
+    .kiosk-doc__mono { font-family: "Consolas", "Courier New", monospace; }
+
+    /* ---- borrower ---- */
+
+    .kiosk-doc__party { margin-top: 6mm; }
+    .kiosk-doc__partyLabel {
+        font-size: 8pt;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #444;
+    }
+    .kiosk-doc__partyName { font-size: 13pt; font-weight: 700; }
+
+    /* ---- items ---- */
+
+    .kiosk-doc__items {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 6mm;
+        font-size: 9.5pt;
+    }
+
+    .kiosk-doc__items thead th {
+        text-align: left;
+        border-bottom: 1pt solid #000;
+        padding: 1.5mm 2mm;
+        font-size: 8pt;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .kiosk-doc__items tbody td {
+        padding: 1.8mm 2mm;
+        border-bottom: 0.4pt solid #bbb;
+        vertical-align: top;
+    }
+
+    .kiosk-doc__items tbody tr:last-child td { border-bottom: 1pt solid #000; }
+
+    .kiosk-doc__num { width: 8mm; }
+    .kiosk-doc__right, td.kiosk-doc__right { text-align: right; white-space: nowrap; }
+
+    /* A refused line is on the paper deliberately — a student needs to see what they did NOT get. */
+    .kiosk-doc__failed td { color: #555; }
+    .kiosk-doc__failed .kiosk-doc__titleCell::after { content: ' — not completed'; font-style: italic; }
+
+    /* ---- summary ---- */
+
+    .kiosk-doc__summary { margin-top: 5mm; font-size: 10pt; }
+    .kiosk-doc__summaryRow { display: flex; justify-content: flex-end; gap: 6mm; padding: 0.8mm 0; }
+    .kiosk-doc__summaryRow span:first-child { color: #444; }
+    .kiosk-doc__summaryRow strong { min-width: 32mm; text-align: right; }
+
+    /* Money owed gets a box, because it is the one line that requires an action. */
+    .kiosk-doc__due {
+        margin-top: 4mm;
+        margin-left: auto;
+        width: fit-content;
+        border: 1.5pt solid #000;
+        padding: 2.5mm 4mm;
+        font-size: 12pt;
+        font-weight: 700;
+    }
+
+    /* ---- terms ---- */
+
+    .kiosk-doc__terms {
+        margin-top: 8mm;
+        padding-top: 3mm;
+        border-top: 0.5pt solid #999;
+        font-size: 8.5pt;
+    }
+
+    .kiosk-doc__termsTitle {
+        font-size: 8pt;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #444;
+        margin-bottom: 1.5mm;
+    }
+
+    .kiosk-doc__terms ul { margin: 0; padding-left: 5mm; }
+    .kiosk-doc__terms li { margin-bottom: 0.8mm; }
+
+    /* ---- footer ---- */
+
+    .kiosk-doc__foot {
+        margin-top: 8mm;
+        padding-top: 2.5mm;
+        border-top: 0.5pt solid #999;
+        display: flex;
+        justify-content: space-between;
+        gap: 8mm;
+        font-size: 8pt;
+        color: #333;
+    }
+}

@@ -66,6 +66,13 @@ public static class ProductionGuards
                          + "simulated RFID tags into a live catalogue.");
         }
 
+        if (configuration.GetValue("SeedStudentAccounts:Enabled", false))
+        {
+            failures.Add("SeedStudentAccounts:Enabled is true. This creates student logins whose "
+                         + "password is written in configuration, and resets that password on every "
+                         + "start — so a real student's account would be silently taken over.");
+        }
+
         // ---- Email ----
         // Every field is checked, not just the server. SmtpServer now has a sensible default
         // ("smtp.gmail.com") in appsettings, so on its own it proves nothing — a deploy with a

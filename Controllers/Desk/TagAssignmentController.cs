@@ -1,6 +1,7 @@
 using Library_Management_system.Application.Rfid;
 using Library_Management_system.Data;
 using Library_Management_system.Models.Desk;
+using Library_Management_system.Rfid.Hosting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,17 +15,58 @@ public class TagAssignmentController : Controller
 {
     private readonly ApplicationDbContext _db;
     private readonly IRfidTagService _tags;
+    private readonly IRfidLiveFeed _feed;
 
-    public TagAssignmentController(ApplicationDbContext db, IRfidTagService tags)
+    public TagAssignmentController(
+        ApplicationDbContext db, IRfidTagService tags, IRfidLiveFeed feed)
     {
         _db = db;
         _tags = tags;
+        _feed = feed;
     }
 
     [HttpGet("")]
     public async Task<IActionResult> Index(string? studentQuery, string? bookQuery, string? epc)
     {
-        return View("~/Views/Desk/Tags.cshtml", await BuildAsync(studentQuery, bookQuery, epc));
+        var model = await BuildAsync(studentQuery, bookQuery, epc);
+
+        // Start the live capture from wherever the feed is now, so opening the page does not
+        // immediately pick up a tag that was presented to the reader five minutes ago.
+        model.ScanCursor = _feed.CurrentSequence;
+
+        return View("~/Views/Desk/Tags.cshtml", model);
+    }
+
+    /// <summary>
+    /// Live tag capture.
+    ///
+    /// A tag that has never been assigned has no holder to search for, so the only way to learn its
+    /// EPC is to present it to a reader and read it back. Before this, a librarian enrolling a new
+    /// student card had to copy 24 hex digits off the tag by hand — which is both slow and the
+    /// easiest possible thing to get wrong by one character.
+    /// </summary>
+    [HttpGet("feed")]
+    public async Task<IActionResult> Feed(long cursor)
+    {
+        var scans = _feed.Since(cursor);
+
+        if (scans.Count == 0)
+        {
+            return Json(new { cursor, epc = (string?)null });
+        }
+
+        // The most recent presentation wins: the librarian is holding one tag against the antenna,
+        // and if several were read it is the last one they meant.
+        var latest = scans[^1];
+        var lookup = await _tags.LookupAsync(latest.Epc);
+
+        return Json(new
+        {
+            cursor = latest.Sequence,
+            epc = latest.Epc,
+            known = lookup.IsKnown,
+            holder = lookup.HolderDescription
+        });
     }
 
     [HttpPost("student")]

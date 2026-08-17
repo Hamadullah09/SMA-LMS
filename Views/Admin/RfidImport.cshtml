@@ -1,0 +1,375 @@
+@model Library_Management_system.Models.Admin.RfidImportViewModel
+@using Library_Management_system.Application.Rfid
+@{
+    ViewData["Title"] = "Import RFID Tags";
+    ViewData["PageWide"] = true;
+    ViewBag.SmaSubtitle = "Attach manufacturer tag EPCs to book copies from a supplier file.";
+    Layout = "~/Views/Shared/_StaffLayout.cshtml";
+
+    (string Glyph, string Css, string Label) Present(TagImportAction action) => action switch
+    {
+        TagImportAction.CreateCopyAndAttachTag  => ("＋", "sma-badge--success", "New copy + tag"),
+        TagImportAction.AttachTagToExistingCopy => ("↳", "sma-badge--info",    "Tag attached"),
+        TagImportAction.AlreadyCorrect          => ("✓", "sma-badge--neutral", "Already correct"),
+        TagImportAction.ConflictTagInUse        => ("▲", "sma-badge--warning", "Conflict"),
+        _                                       => ("✕", "sma-badge--danger",  "Unreadable")
+    };
+}
+
+@if (Model.ErrorMessage is not null)
+{
+    <div class="sma-alert sma-alert--danger" role="alert">
+        <span class="sma-alert__icon" aria-hidden="true">✕</span>
+        <div>@Model.ErrorMessage</div>
+    </div>
+    <div style="height:var(--sma-space-4)"></div>
+}
+
+@if (Model.HasReport)
+{
+    <div class="sma-desk-result @(Model.Report!.Problems.Any() ? "sma-desk-result--failure" : "sma-desk-result--success")"
+         role="status" aria-live="polite">
+        <div class="sma-desk-result__headline">
+            @(Model.Applied ? "✓ IMPORT COMPLETE" : "◐ PREVIEW — NOTHING SAVED")
+        </div>
+        <div class="sma-desk-result__detail">@Model.Report.Summary</div>
+    </div>
+    <div style="height:var(--sma-space-5)"></div>
+}
+
+@* ---------------- current state ---------------- *@
+<div class="sma-grid sma-grid--4">
+    <div class="sma-card"><div class="sma-card__body">
+        <div class="sma-small sma-muted">Titles in catalogue</div>
+        <div style="font-size:var(--sma-text-2xl);font-weight:700">@Model.TitleCount</div>
+    </div></div>
+    <div class="sma-card"><div class="sma-card__body">
+        <div class="sma-small sma-muted">Physical copies</div>
+        <div style="font-size:var(--sma-text-2xl);font-weight:700">@Model.CopyCount</div>
+    </div></div>
+    <div class="sma-card"><div class="sma-card__body">
+        <div class="sma-small sma-muted">Copies with a live tag</div>
+        <div style="font-size:var(--sma-text-2xl);font-weight:700">@Model.TaggedCopyCount</div>
+    </div></div>
+    <div class="sma-card"><div class="sma-card__body">
+        <div class="sma-small sma-muted">Copies still untagged</div>
+        <div style="font-size:var(--sma-text-2xl);font-weight:700">@Model.UntaggedCopyCount</div>
+    </div></div>
+</div>
+
+<div style="height:var(--sma-space-5)"></div>
+
+@* ---------------- student cards ---------------- *@
+<div class="sma-card">
+    <div class="sma-card__header"><h2 class="sma-card__title">Student cards</h2></div>
+    <div class="sma-card__body">
+
+        @if (Model.CardErrorMessage is not null)
+        {
+            <div class="sma-alert sma-alert--danger" role="alert">
+                <span class="sma-alert__icon" aria-hidden="true">✕</span>
+                <div>@Model.CardErrorMessage</div>
+            </div>
+        }
+
+        @if (Model.HasCardReport)
+        {
+            <div class="sma-alert @(Model.CardReport!.Problems.Any() ? "sma-alert--warning" : "sma-alert--success")"
+                 role="status">
+                <span class="sma-alert__icon" aria-hidden="true">@(Model.CardsApplied ? "✓" : "◐")</span>
+                <div>@Model.CardReport.Summary</div>
+            </div>
+            <div style="height:var(--sma-space-4)"></div>
+        }
+
+        <p class="sma-small sma-muted">
+            @Model.StudentCount student(s) on record · @Model.StudentsWithCardCount with a card ·
+            <strong>@Model.StudentsWithoutCardCount waiting for one</strong>
+        </p>
+
+        <form method="post" action="/admin/rfid/import/cards/preview" enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
+
+            <div class="sma-field">
+                <span class="sma-label">Source</span>
+
+                @if (Model.CardFileAvailable)
+                {
+                    <label class="sma-choice" style="display:block;margin-bottom:var(--sma-space-2)">
+                        <input type="radio" name="useBundledCards" value="true" checked />
+                        <span>
+                            Use the card sheet supplied with the system
+                            <span class="sma-small sma-muted">(@Model.CardFileRowCount card(s))</span>
+                        </span>
+                    </label>
+                }
+
+                <label class="sma-choice" style="display:block">
+                    <input type="radio" name="useBundledCards" value="false"
+                           checked="@(!Model.CardFileAvailable)" />
+                    <span>Upload or paste a different sheet</span>
+                </label>
+            </div>
+
+            <div class="sma-field">
+                <label class="sma-label" for="cardFile">Label sheet</label>
+                <input class="sma-input" type="file" id="cardFile" name="cardFile" accept=".txt,.csv,text/plain" />
+                <p class="sma-hint">
+                    One card per line: an optional row number, then the EPC. Spacing is ignored, so
+                    <span class="sma-mono">0&nbsp;&nbsp;E2 80 69 15 …</span> and
+                    <span class="sma-mono">E2806915…</span> both work.
+                </p>
+            </div>
+
+            <div class="sma-field">
+                <label class="sma-label" for="cardText">…or paste EPCs</label>
+                <textarea class="sma-input sma-mono" id="cardText" name="cardText" rows="4"
+                          placeholder="E28069150000700B40A74995">@Model.CardText</textarea>
+            </div>
+
+            <p class="sma-hint">
+                Cards are issued to students in roll-number order, because the sheet says nothing
+                about who owns which card. Nobody who already has a card is touched, and you can move
+                any individual card afterwards on the
+                <a href="/desk/tags">tag assignment</a> screen.
+            </p>
+
+            <button type="submit" class="sma-btn sma-btn--primary sma-btn--lg">Preview cards</button>
+        </form>
+
+        @if (Model.HasCardReport)
+        {
+            <div style="height:var(--sma-space-5)"></div>
+
+            <div style="overflow-x:auto">
+                <table class="sma-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Label</th>
+                            <th scope="col">EPC</th>
+                            <th scope="col">Issued to</th>
+                            <th scope="col">Roll number</th>
+                            <th scope="col">Action</th>
+                            <th scope="col">Note</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var card in Model.CardReport!.Items)
+                        {
+                            var s = card.Action switch
+                            {
+                                StudentCardImportAction.Assigned          => ("✓", "sma-badge--success", "Issued"),
+                                StudentCardImportAction.AlreadyCorrect    => ("✓", "sma-badge--neutral", "Already correct"),
+                                StudentCardImportAction.NoStudentAvailable => ("◦", "sma-badge--info",    "Spare"),
+                                StudentCardImportAction.ConflictTagInUse  => ("▲", "sma-badge--warning", "Conflict"),
+                                _                                         => ("✕", "sma-badge--danger",  "Unreadable")
+                            };
+                            <tr>
+                                <td class="sma-small sma-muted">@(card.LabelId ?? "—")</td>
+                                <td class="sma-mono sma-small">@card.Epc</td>
+                                <td class="sma-small">@(card.StudentName ?? "—")</td>
+                                <td class="sma-mono sma-small">@(card.RollNumber ?? "—")</td>
+                                <td><span class="sma-badge @s.Item2">@s.Item1 @s.Item3</span></td>
+                                <td class="sma-small sma-muted">@(card.Note ?? "")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (!Model.CardsApplied && Model.CardReport.Assigned > 0)
+            {
+                <div style="height:var(--sma-space-5)"></div>
+                <form method="post" action="/admin/rfid/import/cards/apply">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="cardText" value="@Model.CardText" />
+                    <input type="hidden" name="useBundledCards" value="false" />
+                    <button type="submit" class="sma-btn sma-btn--gold sma-btn--lg" id="applyCardsButton">
+                        Issue @Model.CardReport.Assigned card(s)
+                    </button>
+                </form>
+            }
+        }
+    </div>
+</div>
+
+<div style="height:var(--sma-space-5)"></div>
+
+@* ---------------- source ---------------- *@
+<div class="sma-card">
+    <div class="sma-card__header"><h2 class="sma-card__title">Tag file</h2></div>
+    <div class="sma-card__body">
+        <form method="post" action="/admin/rfid/import/preview" enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
+
+            <div class="sma-field">
+                <span class="sma-label">Source</span>
+
+                @if (Model.BundledFileAvailable)
+                {
+                    <label class="sma-choice" style="display:block;margin-bottom:var(--sma-space-2)">
+                        <input type="radio" name="useBundled" value="true" checked />
+                        <span>
+                            Use the file supplied with the system
+                            <span class="sma-small sma-muted">(@Model.BundledRowCount rows)</span>
+                        </span>
+                    </label>
+                }
+
+                <label class="sma-choice" style="display:block">
+                    <input type="radio" name="useBundled" value="false"
+                           checked="@(!Model.BundledFileAvailable)" />
+                    <span>Upload or paste a different file</span>
+                </label>
+            </div>
+
+            <div class="sma-field">
+                <label class="sma-label" for="file">CSV file</label>
+                <input class="sma-input" type="file" id="file" name="file" accept=".csv,text/csv,text/plain" />
+                <p class="sma-hint">
+                    Two columns: EPC, then stock code. A header row is optional. Spaces inside an EPC
+                    are ignored, so <span class="sma-mono">E2 80 11 70…</span> and
+                    <span class="sma-mono">E2801170…</span> are treated as the same tag.
+                </p>
+            </div>
+
+            <div class="sma-field">
+                <label class="sma-label" for="csv">…or paste rows</label>
+                <textarea class="sma-input sma-mono" id="csv" name="csv" rows="5"
+                          placeholder="E28011700000020A7A6B6AE1,FR0207001">@Model.Csv</textarea>
+            </div>
+
+            <div class="sma-field">
+                <label class="sma-label" for="distribution">Spread copies across titles</label>
+                <select class="sma-input" id="distribution" name="distribution">
+                    <option value="@((int)TagImportDistribution.ContiguousBlocks)"
+                            selected="@(Model.Distribution == TagImportDistribution.ContiguousBlocks)">
+                        Contiguous blocks — consecutive stock codes stay on one title
+                    </option>
+                    <option value="@((int)TagImportDistribution.RoundRobin)"
+                            selected="@(Model.Distribution == TagImportDistribution.RoundRobin)">
+                        Round robin — one stock code per title in rotation
+                    </option>
+                </select>
+                <p class="sma-hint">
+                    Only affects stock codes that are new. A stock code already held as an accession
+                    number keeps the copy and the title it is on.
+                </p>
+            </div>
+
+            <button type="submit" class="sma-btn sma-btn--primary sma-btn--lg">Preview import</button>
+        </form>
+    </div>
+</div>
+
+@* ---------------- result detail ---------------- *@
+@if (Model.HasReport)
+{
+    <div style="height:var(--sma-space-5)"></div>
+
+    <div class="sma-card">
+        <div class="sma-card__header">
+            <h2 class="sma-card__title">
+                @(Model.Applied ? "What was imported" : "What would happen")
+            </h2>
+        </div>
+        <div class="sma-card__body">
+            @if (Model.Report!.Problems.Any())
+            {
+                <div class="sma-alert sma-alert--warning">
+                    <span class="sma-alert__icon" aria-hidden="true">▲</span>
+                    <div>
+                        <strong>@Model.Report.Problems.Count() row(s) need attention.</strong>
+                        They are listed first below. A conflicting tag is never reassigned
+                        automatically — detach it from its current holder first.
+                    </div>
+                </div>
+                <div style="height:var(--sma-space-4)"></div>
+            }
+
+            <div style="overflow-x:auto">
+                <table class="sma-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Line</th>
+                            <th scope="col">Stock code</th>
+                            <th scope="col">EPC</th>
+                            <th scope="col">Title</th>
+                            <th scope="col">Copy</th>
+                            <th scope="col">Action</th>
+                            <th scope="col">Note</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.DisplayItems)
+                        {
+                            var state = Present(item.Action);
+                            <tr>
+                                <td class="sma-small sma-muted">@item.LineNumber</td>
+                                <td class="sma-mono sma-small">@item.StockCode</td>
+                                <td class="sma-mono sma-small">@item.Epc</td>
+                                <td class="sma-small">@(item.BookTitle ?? "—")</td>
+                                <td class="sma-mono sma-small">@(item.CopyNumber ?? "—")</td>
+                                <td><span class="sma-badge @state.Css">@state.Glyph @state.Label</span></td>
+                                <td class="sma-small sma-muted">@(item.Note ?? "")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (Model.Report.Items.Count > Model.DisplayItems.Count)
+            {
+                <p class="sma-hint">
+                    Showing @Model.DisplayItems.Count of @Model.Report.Items.Count rows — every row
+                    needing attention is included, plus a sample of the routine ones.
+                </p>
+            }
+        </div>
+    </div>
+
+    @if (!Model.Applied && Model.Report.Applied > 0)
+    {
+        <div style="height:var(--sma-space-5)"></div>
+
+        <div class="sma-card">
+            <div class="sma-card__header"><h2 class="sma-card__title">Apply this import</h2></div>
+            <div class="sma-card__body">
+                <p>
+                    This will create <strong>@Model.Report.CopiesCreated</strong> book copy/copies and
+                    attach <strong>@Model.Report.TagsAttached</strong> tag(s). Existing copies and tag
+                    history are not modified or deleted.
+                </p>
+
+                <form method="post" action="/admin/rfid/import/apply">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="csv" value="@Model.Csv" />
+                    <input type="hidden" name="useBundled" value="false" />
+                    <input type="hidden" name="distribution" value="@((int)Model.Distribution)" />
+
+                    <button type="submit" class="sma-btn sma-btn--gold sma-btn--lg" id="applyButton">
+                        Import @Model.Report.TagsAttached tag(s)
+                    </button>
+                </form>
+            </div>
+        </div>
+    }
+
+    @if (Model.Applied)
+    {
+        <div style="height:var(--sma-space-5)"></div>
+        <a class="sma-btn sma-btn--ghost" href="/desk/tags">Go to tag assignment</a>
+        <a class="sma-btn sma-btn--ghost" href="/kiosk">Open the self-checkout kiosk</a>
+    }
+}
+
+@section Scripts {
+    <script>
+        // A bulk write must not be submitted twice by an impatient double click.
+        document.getElementById('applyButton')?.addEventListener('click', function () {
+            this.classList.add('is-loading');
+            this.disabled = true;
+            this.form.submit();
+        });
+    </script>
+}

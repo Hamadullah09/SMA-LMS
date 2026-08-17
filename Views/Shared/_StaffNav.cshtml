@@ -79,6 +79,21 @@
     <a class="sma-nav-link @Nav("/desk/readers")" href="/desk/readers">
         <i class="bi bi-router" aria-hidden="true"></i> <span>Reader health</span>
     </a>
+    @if (isAdmin)
+    {
+        <a class="sma-nav-link @Nav("/admin/rfid/import")" href="/admin/rfid/import">
+            <i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i> <span>Import tags</span>
+        </a>
+    }
+</div>
+
+<div class="sma-nav-group">
+    <div class="sma-nav-group__label">Self-service</div>
+    @* Opens in a new tab: the kiosk is a full-screen station with no way back into staff
+       navigation, so replacing the staff tab with it would trap the librarian. *@
+    <a class="sma-nav-link" href="/kiosk" target="_blank" rel="noopener">
+        <i class="bi bi-person-badge" aria-hidden="true"></i> <span>Self-checkout kiosk</span>
+    </a>
 </div>
 
 <div class="sma-nav-group">

@@ -169,11 +169,6 @@
     <link rel="stylesheet" href="~/css/users/Category.css" asp-append-version="true" />
 
     <link rel="stylesheet" href="~/css/users/detail.css" asp-append-version="true" />
-
-    <link rel="stylesheet" href="~/css/users/History.css" asp-append-version="true" />
-
-    <link rel="stylesheet" href="~/css/users/cart.css" asp-append-version="true" />
-
     <link rel="stylesheet" href="~/css/users/History.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/users/cart.css" asp-append-version="true" />
 
@@ -189,6 +184,13 @@
     @* SMA branding for the inherited views. Must stay LAST so it overrides Bootstrap
        and the per-page stylesheets above (specification sections 91, 113). *@
     <link rel="stylesheet" href="~/css/sma-theme-bridge.css" asp-append-version="true" />
+
+    @* Design-system tokens, then the student-facing system built on them. This pair is the
+       replacement for the nineteen per-page stylesheets above: as each page migrates onto these,
+       its old stylesheet is removed from this list. Until then both load and the newer file wins,
+       so migration can happen a page at a time without breaking the rest. *@
+    <link rel="stylesheet" href="~/css/sma-design-system.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/sma-student.css" asp-append-version="true" />
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
@@ -219,6 +221,33 @@
                     <img src="/images/brand/sma-mark.png" alt="" aria-hidden="true" />
                     <span>SMA Library</span>
                 </a>
+
+                @* Real navigation. The nav previously offered none — brand, search, three unlabelled
+                   icons and an account menu — so there was no way to reach the catalogue from the
+                   chrome at all. Active state is matched on the path because these are a mix of
+                   conventional and attribute routes. *@
+                @{
+                    var navPath = Context.Request.Path.Value ?? "/";
+                    Func<string, bool> navOn = p => p == "/"
+                        ? navPath == "/"
+                        : navPath.StartsWith(p, StringComparison.OrdinalIgnoreCase);
+                }
+                <button class="sma-nav__burger" type="button" id="navBurger"
+                        aria-label="Menu" aria-expanded="false" aria-controls="navLinks">
+                    <i class="bi bi-list" aria-hidden="true"></i>
+                </button>
+
+                <nav class="sma-nav__links" id="navLinks" aria-label="Sections">
+                    <a class="sma-nav__link @(navOn("/") ? "is-active" : "")" href="/">Home</a>
+                    <a class="sma-nav__link @(navOn("/book") ? "is-active" : "")"
+                       asp-controller="Home" asp-action="Book">Browse</a>
+                    <a class="sma-nav__link @(navOn("/category") ? "is-active" : "")" href="/category">Subjects</a>
+                    @if (isSignedIn)
+                    {
+                        <a class="sma-nav__link @(navOn("/portal") ? "is-active" : "")" href="/portal">My library</a>
+                    }
+                    <a class="sma-nav__link @(navOn("/assistant") ? "is-active" : "")" href="/assistant">Ask</a>
+                </nav>
 
                 <form asp-controller="Home" asp-action="Book" method="get" class="sma-nav__search search-box" role="search">
                     <button type="submit" class="search-submit" aria-label="Search books">
@@ -427,6 +456,32 @@
     <script src="~/js/users/page-animations.js" asp-append-version="true"></script>
     <script src="~/js/users/chatbot.js" asp-append-version="true"></script>
     <script src="~/js/users/navbar.js" asp-append-version="true"></script>
+    <script>
+        // Mobile section menu. Inline and dependency-free: it is three lines, and the nav must work
+        // even if a CDN script fails to load.
+        (function () {
+            var burger = document.getElementById('navBurger');
+            var links = document.getElementById('navLinks');
+            if (!burger || !links) { return; }
+
+            burger.addEventListener('click', function () {
+                var open = links.classList.toggle('is-open');
+                burger.setAttribute('aria-expanded', String(open));
+            });
+
+            // Tapping a link, or anywhere outside, closes it — otherwise the panel covers the page.
+            links.addEventListener('click', function (e) {
+                if (e.target.closest('a')) { links.classList.remove('is-open'); burger.setAttribute('aria-expanded', 'false'); }
+            });
+
+            document.addEventListener('click', function (e) {
+                if (!links.contains(e.target) && !burger.contains(e.target)) {
+                    links.classList.remove('is-open');
+                    burger.setAttribute('aria-expanded', 'false');
+                }
+            });
+        })();
+    </script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 

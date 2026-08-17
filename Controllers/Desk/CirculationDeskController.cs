@@ -4,9 +4,12 @@ using Library_Management_system.Data;
 using Library_Management_system.Domain.Entities;
 using Library_Management_system.Domain.Enums;
 using Library_Management_system.Models.Desk;
+using Library_Management_system.Rfid;
+using Library_Management_system.Rfid.Hosting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Library_Management_system.Controllers.Desk;
 
@@ -357,5 +360,98 @@ public class CirculationDeskController : Controller
     {
         var readers = await _db.RfidReaders.AsNoTracking().OrderBy(r => r.Name).ToListAsync();
         return View("~/Views/Desk/Readers.cshtml", readers);
+    }
+
+    /// <summary>
+    /// Switches a reader between acting as a checkout pad and acting as an exit gate.
+    ///
+    /// Exists because the two roles are mutually exclusive and a library testing with a single reader
+    /// has to be able to move it: an un-issued book on a checkout pad is a normal borrow in progress,
+    /// while the same book at a gate is a theft. Silencing on the way out matters — a reader that
+    /// stops being a gate must not be left beeping.
+    /// </summary>
+    [HttpPost("readers/purpose/{id:int}")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetReaderPurpose(
+        int id,
+        RfidReaderPurpose purpose,
+        [FromServices] Rfid.Hosting.RfidBeeperAlarm alarm)
+    {
+        var reader = await _db.RfidReaders.FirstOrDefaultAsync(r => r.Id == id);
+
+        if (reader is null)
+        {
+            TempData["ReaderTestMessage"] = "That reader no longer exists.";
+            TempData["ReaderTestOk"] = false;
+            return RedirectToAction(nameof(Readers));
+        }
+
+        reader.Purpose = purpose;
+        await _db.SaveChangesAsync();
+
+        if (purpose != RfidReaderPurpose.SecurityGate)
+        {
+            await alarm.SilenceAsync(id);
+        }
+
+        TempData["ReaderTestMessage"] = purpose == RfidReaderPurpose.SecurityGate
+            ? $"{reader.Name} is now an exit gate. A book read here without an open loan will sound "
+              + "the buzzer. It will no longer serve the self-checkout kiosk."
+            : $"{reader.Name} is now a {purpose} reader. Gate alarms are off for it.";
+
+        TempData["ReaderTestOk"] = true;
+        return RedirectToAction(nameof(Readers));
+    }
+
+    /// <summary>
+    /// One-shot reachability test.
+    ///
+    /// Worth having as a button because "the reader is offline" has several very different causes —
+    /// wrong IP, unplugged cable, powered off, or the application already holding the D2184's single
+    /// TCP connection — and the health columns alone cannot tell a librarian which.
+    /// </summary>
+    [HttpPost("readers/test/{id:int}")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> TestReader(
+        int id, [FromServices] IRfidConnectionProbe probe, [FromServices] IOptions<RfidOptions> options)
+    {
+        var reader = await _db.RfidReaders.AsNoTracking().FirstOrDefaultAsync(r => r.Id == id);
+
+        if (reader is null)
+        {
+            TempData["ReaderTestMessage"] = "That reader no longer exists.";
+            TempData["ReaderTestOk"] = false;
+            return RedirectToAction(nameof(Readers));
+        }
+
+        if (reader.Transport != RfidTransport.Tcp)
+        {
+            TempData["ReaderTestMessage"] =
+                $"{reader.Name} is not a network reader ({reader.Transport}), so there is no address to test.";
+            TempData["ReaderTestOk"] = false;
+            return RedirectToAction(nameof(Readers));
+        }
+
+        var host = string.IsNullOrWhiteSpace(reader.Host) ? options.Value.Host : reader.Host!;
+        var port = reader.Port ?? options.Value.Port;
+
+        var result = await probe.ProbeAsync(host, port, options.Value.ReaderAddressByte);
+
+        // The D2184 serves one TCP client at a time. When the application is already connected, a
+        // probe gets its socket accepted but no reply, because the reader is busy streaming
+        // inventory to the live connection. That is a healthy reader, and reporting it as "not a
+        // D2184" would send a librarian looking for a fault that does not exist.
+        var busyWithUs = result.Reachable
+                         && !result.SpokeProtocol
+                         && reader.Status == RfidReaderStatus.Online;
+
+        TempData["ReaderTestMessage"] = busyWithUs
+            ? $"{reader.Name} is reachable at {host}:{port} and is currently connected to this "
+              + "application, which is why it did not answer a second connection. Nothing is wrong."
+            : $"{reader.Name}: {result.Message}";
+
+        TempData["ReaderTestOk"] = result.SpokeProtocol || busyWithUs;
+
+        return RedirectToAction(nameof(Readers));
     }
 }

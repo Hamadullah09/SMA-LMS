@@ -129,6 +129,12 @@ public sealed class TagAssignmentViewModel
     public bool ScannedTagIsKnown { get; set; }
     public string? ScannedTagHolder { get; set; }
 
+    /// <summary>
+    /// Where live tag capture should start reading the scan feed. Set to the feed's current position
+    /// when the page is rendered, so only tags presented from now on are picked up.
+    /// </summary>
+    public long ScanCursor { get; set; }
+
     public IReadOnlyList<Student> Students { get; set; } = [];
     public IReadOnlyList<BookCopy> Copies { get; set; } = [];
 

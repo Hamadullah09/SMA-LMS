@@ -95,13 +95,35 @@ byte-for-byte** (`A0 03 01 72 EA` for GetFirmwareVersion; `A0 04 01 89 FF D3` fo
 inventory), split frames, three-frame bursts, leading junk recovery and corrupted-checksum
 rejection.
 
+### Verified against the physical device
+
+The protocol above is no longer only transcribed — it has been exercised against a real D2184 on the
+LAN at `192.168.0.178:4001`:
+
+| Check | Sent | Received |
+| --- | --- | --- |
+| Firmware version | `A0 03 01 72 EA` | `A0 05 01 72 08 02 DE` → **firmware 8.2**, checksum valid |
+| Real-time inventory | `A0 04 01 89 FF D3` | `A0 0A 01 89 00 00 00 00 00 00 00 CC` → end-of-round, antenna 0, 0 tags in field |
+
+One useful measurement: an empty inventory round costs **~37 ms**, matching the protocol document's
+30–50 ms estimate. That is why `D2184ReaderService` restarts the round immediately on completion
+rather than adding a delay — the hardware paces the loop itself, so "continuous inventory" is roughly
+27 rounds per second and not a hot spin.
+
 ### Still outstanding
 
-The **network topology question in `DEPLOYMENT.md` §3 remains open** and is now the only real RFID
-blocker. The reader listens as a TCP *server* on port 4001 (`ReaderMethod.ConnectServer` dials out
-to it), which means a MyASP.NET-hosted application **cannot reach it** across the internet on a
-private LAN address. The local-agent option (A) is therefore the expected answer, not merely the
-safe default.
+The **network topology question in `DEPLOYMENT.md` §3 remains open for internet-hosted deployment**.
+The reader listens as a TCP *server* on port 4001 (`ReaderMethod.ConnectServer` dials out to it),
+which means a MyASP.NET-hosted application **cannot reach it** across the internet on a private LAN
+address. The local-agent option (A) is therefore the expected answer for that topology.
+
+This is not a blocker when the application runs **on the library network**, which is how it is
+deployed today: `RfidReaderHostService` dials the reader directly and the whole pipeline works.
+
+One hardware constraint worth knowing, because it looks like a fault: **the D2184 accepts one TCP
+client at a time.** While the application holds the connection, a second connection is accepted but
+never answered. The reader test button accounts for this and reports it as healthy rather than as a
+wrong address.
 
 ---
 
@@ -117,10 +139,13 @@ IRfidReaderService                 ← device-agnostic operations
 IRfidDeviceConnection  +  IRfidProtocol  +  IRfidTagParser
         ↓
    ┌────────────────────┬──────────────────────┐
-   │ D2184Connection    │ SimulatorConnection  │
-   │ (BLOCKED)          │ (buildable now)      │
+   │ D2184TcpConnection │ SimulatorConnection  │
+   │ (built, verified)  │ (built)              │
    └────────────────────┴──────────────────────┘
 ```
+
+`RfidReaderHostService` is the composition root that assembles this stack per reader row and keeps it
+connected. It is the only place that names a concrete transport.
 
 Section 87 forbids the application depending on raw socket or serial code. Controllers subscribe to
 processed scan events; they never open a port.
@@ -233,9 +258,61 @@ Buildable without any hardware information:
 - Full simulator with every scenario in section 6
 - Integration tests covering scenarios 1–10 of specification section 64
 
-Deferred until the questions in section 1 are answered:
+All of the following, previously deferred pending section 1, are now built and running:
 
-- `D2184Protocol : IRfidProtocol`
-- `D2184TcpConnection` / `D2184SerialConnection : IRfidDeviceConnection`
-- Antenna and RSSI persistence, if the reader reports them
-- Continuous-inventory start/stop commands
+- `D2184Protocol`, `D2184Frame`, `D2184FrameReader`, `D2184InventoryParser`
+- `D2184TcpConnection : IRfidDeviceConnection`
+- Antenna and RSSI persistence — the reader does report both, so both are populated
+- Continuous inventory, via round restart on completion
+
+Still not built: `D2184SerialConnection` (nothing needs RS-232 yet) and gate/alarm hardware control,
+which section 28 defers until a gate protocol is known.
+
+---
+
+## 9. Live operation
+
+### Reader connection — `Rfid/Hosting/`
+
+| File | Responsibility |
+| --- | --- |
+| `RfidReaderHostService` | `BackgroundService`. Per enabled TCP reader: connect → start inventory → heartbeat → reconnect with capped backoff. Persists health to the reader row. |
+| `RfidLiveFeed` | In-memory ring buffer of deduplicated, **resolved** scans with a monotonic cursor. Bridges the push pipeline to browser polling. |
+| `RfidConnectionProbe` | One-shot reachability test for the reader admin screen. |
+
+The pipeline is deliberately **queued**, not inline:
+
+```
+socket read loop → processor.Process (debounce, in memory)
+                 → Channel (bounded, DropOldest)
+                 → scope → IRfidScanRecorder.RecordAsync (SQL)
+                 → IRfidLiveFeed.Publish  → kiosk, scan monitor, tag enrolment
+```
+
+A UHF reader delivers observations faster than SQL Server commits. Recording inline would push
+database latency into the read loop and turn a slow write into dropped tag reports. The channel hands
+the socket back immediately.
+
+### Self-service kiosk — `Application/Kiosk/`, `Controllers/Kiosk/`
+
+State lives on the server, keyed by **reader** rather than by browser session, because a kiosk is a
+piece of furniture: the books on its antenna and the card tapped against it must survive a reload.
+The browser polls, renders, and posts button presses.
+
+Every borrowing rule remains `ICirculationService` — the same service the staff desk calls (§71, §87).
+The kiosk adds only what a one-book-at-a-time desk never had to handle:
+
+- **basket-wide checks** that per-copy validation cannot see — the borrowing limit across several
+  books at once, and two copies of one title on the pad
+- **an idle timeout**, because a kiosk has no librarian to notice that the student walked away
+
+See `KioskOptions` for the security posture of an intentionally unauthenticated station.
+
+### Bulk tag import — `Application/Rfid/RfidTagImportService.cs`
+
+Attaches a supplier's EPC-to-stock-code manifest to the catalogue. Nothing in such a file says which
+*title* a stock code belongs to, so the importer assigns titles deterministically from the sorted
+stock codes — the same file always produces the same mapping, which is what makes a re-run safe.
+
+Inherits the single-tag rules rather than reimplementing them: a live EPC belongs to exactly one
+entity, so a conflict is reported and never silently reassigned (§4F), and nothing is deleted (§87).

@@ -25,13 +25,18 @@
 <div class="sma-card" style="margin-bottom:var(--sma-space-5)">
     <div class="sma-card__header"><h2 class="sma-card__title">1. Scan the tag</h2></div>
     <div class="sma-card__body">
-        <form method="get">
+        <form method="get" id="scanForm">
             <input type="hidden" name="studentQuery" value="@Model.StudentQuery" />
             <input type="hidden" name="bookQuery" value="@Model.BookQuery" />
             <div class="sma-field">
                 <label class="sma-label" for="epc">Tag EPC</label>
                 <input class="sma-input sma-mono" id="epc" name="epc" value="@Model.ScannedEpc"
                        autocomplete="off" autofocus placeholder="Present the card or tag to the reader" />
+                <p class="sma-hint" id="captureHint">
+                    <span aria-hidden="true">📡</span>
+                    Listening to the reader — hold the tag against the antenna and this fills in by
+                    itself. You can also type an EPC.
+                </p>
             </div>
             <button type="submit" class="sma-btn sma-btn--primary">Check this tag</button>
         </form>
@@ -206,3 +211,46 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        // Live tag capture. Polls the scan feed and drops whatever is presented to a reader into the
+        // EPC box, then submits the lookup — so enrolling a card is "hold it on the pad", not
+        // "transcribe 24 hex digits". The student and copy searches survive because the form carries
+        // them as hidden fields.
+        (function () {
+            'use strict';
+
+            var cursor = @Model.ScanCursor;
+            var field = document.getElementById('epc');
+            var form = document.getElementById('scanForm');
+            var hint = document.getElementById('captureHint');
+            var stopped = false;
+
+            // A librarian who has started typing must not have the field overwritten under them.
+            field.addEventListener('input', function () {
+                if (field.value.length > 0) { stopped = true; }
+            });
+
+            function tick() {
+                fetch('/desk/tags/feed?cursor=' + cursor, { headers: { 'Accept': 'application/json' } })
+                    .then(function (r) { return r.ok ? r.json() : null; })
+                    .then(function (data) {
+                        if (!data) { return; }
+                        cursor = data.cursor;
+
+                        if (!data.epc || stopped) { return; }
+
+                        field.value = data.epc;
+                        hint.textContent = 'Tag ' + data.epc + ' detected — checking…';
+                        form.submit();
+                    })
+                    .catch(function () {
+                        hint.textContent = 'Live capture is unavailable. Type the EPC instead.';
+                    });
+            }
+
+            setInterval(tick, 1000);
+        })();
+    </script>
+}

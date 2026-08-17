@@ -2,6 +2,7 @@ using Library_Management_system.Application.Rfid;
 using Library_Management_system.Data;
 using Library_Management_system.Rfid;
 using Library_Management_system.Rfid.Abstractions;
+using Library_Management_system.Rfid.Hosting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -25,6 +26,7 @@ public class ScanMonitorController : Controller
     private readonly ApplicationDbContext _db;
     private readonly IRfidScanProcessor _processor;
     private readonly IRfidScanRecorder _recorder;
+    private readonly IRfidLiveFeed _feed;
     private readonly RfidOptions _options;
     private readonly IWebHostEnvironment _environment;
 
@@ -32,12 +34,14 @@ public class ScanMonitorController : Controller
         ApplicationDbContext db,
         IRfidScanProcessor processor,
         IRfidScanRecorder recorder,
+        IRfidLiveFeed feed,
         IOptions<RfidOptions> options,
         IWebHostEnvironment environment)
     {
         _db = db;
         _processor = processor;
         _recorder = recorder;
+        _feed = feed;
         _options = options.Value;
         _environment = environment;
     }
@@ -47,6 +51,16 @@ public class ScanMonitorController : Controller
     {
         ViewBag.CanSimulate = _environment.IsDevelopment() && _options.IsSimulator;
         ViewBag.Readers = await _db.RfidReaders.AsNoTracking().OrderBy(r => r.Name).ToListAsync();
+
+        // Gate violations belong in front of whoever is watching the scans, not buried in a table
+        // nobody opens. Most recent first, and only the unacknowledged ones.
+        ViewBag.SecurityAlerts = await _db.SecurityEvents
+            .AsNoTracking()
+            .Where(e => !e.IsAcknowledged && e.Severity == Domain.Enums.SecurityEventSeverity.Critical)
+            .OrderByDescending(e => e.Id)
+            .Take(10)
+            .Select(e => new { e.Id, e.Kind, e.Epc, e.Description, e.OccurredUtc })
+            .ToListAsync();
 
         var recent = await _db.RfidScanEvents
             .AsNoTracking()
@@ -107,6 +121,16 @@ public class ScanMonitorController : Controller
             if (scan is not null)
             {
                 last = await _recorder.RecordAsync(scan);
+
+                // Publish exactly as the reader host does. Section 4G's whole point is that the
+                // application cannot tell the simulator from hardware, and a simulated scan that
+                // reached the database but not the live feed would be invisible to the self-service
+                // kiosk — which is the screen most worth being able to test without hardware.
+                _feed.Publish(
+                    last.ScanEventId, observation.ReaderId, observation.Epc, observation.ObservedUtc,
+                    observation.Rssi, observation.Antenna,
+                    last.Kind, last.StudentId, last.BookCopyId, last.Description);
+
                 emitted++;
             }
         }

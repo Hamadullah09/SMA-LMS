@@ -63,4 +63,10 @@
     <Folder Include="wwwroot\images\Admin\Categories\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Supplier tag manifest, read from the content root by the RFID import screen. Not under
+         wwwroot on purpose: it is an operational data file, not a public asset. -->
+    <Content Include="Data\Seed\**" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

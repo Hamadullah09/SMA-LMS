@@ -233,8 +233,20 @@ public sealed class RfidTagService : IRfidTagService
             $"Card marked {state.ToString().ToLowerInvariant()}. The student can no longer be identified by it.");
     }
 
-    /// <summary>EPCs are hex; normalising avoids a case mismatch defeating the uniqueness index.</summary>
-    private static string Normalise(string epc) => (epc ?? string.Empty).Trim().ToUpperInvariant();
+    /// <summary>
+    /// EPCs are contiguous uppercase hex. Normalising avoids a case or spacing mismatch defeating
+    /// the uniqueness index.
+    ///
+    /// ALL whitespace is removed, not just the ends. Tag labels and supplier sheets print EPCs
+    /// byte-spaced ("E2 80 69 15 …"), so that is what gets pasted into the assignment box — while a
+    /// reader reports the same tag contiguously. Trimming alone let both forms coexist as separate
+    /// rows, which had two consequences: the spaced one could never match a scan, so the card simply
+    /// did not work; and the filtered unique index on live EPCs saw two different strings, so the
+    /// same physical tag could be issued to two students at once. That is exactly the guarantee
+    /// section 4F exists to provide.
+    /// </summary>
+    private static string Normalise(string epc) =>
+        new string((epc ?? string.Empty).Where(c => !char.IsWhiteSpace(c)).ToArray()).ToUpperInvariant();
 
     private Task WriteAuditAsync(
         string operation, string entityType, string entityId, string epc, string? actor, string note, CancellationToken ct)

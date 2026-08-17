@@ -27,6 +27,16 @@
     }
 }
 
+@if (TempData["ReaderTestMessage"] is string testMessage)
+{
+    var testOk = TempData["ReaderTestOk"] is true;
+    <div class="sma-alert @(testOk ? "sma-alert--success" : "sma-alert--warning")" role="status">
+        <span class="sma-alert__icon" aria-hidden="true">@(testOk ? "✓" : "▲")</span>
+        <div>@testMessage</div>
+    </div>
+    <div style="height:var(--sma-space-4)"></div>
+}
+
 @if (Model.Count == 0)
 {
     @* Meaningful empty state with a next action (specification section 104). *@
@@ -62,6 +72,22 @@ else
                     </div>
 
                     <dl style="margin:var(--sma-space-4) 0 0;display:grid;grid-template-columns:auto 1fr;gap:var(--sma-space-2) var(--sma-space-4)">
+                        <dt class="sma-small sma-muted">Address</dt>
+                        <dd class="sma-small sma-mono" style="margin:0">
+                            @if (reader.Transport == RfidTransport.Tcp)
+                            {
+                                @($"{reader.Host ?? "—"}:{reader.Port?.ToString() ?? "—"}")
+                            }
+                            else if (reader.Transport == RfidTransport.Serial)
+                            {
+                                @($"{reader.ComPort ?? "—"} @ {reader.BaudRate?.ToString() ?? "—"}")
+                            }
+                            else
+                            {
+                                @reader.Transport.ToString()
+                            }
+                        </dd>
+
                         <dt class="sma-small sma-muted">Last heartbeat</dt>
                         <dd class="sma-small" style="margin:0">@Ago(reader.LastHeartbeatUtc)</dd>
 
@@ -78,6 +104,58 @@ else
                             <span class="sma-alert__icon" aria-hidden="true">▲</span>
                             <div class="sma-small">@reader.LastError</div>
                         </div>
+                    }
+
+                    @* Role switch. The two roles are mutually exclusive — see SetReaderPurpose. *@
+                    <div style="margin-top:var(--sma-space-4)">
+                        @if (reader.Purpose == RfidReaderPurpose.SecurityGate)
+                        {
+                            <div class="sma-alert sma-alert--warning" style="margin-bottom:var(--sma-space-3)">
+                                <span class="sma-alert__icon" aria-hidden="true">🔔</span>
+                                <div class="sma-small">
+                                    <strong>Acting as an exit gate.</strong>
+                                    A book read here with no open loan sounds the buzzer and records a
+                                    critical security event.
+                                </div>
+                            </div>
+                            <form method="post" action="/desk/readers/purpose/@reader.Id">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="purpose" value="@((int)RfidReaderPurpose.Checkout)" />
+                                <button type="submit" class="sma-btn sma-btn--ghost">Use as checkout pad</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <form method="post" action="/desk/readers/purpose/@reader.Id"
+                                  onsubmit="return confirm('Make this an exit gate? It will stop serving the self-checkout kiosk, because an un-issued book on a pad is normal but at a gate it is theft.');">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="purpose" value="@((int)RfidReaderPurpose.SecurityGate)" />
+                                <button type="submit" class="sma-btn sma-btn--ghost">Use as exit gate</button>
+                            </form>
+                        }
+                    </div>
+
+                    @if (reader.Transport == RfidTransport.Tcp)
+                    {
+                        <div style="margin-top:var(--sma-space-3);display:flex;gap:var(--sma-space-2)">
+                            <form method="post" action="/desk/readers/test/@reader.Id">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="sma-btn sma-btn--ghost">Test connection</button>
+                            </form>
+                            @if (reader.Purpose == RfidReaderPurpose.Checkout)
+                            {
+                                <a class="sma-btn sma-btn--ghost" href="/kiosk/@reader.Id"
+                                   target="_blank" rel="noopener">Open kiosk</a>
+                            }
+                        </div>
+
+                        @if (reader.Status == RfidReaderStatus.Online)
+                        {
+                            <p class="sma-hint" style="margin-bottom:0">
+                                The application holds this reader's only TCP connection while it is
+                                online, so a test run now is expected to report the port as busy.
+                            </p>
+                        }
                     }
                 </div>
             </div>

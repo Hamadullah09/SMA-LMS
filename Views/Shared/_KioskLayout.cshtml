@@ -1,0 +1,31 @@
+@*
+    Shell for the unattended self-service station.
+
+    Deliberately not _StaffLayout: a kiosk has no sidebar, no account menu and no way back into the
+    application, because anything a student can navigate to is something a student can get stuck in.
+    It also loads no Bootstrap, no jQuery and no CDN font — the station must work when the library's
+    internet connection is down but its LAN and its reader are fine.
+
+    Page contract:
+      ViewData["Title"]  browser title only; nothing renders it on screen
+*@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <partial name="_SmaFavicon" />
+    <title>@(ViewData["Title"] ?? "Self-Service") — SMA Library</title>
+    <meta name="theme-color" content="#f07c20" />
+
+    @* No robots: a kiosk URL has no business in a search index. *@
+    <meta name="robots" content="noindex, nofollow" />
+
+    <link rel="stylesheet" href="~/css/sma-design-system.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/sma-kiosk.css" asp-append-version="true" />
+</head>
+<body class="sma kiosk">
+    @RenderBody()
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

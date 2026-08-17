@@ -14,11 +14,23 @@ namespace Library_Management_system.Data;
 /// </summary>
 public static class RfidDemoSeeder
 {
-    public static async Task SeedAsync(ApplicationDbContext context, CancellationToken ct = default)
+    /// <summary>
+    /// <paramref name="simulatedTags"/> must be false whenever a real reader is configured. A
+    /// synthetic SMAB/SMAC EPC cannot be presented to an antenna, so on real hardware these tags are
+    /// not merely useless: they occupy the one active-tag slot per copy that a genuine manufacturer
+    /// EPC needs, and turn every real enrolment into a replacement of something that never existed.
+    /// </summary>
+    public static async Task SeedAsync(
+        ApplicationDbContext context, bool simulatedTags = true, CancellationToken ct = default)
     {
         await AssignAccessionNumbersAsync(context, ct);
-        await AssignBookTagsAsync(context, ct);
-        await AssignStudentCardsAsync(context, ct);
+
+        if (simulatedTags)
+        {
+            await AssignBookTagsAsync(context, ct);
+            await AssignStudentCardsAsync(context, ct);
+        }
+
         await SeedReadersAsync(context, ct);
 
         await context.SaveChangesAsync(ct);

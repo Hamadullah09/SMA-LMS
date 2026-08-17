@@ -71,12 +71,22 @@ builder.Services.AddScoped<Library_Management_system.Application.Rfid.IRfidTagSe
                            Library_Management_system.Application.Rfid.RfidTagService>();
 builder.Services.AddScoped<Library_Management_system.Application.Rfid.IRfidScanRecorder,
                            Library_Management_system.Application.Rfid.RfidScanRecorder>();
+builder.Services.AddScoped<Library_Management_system.Application.Rfid.IRfidTagImportService,
+                           Library_Management_system.Application.Rfid.RfidTagImportService>();
 builder.Services.AddScoped<Library_Management_system.Application.Search.IGlobalSearchService,
                            Library_Management_system.Application.Search.GlobalSearchService>();
 builder.Services.AddScoped<Library_Management_system.Application.Reporting.IReportingService,
                            Library_Management_system.Application.Reporting.ReportingService>();
 builder.Services.AddScoped<Library_Management_system.Application.Assistant.ILibraryAssistant,
                            Library_Management_system.Application.Assistant.LibraryAssistant>();
+
+// Self-service station. The store is a singleton because a kiosk is a piece of furniture: the books
+// on its antenna outlive any one HTTP request or browser session.
+builder.Services.Configure<Library_Management_system.Application.Kiosk.KioskOptions>(
+    builder.Configuration.GetSection(Library_Management_system.Application.Kiosk.KioskOptions.SectionName));
+builder.Services.AddSingleton<Library_Management_system.Application.Kiosk.KioskStationStore>();
+builder.Services.AddScoped<Library_Management_system.Application.Kiosk.IKioskService,
+                           Library_Management_system.Application.Kiosk.KioskService>();
 
 // Phase 12. Refuses to start on unsafe production configuration (§59, §62, §78).
 Library_Management_system.Infrastructure.ProductionGuards.Validate(
@@ -113,6 +123,21 @@ var seedDemoPassword = builder.Configuration["SeedDemoUsers:Password"] ?? "Demo@
 
 // Sample catalog for a fresh database; ignored once any book exists.
 var seedSampleData = builder.Configuration.GetValue("SeedSampleData:Enabled", false);
+
+// Logins for seeded students, so they can reach the portal and the cart-to-kiosk flow.
+// Refused in Production by ProductionGuards, same as the demo users.
+var seedStudentAccounts = builder.Configuration.GetValue("SeedStudentAccounts:Enabled", false);
+
+// No default. A fallback here would be a password living in source control, and this repository is
+// public — so the seeder refuses to run rather than quietly issuing accounts with a known password.
+var seedStudentPassword = builder.Configuration["SeedStudentAccounts:Password"];
+
+if (seedStudentAccounts && string.IsNullOrWhiteSpace(seedStudentPassword))
+{
+    throw new InvalidOperationException(
+        "SeedStudentAccounts:Enabled is true but SeedStudentAccounts:Password is not set. "
+        + "Set it in appsettings.json or user-secrets; there is deliberately no built-in default.");
+}
 
 var app = builder.Build();
 
@@ -218,20 +243,51 @@ await using (var scope = app.Services.CreateAsyncScope())
     {
         await EnsureDemoUserAsync(userManager, "librarian@library.com", "Demo Librarian", "Librarian", "+85512000002", seedDemoPassword);
         await EnsureDemoUserAsync(userManager, "student@library.com", "Demo Student", "User", "+85512000003", seedDemoPassword);
+
+        // Without this link the demo student can sign in but is not a borrower, so the kiosk cannot
+        // identify them from their login and the cart-to-self-checkout flow dead-ends.
+        var demoStudentAccount = await userManager.FindByEmailAsync("student@library.com");
+        if (demoStudentAccount is not null)
+        {
+            await StudentDemoSeeder.LinkAccountAsync(
+                dbContext, "student@library.com", demoStudentAccount.Id, "Demo Student");
+        }
     }
+
+    var rfidOptions = services.GetRequiredService<Microsoft.Extensions.Options.IOptions<
+        Library_Management_system.Rfid.RfidOptions>>().Value;
 
     if (seedSampleData)
     {
         await SampleDataSeeder.SeedAsync(dbContext, "System Admin");
 
-        // Accession numbers, simulated tags and demo readers, so the circulation desk works
-        // without hardware. Development only, same switch as the sample catalogue.
-        await RfidDemoSeeder.SeedAsync(dbContext);
+        // Students to issue books to. The catalogue seeder creates titles only, and a Student is a
+        // university identity rather than something a signup produces (§35).
+        await StudentDemoSeeder.SeedAsync(dbContext);
+
+        // Accession numbers, demo readers, and — only when no real reader is configured — simulated
+        // tags, so the circulation desk works without hardware. Development only, same switch as the
+        // sample catalogue.
+        await RfidDemoSeeder.SeedAsync(dbContext, simulatedTags: rfidOptions.IsSimulator);
+    }
+
+    if (seedStudentAccounts)
+    {
+        // Non-null here: startup already refused to get this far with the flag on and no password.
+        var accounts = await StudentAccountSeeder.SeedAsync(dbContext, userManager, seedStudentPassword!);
+
+        app.Logger.LogInformation(
+            "Student logins ready for {Count} student(s); {New} newly created.",
+            accounts.Count, accounts.Count(a => a.Created));
     }
 
     // Library policies always seed: the circulation engine needs them, and an admin edits the
     // rows afterwards rather than a developer editing constants (specification section 22).
     await LibraryPolicySeeder.SeedAsync(dbContext);
+
+    // The configured reader always gets a row, sample data or not: the host service dials readers
+    // listed in the database, so without this a physical reader on the LAN is never contacted.
+    await RfidReaderSeeder.SeedAsync(dbContext, rfidOptions);
 }
 
 app.Run();

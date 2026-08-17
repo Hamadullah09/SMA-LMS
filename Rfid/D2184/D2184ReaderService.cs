@@ -143,6 +143,14 @@ public sealed class D2184ReaderService : IRfidReaderService
             case D2184InventoryResult.Tag tag when _inventoryRunning:
                 _lastScanUtc = DateTime.UtcNow;
                 _consecutiveFailures = 0;
+
+                // The one event worth seeing at Debug. RSSI is the reader's own scale, not dBm, but
+                // it is what tells you whether a tag is comfortably in range or barely detected —
+                // which is the difference between a working desk and an intermittent one.
+                _logger.LogDebug(
+                    "Reader {ReaderId} read tag {Epc} (rssi {Rssi}, antenna {Antenna}).",
+                    ReaderId, tag.Report.Epc, tag.Report.Rssi, tag.Report.Antenna);
+
                 ObservationReceived?.Invoke(new RfidObservation(
                     ReaderId,
                     tag.Report.Epc,
@@ -152,7 +160,9 @@ public sealed class D2184ReaderService : IRfidReaderService
                 break;
 
             case D2184InventoryResult.Completed completed:
-                _logger.LogDebug(
+                // Trace, not Debug: an idle reader completes ~27 rounds a second, so logging this at
+                // Debug buries every other message and grows the log by megabytes a minute.
+                _logger.LogTrace(
                     "Reader {ReaderId} finished a round: {TotalRead} reads on antenna {Antenna}.",
                     ReaderId, completed.Summary.TotalRead, completed.Summary.Antenna);
 

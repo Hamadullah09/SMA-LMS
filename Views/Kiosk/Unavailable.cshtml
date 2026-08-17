@@ -1,0 +1,28 @@
+@{
+    ViewData["Title"] = "Self-Service Unavailable";
+    Layout = "~/Views/Shared/_KioskLayout.cshtml";
+}
+
+<header class="kiosk-top">
+    <div class="kiosk-brand">
+        <img class="kiosk-brand__mark" src="~/images/brand/sma-mark.png" alt="" aria-hidden="true"
+             width="32" height="32" />
+        <span>SMA Library — Self-Service</span>
+    </div>
+</header>
+
+<main class="kiosk-main" style="grid-template-columns:minmax(0,1fr)">
+    <section class="kiosk-panel">
+        <div class="kiosk-empty">
+            <div class="kiosk-empty__glyph" aria-hidden="true">📡</div>
+            <div class="kiosk-empty__title">This station is not set up yet</div>
+            <p>
+                No RFID reader is registered, so the pad cannot detect books. Borrowing and returning
+                still work normally at the circulation desk, under exactly the same rules.
+            </p>
+            <p class="sma-small sma-muted">
+                Staff: register a reader on the Reader health screen, then reload this page.
+            </p>
+        </div>
+    </section>
+</main>

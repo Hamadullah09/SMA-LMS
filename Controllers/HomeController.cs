@@ -487,6 +487,50 @@ namespace Library_Management_system.Controllers
             return RedirectToAction(nameof(Cart));
         }
 
+        /// <summary>
+        /// Sends the student to the self-service station to complete the loan themselves.
+        ///
+        /// Deliberately does NOT create a pending reservation. A reservation exists to hold a copy
+        /// somebody else currently has; asking a librarian to approve a book the student is about to
+        /// pick up and scan at the pad would leave the two states disagreeing — the request still
+        /// "pending" while the loan is already open. Self-service and approval are alternatives, not
+        /// a sequence.
+        ///
+        /// The cart is left intact on purpose: the books still have to be fetched off the shelf and
+        /// read by the reader, so until that happens the cart is the student's own list of what they
+        /// came for.
+        /// </summary>
+        [HttpPost("cart/proceed-checkout")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ProceedToSelfCheckout([FromForm] int[] itemIds)
+        {
+            if (itemIds == null || itemIds.Length == 0)
+            {
+                TempData["CartError"] = "Please select book(s) to check out.";
+                return RedirectToAction(nameof(Cart));
+            }
+
+            var ownerKey = ResolveCartOwnerKey();
+
+            var selected = await _context.CartItems
+                .Where(ci => ci.OwnerKey == ownerKey && itemIds.Contains(ci.Id))
+                .Include(ci => ci.Book)
+                .ToListAsync();
+
+            if (selected.Count == 0)
+            {
+                TempData["CartError"] = "Selected item(s) were not found in your cart.";
+                return RedirectToAction(nameof(Cart));
+            }
+
+            // Carried to the kiosk so the station can tell the student what they came to collect.
+            TempData["KioskCollectList"] = string.Join(", ", selected
+                .Select(ci => ci.Book?.Title)
+                .Where(t => !string.IsNullOrWhiteSpace(t)));
+
+            return Redirect("/kiosk");
+        }
+
         [HttpPost("cart/cancel-pending")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CancelPendingRequests()

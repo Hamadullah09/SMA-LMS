@@ -12,9 +12,13 @@ namespace Library_Management_system.Controllers.Admin;
 [Route("admin/manageborrowingbook")]
 public class ManageBorrowingBookController : Controller
 {
-    private const int DefaultBorrowingDays = 14;
-    private const int MaxActiveBorrowingsPerUser = 3;
-    private const decimal FinePerLateDay = 1.00m;
+    // Loan length, borrowing limit and fine rate are NOT constants here any more.
+    //
+    // They used to be (14 days, 3 books, 1.00 per day) and that was a real defect, not just
+    // duplication: the configured policy says 14 days, 5 books and 20.00 per day, and the kiosk and
+    // circulation desk read it. So the same overdue book cost 1.00 a day on this screen and 20.00 a
+    // day at the pad, and a student blocked at four books here could borrow a fifth at the kiosk.
+    // Specification section 22 exists to stop exactly this; section 71 requires one set of rules.
     private const int DefaultPageSize = 10;
 
     private static readonly HashSet<string> BorrowingStatuses = new(StringComparer.OrdinalIgnoreCase)
@@ -33,10 +37,14 @@ public class ManageBorrowingBookController : Controller
     };
 
     private readonly ApplicationDbContext _context;
+    private readonly Application.Policies.ILibraryPolicyService _policies;
 
-    public ManageBorrowingBookController(ApplicationDbContext context)
+    public ManageBorrowingBookController(
+        ApplicationDbContext context,
+        Application.Policies.ILibraryPolicyService policies)
     {
         _context = context;
+        _policies = policies;
     }
 
     [HttpGet("")]
@@ -48,6 +56,8 @@ public class ManageBorrowingBookController : Controller
         int bp = 1,
         int rp = 1)
     {
+        // One source of truth for loan length, limit and fine rate (sections 22, 71).
+        var policy = await _policies.GetLoanPolicyAsync();
         var borrowingKeyword = (bq ?? string.Empty).Trim();
         var reservationKeyword = (rq ?? string.Empty).Trim();
         var borrowingStatus = NormalizeBorrowingStatus(bs);
@@ -83,7 +93,7 @@ public class ManageBorrowingBookController : Controller
                     BookTitle = x.Book?.Title ?? "(Missing book)",
                     BorrowDate = x.BorrowDate,
                     DueDate = x.DueDate,
-                    DurationDays = x.DurationDays <= 0 ? DefaultBorrowingDays : x.DurationDays,
+                    DurationDays = x.DurationDays <= 0 ? policy.DefaultLoanDays : x.DurationDays,
                     ReturnDate = x.ReturnDate,
                     ReturnUserId = x.ReturnUserId,
                     CreatedBy = string.IsNullOrWhiteSpace(x.CreatedBy) ? "System" : x.CreatedBy,
@@ -229,6 +239,8 @@ public class ManageBorrowingBookController : Controller
     [HttpPost("borrowing/create")]
     public async Task<IActionResult> CreateBorrowing([FromForm] CreateBorrowingRequest request)
     {
+        // One source of truth for loan length, limit and fine rate (sections 22, 71).
+        var policy = await _policies.GetLoanPolicyAsync();
         var userResolution = await ResolveBorrowingUsernameAsync(request.Username);
         var normalizedUsername = userResolution.Username;
         if (string.IsNullOrWhiteSpace(normalizedUsername) ||
@@ -252,12 +264,12 @@ public class ManageBorrowingBookController : Controller
             });
         }
 
-        if (userBorrowingState.ActiveCount >= MaxActiveBorrowingsPerUser)
+        if (userBorrowingState.ActiveCount >= policy.MaximumBooksPerStudent)
         {
             return BadRequest(new
             {
                 success = false,
-                message = $"Borrowing limit exceeded. Maximum active borrowings per user is {MaxActiveBorrowingsPerUser}."
+                message = $"Borrowing limit exceeded. Maximum active borrowings per user is {policy.MaximumBooksPerStudent}."
             });
         }
 
@@ -279,7 +291,7 @@ public class ManageBorrowingBookController : Controller
         }
 
         var borrowDate = (request.BorrowDate ?? DateTime.UtcNow).Date;
-        var durationDays = DefaultBorrowingDays;
+        var durationDays = policy.DefaultLoanDays;
         var dueDate = borrowDate.AddDays(durationDays);
         var status = ComputeOpenBorrowingStatus(dueDate);
         var reservationId = reservationPriority.MatchedReservation?.Id;
@@ -318,6 +330,8 @@ public class ManageBorrowingBookController : Controller
     [HttpPost("borrowing/update/{id:int}")]
     public async Task<IActionResult> UpdateBorrowing(int id, [FromForm] UpdateBorrowingRequest request)
     {
+        // One source of truth for loan length, limit and fine rate (sections 22, 71).
+        var policy = await _policies.GetLoanPolicyAsync();
         var normalizedUsername = NormalizeUsername(request.Username);
         if (string.IsNullOrWhiteSpace(normalizedUsername) ||
             string.IsNullOrWhiteSpace(request.BookCode))
@@ -349,12 +363,12 @@ public class ManageBorrowingBookController : Controller
             });
         }
 
-        if (userBorrowingState.ActiveCount >= MaxActiveBorrowingsPerUser)
+        if (userBorrowingState.ActiveCount >= policy.MaximumBooksPerStudent)
         {
             return BadRequest(new
             {
                 success = false,
-                message = $"Borrowing limit exceeded. Maximum active borrowings per user is {MaxActiveBorrowingsPerUser}."
+                message = $"Borrowing limit exceeded. Maximum active borrowings per user is {policy.MaximumBooksPerStudent}."
             });
         }
 
@@ -380,7 +394,7 @@ public class ManageBorrowingBookController : Controller
         }
 
         var borrowDate = (request.BorrowDate ?? borrowing.BorrowDate).Date;
-        var durationDays = borrowing.DurationDays > 0 ? borrowing.DurationDays : DefaultBorrowingDays;
+        var durationDays = borrowing.DurationDays > 0 ? borrowing.DurationDays : policy.DefaultLoanDays;
         var dueDate = borrowDate.AddDays(durationDays);
         borrowing.Username = normalizedUsername;
         borrowing.BorrowDate = borrowDate;
@@ -397,6 +411,8 @@ public class ManageBorrowingBookController : Controller
     [HttpPost("borrowing/return/{id:int}")]
     public async Task<IActionResult> ProcessReturn(int id)
     {
+        // One source of truth for loan length, limit and fine rate (sections 22, 71).
+        var policy = await _policies.GetLoanPolicyAsync();
         var borrowing = await _context.BorrowingRecords
             .Include(br => br.Book)
             .FirstOrDefaultAsync(br => br.Id == id);
@@ -426,7 +442,7 @@ public class ManageBorrowingBookController : Controller
         }
 
         var lateDays = CalculateLateDays(borrowing.DueDate, returnedAt);
-        var fineAmount = lateDays > 0 ? lateDays * FinePerLateDay : 0m;
+        var fineAmount = lateDays > 0 ? lateDays * policy.FinePerDay : 0m;
         Fine? fine = null;
         if (lateDays > 0)
         {
@@ -460,7 +476,11 @@ public class ManageBorrowingBookController : Controller
         if (lateDays > 0)
         {
             var paymentStatus = fine?.Paid == true ? "paid" : "unpaid";
-            message = $"Book marked as returned. Overdue by {lateDays} day(s). Fine: ${fineAmount:0.00} ({paymentStatus}).";
+            // Currency comes from policy too. It was a literal "$" while the library runs in PKR,
+            // so the amount was right and the symbol was wrong — the most quietly misleading
+            // combination available.
+            message = $"Book marked as returned. Overdue by {lateDays} day(s). "
+                      + $"Fine: {policy.Currency} {fineAmount:0.00} ({paymentStatus}).";
         }
         else
         {
@@ -507,12 +527,18 @@ public class ManageBorrowingBookController : Controller
         }
 
         await _context.SaveChangesAsync();
-        return Ok(new { success = true, message = $"Fine marked as paid (${fine.Amount:0.00})." });
+
+        var currency = await _policies.GetStringAsync(
+            Domain.Entities.LibraryPolicy.Keys.FineCurrency, "PKR");
+
+        return Ok(new { success = true, message = $"Fine marked as paid ({currency} {fine.Amount:0.00})." });
     }
 
     [HttpPost("reservation/approve/{id:int}")]
     public async Task<IActionResult> ApproveReservation(int id)
     {
+        // One source of truth for loan length, limit and fine rate (sections 22, 71).
+        var policy = await _policies.GetLoanPolicyAsync();
         var reservation = await _context.CartItems
             .Include(ci => ci.Book)
             .FirstOrDefaultAsync(ci => ci.Id == id);
@@ -536,7 +562,7 @@ public class ManageBorrowingBookController : Controller
 
             var borrowerNameForSync = await ResolveBorrowerNameForReservationAsync(reservation.OwnerKey);
             var syncBorrowDate = DateTime.UtcNow;
-            var syncDueDate = syncBorrowDate.AddDays(DefaultBorrowingDays);
+            var syncDueDate = syncBorrowDate.AddDays(policy.DefaultLoanDays);
 
             _context.BorrowingRecords.Add(new Models.BorrowingRecord
             {
@@ -545,7 +571,7 @@ public class ManageBorrowingBookController : Controller
                 BookId = reservation.BookId,
                 BorrowDate = syncBorrowDate,
                 DueDate = syncDueDate,
-                DurationDays = DefaultBorrowingDays,
+                DurationDays = policy.DefaultLoanDays,
                 Status = ComputeBorrowingStatus("active", syncDueDate, null),
                 Source = sourceKey,
                 CreatedBy = User?.Identity?.Name,
@@ -600,12 +626,12 @@ public class ManageBorrowingBookController : Controller
             });
         }
 
-        if (userBorrowingState.ActiveCount >= MaxActiveBorrowingsPerUser)
+        if (userBorrowingState.ActiveCount >= policy.MaximumBooksPerStudent)
         {
             return BadRequest(new
             {
                 success = false,
-                message = $"Borrowing limit exceeded. Maximum active borrowings per user is {MaxActiveBorrowingsPerUser}."
+                message = $"Borrowing limit exceeded. Maximum active borrowings per user is {policy.MaximumBooksPerStudent}."
             });
         }
 
@@ -615,7 +641,7 @@ public class ManageBorrowingBookController : Controller
         }
 
         var borrowDate = DateTime.UtcNow;
-        var dueDate = borrowDate.AddDays(DefaultBorrowingDays);
+        var dueDate = borrowDate.AddDays(policy.DefaultLoanDays);
         if (!linkedBorrowingExists)
         {
             _context.BorrowingRecords.Add(new Models.BorrowingRecord
@@ -625,7 +651,7 @@ public class ManageBorrowingBookController : Controller
                 BookId = reservation.BookId,
                 BorrowDate = borrowDate,
                 DueDate = dueDate,
-                DurationDays = DefaultBorrowingDays,
+                DurationDays = policy.DefaultLoanDays,
                 Status = ComputeBorrowingStatus("active", dueDate, null),
                 Source = sourceKey,
                 CreatedBy = User?.Identity?.Name,
