@@ -18,6 +18,19 @@ public class HomeViewModel
     /// </summary>
     public Dictionary<int, int> AvailableCopies { get; set; } = new();
 
+    // ---- catalogue at a glance -------------------------------------------
+    // Shown in the hero, which used to carry a second search box duplicating the one
+    // in the bar. Real figures, read at request time, rather than decoration.
+
+    /// <summary>Distinct titles held.</summary>
+    public int TitleCount { get; set; }
+
+    /// <summary>Physical copies sitting on the shelf right now.</summary>
+    public int AvailableNowCount { get; set; }
+
+    /// <summary>Subjects with at least one book.</summary>
+    public int SubjectCount { get; set; }
+
     public int AvailableFor(int bookId) =>
         AvailableCopies.TryGetValue(bookId, out var n) ? n : 0;
 }

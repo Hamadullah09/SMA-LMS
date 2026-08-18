@@ -2750,17 +2750,6 @@ footer.sma-footer {
     .sma-checkout__option { padding: 0.85rem; }
 }
 
-/* The home page hero owns search. The bar's own field stays out until the hero
-   box has scrolled away, so the page never shows two search fields at once —
-   and search is still there once you have scrolled past the hero. */
-.sma-nav--defer-search .sma-nav__search { display: none; }
-.sma-nav--defer-search.is-search-revealed .sma-nav__search { display: flex; }
-
-@media (max-width: 48rem) {
-    /* Below the nav's stacking breakpoint the hero search is still the one in
-       view first, so the same rule applies. */
-    .sma-nav--defer-search.is-search-revealed .sma-nav__search { display: flex; }
-}
 
 /* The search field was the only flexible item in the bar, so it was what pushed
    the icons and account block to the right edge. On the home page, where the
@@ -2777,4 +2766,122 @@ footer.sma-footer {
        own auto margin. Two auto margins split it, which left the burger floating
        mid-row instead of sitting with the icons. */
     .sma-nav__actions { margin-left: 0; }
+}
+
+/* ============================================================================
+   HERO STATUS AND FIGURES
+
+   Replaces the hero search box. Search belongs in the bar, once, on every page;
+   a second field here was only reachable while the hero was on screen. What
+   sits here instead is the part a search box cannot answer — whether the doors
+   are open right now, and how much of the catalogue is actually on the shelf.
+   ============================================================================ */
+
+.sma-hero__status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin: 0 0 1.5rem;
+    padding: 0.5rem 1rem 0.5rem 0.85rem;
+    border-radius: 999px;
+    font-size: 0.9375rem;
+    border: 1px solid var(--sma-line, #e7e1dc);
+    background: var(--sma-surface, #fff);
+    color: var(--sma-ink, #1a1614);
+}
+
+.sma-hero__status-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex: none;
+    background: var(--sma-ink-subtle, #8a807a);
+}
+
+.sma-hero__status.is-open {
+    border-color: #c6ead2;
+    background: #eefaf1;
+}
+
+.sma-hero__status.is-open .sma-hero__status-dot { background: var(--sma-success, #1a7f4b); }
+.sma-hero__status.is-open strong { color: #14612f; }
+
+.sma-hero__status.is-closed {
+    border-color: var(--sma-line-strong, #cfc7c0);
+    background: var(--sma-surface-sunken, #faf7f4);
+}
+
+.sma-hero__status.is-closed strong { color: var(--sma-ink-muted, #5c534e); }
+
+.sma-hero__status-detail { color: var(--sma-ink-muted, #5c534e); }
+
+/* ---- figures ---- */
+
+.sma-hero__figures {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2.5rem;
+    margin: 0;
+}
+
+.sma-hero__figures > div { min-width: 0; }
+
+.sma-hero__figures dt {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--sma-ink-muted, #5c534e);
+}
+
+.sma-hero__figures dd {
+    margin: 0.15rem 0 0;
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: var(--sma-ink, #1a1614);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---- actions ---- */
+
+/* With the search box gone the hero needs a real primary action, so one of the
+   two carries the brand fill. */
+.sma-hero__actions a.is-primary {
+    background: var(--sma-brand, #f07c20);
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 8px 22px -10px rgb(240 124 32 / 0.9);
+}
+
+.sma-hero__actions a.is-primary:hover {
+    background: var(--sma-orange-600, #d2691e);
+    border-color: transparent;
+    color: #fff;
+}
+
+@media (max-width: 40rem) {
+    .sma-hero__figures { gap: 1.5rem; }
+    .sma-hero__actions a { flex: 1 1 12rem; justify-content: center; }
+}
+
+/* The hero's full-bleed pull-out is -1 × --sma-gutter, so the padding it cancels
+   has to be that same value. sma-theme-bridge.css pads .sma-home with
+   clamp(1rem, 3vw, 2.5rem) while the gutter is clamp(1rem, 4vw, 2.5rem) — 10.5px
+   against 15px at a 375px viewport, so the band overhung the screen by ~4.5px a
+   side. Aligning the padding to the gutter makes the cancellation exact, and
+   matches what .sma-home > * already uses. */
+.sma-home { padding-inline: var(--sma-gutter); }
+
+/* The hero is pulled out to full bleed, so its inner body centres against the
+   whole viewport while every other section centres against .sma-home's padded
+   content box. Above ~1320px both cap at the measure and agree; below it the
+   sections stop capping and the hero content drifted left of them (53px vs 80px
+   at 1265). Adding the gutter to the body's own measure and padding makes the
+   two expressions resolve identically at every width. */
+.sma-hero__body {
+    max-width: calc(var(--sma-measure) + 2 * var(--sma-gutter));
+    padding-inline: calc(2 * var(--sma-gutter));
 }

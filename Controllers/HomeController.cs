@@ -85,6 +85,21 @@ namespace Library_Management_system.Controllers
                 .Take(4)
                 .ToListAsync();
 
+            // Catalogue figures for the hero. Cheap aggregate counts, not entity loads.
+            var titleCount = await _context.Books.AsNoTracking().CountAsync();
+
+            var availableNowCount = await _context.BookCopies
+                .AsNoTracking()
+                .CountAsync(c => c.CopyNumber != "LEGACY"
+                                 && c.Status == Domain.Enums.BookCopyStatus.Available);
+
+            var subjectCount = await _context.Books
+                .AsNoTracking()
+                .Where(b => !string.IsNullOrWhiteSpace(b.CategoryName))
+                .Select(b => b.CategoryName)
+                .Distinct()
+                .CountAsync();
+
             var model = new HomeViewModel
             {
                 Categories = categories,
@@ -92,7 +107,10 @@ namespace Library_Management_system.Controllers
                 NewArrivalBooks = newArrivalBooks,
                 CategoryGenres = genres,
                 FavoriteBookIds = cards.FavoriteBookIds,
-                AvailableCopies = cards.AvailableCopies
+                AvailableCopies = cards.AvailableCopies,
+                TitleCount = titleCount,
+                AvailableNowCount = availableNowCount,
+                SubjectCount = subjectCount
             };
 
             return View(model);

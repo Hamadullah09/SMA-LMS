@@ -210,13 +210,7 @@
        title and the hero, so repeating it in the chrome was noise.
        ------------------------------------------------------------------ *@
     <header id="main-header">
-        @*
-            On the home page the hero carries a large search box, so the one in the bar would be
-            the second on the same screen. The modifier below keeps it out of the way until the
-            hero box has scrolled away — see the reveal script at the foot of Index.cshtml — so
-            there is exactly one search field visible at any point down the page.
-        *@
-        <nav class="sma-nav @((Context.Request.Path.Value ?? "/") == "/" ? "sma-nav--defer-search" : "")" aria-label="Main navigation">
+        <nav class="sma-nav" aria-label="Main navigation">
             <div class="sma-nav__inner">
 
                 <a href="/" class="sma-nav__brand" aria-label="SMA Library home">

@@ -1,3 +1,4 @@
+@using System.Globalization
 @model Library_Management_system.Models.HomeViewModel
 @inject Microsoft.Extensions.Options.IOptions<Library_Management_system.Application.Policies.LibraryHoursOptions> LibraryHours
 @{
@@ -21,32 +22,63 @@
 <div id="homePage" class="sma-home">
 
     <!-- ============================ Hero ============================ -->
+    @*
+        Search lives in the bar, once, on every page. The box that used to sit here made two
+        search fields on one screen and only worked while the hero was in view.
+
+        What replaces it is what a student cannot get from the bar: whether the library is open
+        right now, and how much of the catalogue is actually on the shelf at this moment. Real
+        figures, read per request — see HomeController.Index.
+    *@
     <section class="sma-hero" aria-labelledby="smaHeroTitle">
         <div class="sma-hero__body">
             <h1 class="sma-hero__title" id="smaHeroTitle">Find it, borrow it, get back to studying.</h1>
             <p class="sma-hero__lead">
-                Search the catalogue, see exactly which shelf a book is on, and check it out at the
-                desk with your student card.
+                Search the catalogue from the bar above, see exactly which shelf a book is on, and
+                check it out yourself at the self-service station.
             </p>
 
-            <form class="sma-hero__search" method="get" asp-controller="Home" asp-action="Book" role="search">
-                <label class="sma-sr-only" for="heroSearch">Search the catalogue</label>
-                <input id="heroSearch" name="q" type="search" autocomplete="off"
-                       placeholder="Search by title, author or ISBN" />
-                <button type="submit">Search</button>
-            </form>
-            @*
-                "Browse the catalogue" used to sit here as well. It was the third route to the same
-                place on one screen — the nav has Browse, and the quick-action grid below has
-                "Browse books" — and it sat directly under a box that searches that catalogue.
-                The nav and the quick card both keep it; this one went.
-            *@
-            @if (isSignedIn)
-            {
-                <div class="sma-hero__actions">
-                    <a href="/portal">My library</a>
-                </div>
+            @{
+                var hours = LibraryHours.Value;
+                var openNow = hours.IsOpenAt(DateTime.Now);
+                var todayIsWeekend = DateTime.Now.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
+                var todayRange = todayIsWeekend ? hours.WeekendRange : hours.WeekdayRange;
             }
+
+            @* Status carries a word as well as a colour (specification section 111). *@
+            <p class="sma-hero__status @(openNow ? "is-open" : "is-closed")">
+                <span class="sma-hero__status-dot" aria-hidden="true"></span>
+                <strong>@(openNow ? "Open now" : "Closed")</strong>
+                <span class="sma-hero__status-detail">Today @todayRange</span>
+            </p>
+
+            <dl class="sma-hero__figures">
+                <div>
+                    <dt>Titles</dt>
+                    <dd>@Model.TitleCount.ToString("N0", CultureInfo.InvariantCulture)</dd>
+                </div>
+                <div>
+                    <dt>On the shelf now</dt>
+                    <dd>@Model.AvailableNowCount.ToString("N0", CultureInfo.InvariantCulture)</dd>
+                </div>
+                <div>
+                    <dt>Subjects</dt>
+                    <dd>@Model.SubjectCount.ToString("N0", CultureInfo.InvariantCulture)</dd>
+                </div>
+            </dl>
+
+            <div class="sma-hero__actions">
+                @if (isSignedIn)
+                {
+                    <a class="is-primary" href="/kiosk">Check out a book</a>
+                    <a href="/portal">My library</a>
+                }
+                else
+                {
+                    <a class="is-primary" asp-area="Identity" asp-page="/Account/Login">Sign in to borrow</a>
+                    <a asp-controller="Home" asp-action="Category">Browse by subject</a>
+                }
+            </div>
         </div>
     </section>
 
@@ -193,25 +225,3 @@
 
 @await Html.PartialAsync("_StaticChatbot")
 
-@section Scripts {
-    <script>
-        (function () {
-            // Hands search over from the hero to the bar as the hero box leaves the screen, so
-            // there is exactly one search field visible at any scroll position. The nav starts
-            // in the deferred state from the server, so nothing flashes in and out on load.
-            var nav = document.querySelector('.sma-nav--defer-search');
-            var heroSearch = document.querySelector('.sma-hero__search');
-            if (!nav || !heroSearch) { return; }
-
-            if (!('IntersectionObserver' in window)) {
-                // No observer: show it rather than leave the bar without a search field.
-                nav.classList.add('is-search-revealed');
-                return;
-            }
-
-            new IntersectionObserver(function (entries) {
-                nav.classList.toggle('is-search-revealed', !entries[0].isIntersecting);
-            }, { rootMargin: '-72px 0px 0px 0px' }).observe(heroSearch);
-        })();
-    </script>
-}
