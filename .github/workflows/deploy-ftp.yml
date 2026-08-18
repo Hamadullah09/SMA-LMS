@@ -100,6 +100,9 @@ jobs:
       # IIS holds the application's own DLLs open while it is running, so FTP cannot
       # overwrite them. app_offline.htm makes the ASP.NET Core module shut the app down and
       # release the files; removing it afterwards starts the new build.
+      # FTP_SERVER_DIR is the path relative to the FTP account's home, not the physical path
+      # the file manager shows. The account lands in its own home directory and the site sits
+      # in www/library under it, so the secret value is /www/library/ .
       - name: Take the site offline
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
