@@ -367,3 +367,4 @@ FodyWeavers.xsd
 # Machine-local .NET CLI scratch (first-use sentinels, MachineId cache).
 # Created by the SDK on this machine; not part of the project.
 .dotnet_home/
+*-deploy.zip
