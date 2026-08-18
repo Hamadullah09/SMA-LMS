@@ -52,9 +52,29 @@ jobs:
           DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
           RFID_AUTOCONNECT: ${{ secrets.RFID_AUTOCONNECT }}
           RFID_HOST: ${{ secrets.RFID_HOST }}
+          SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
+          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_SENDER_EMAIL: ${{ secrets.SMTP_SENDER_EMAIL }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
         run: |
           if [ -z "$DB_CONNECTION_STRING" ]; then
             echo "::error::Secret DB_CONNECTION_STRING is not set. Add it under Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+          # ProductionGuards.Validate refuses to start the app in Production without these,
+          # and it is right to: no admin password means a known-credential administrator, and
+          # no SMTP means a student who forgets a password cannot recover it. Checked here so
+          # the deploy stops before uploading rather than after the app fails to start.
+          missing=""
+          [ -z "$SEED_ADMIN_PASSWORD" ] && missing="$missing SEED_ADMIN_PASSWORD"
+          [ -z "$SMTP_SERVER" ]         && missing="$missing SMTP_SERVER"
+          [ -z "$SMTP_SENDER_EMAIL" ]   && missing="$missing SMTP_SENDER_EMAIL"
+          [ -z "$SMTP_PASSWORD" ]       && missing="$missing SMTP_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing secrets:$missing - the application refuses to start in"
+            echo "::error::Production without them. See ProductionGuards.Validate."
             exit 1
           fi
 
@@ -64,6 +84,11 @@ jobs:
             --arg conn "$DB_CONNECTION_STRING" \
             --arg rfidHost "${RFID_HOST:-192.168.0.178}" \
             --argjson rfidAuto "${RFID_AUTOCONNECT:-false}" \
+            --arg adminPw "$SEED_ADMIN_PASSWORD" \
+            --arg smtpHost "$SMTP_SERVER" \
+            --argjson smtpPort "${SMTP_PORT:-587}" \
+            --arg smtpFrom "$SMTP_SENDER_EMAIL" \
+            --arg smtpPw "$SMTP_PASSWORD" \
             '{
               ConnectionStrings: { DefaultConnection: $conn },
               Logging: { LogLevel: { Default: "Warning", "Microsoft.AspNetCore": "Warning", "Microsoft.EntityFrameworkCore": "Warning" } },
@@ -84,7 +109,8 @@ jobs:
                 WeekendOpen: "07:30", WeekendClose: "16:30",
                 Note: "Except public holidays."
               },
-              SeedAdmin: { Email: "admin@sourceemeall.com", ResetPasswordOnStartup: false },
+              SeedAdmin: { Email: "admin@sourceemeall.com", Password: $adminPw, ResetPasswordOnStartup: false },
+              EmailSettings: { SmtpServer: $smtpHost, SmtpPort: $smtpPort, SenderEmail: $smtpFrom, Password: $smtpPw },
               SeedDemoUsers: { Enabled: false },
               SeedStudentAccounts: { Enabled: false },
               Catalogue: { FreshImport: false, FreshImportFile: "Data/Seed/rfid-book-tags.csv" },
