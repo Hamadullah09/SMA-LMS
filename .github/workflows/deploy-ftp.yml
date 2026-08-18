@@ -1,0 +1,157 @@
+name: Deploy to SmarterASP.NET over FTP
+
+# Manual by default. Deploying restarts the site and briefly takes it offline, so it
+# should be a decision rather than something that happens on every push to main.
+# To deploy automatically as well, uncomment the push trigger below.
+on:
+  workflow_dispatch:
+    inputs:
+      self_contained:
+        description: >-
+          Ship the .NET runtime with the app. Leave true unless the host's control panel
+          confirms .NET 10 - the app targets net10.0 and most shared hosts do not have it
+          yet. True is ~210MB, false is ~25MB.
+        type: boolean
+        default: true
+        required: false
+  # push:
+  #   branches: [ main ]
+
+concurrency:
+  # Two deployments writing over FTP at once would interleave files and leave the site
+  # in a state that is neither the old build nor the new one.
+  group: ftp-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      # Cross-publishing a Windows target from Linux is supported and keeps the job on the
+      # faster, cheaper runner.
+      - name: Publish
+        run: |
+          dotnet publish "Library Management system.csproj" \
+            -c Release \
+            -r win-x64 \
+            --self-contained ${{ inputs.self_contained }} \
+            -o ./publish
+
+      # The repository has no appsettings.json - it is gitignored precisely so credentials
+      # never land in a public repo. The deployed one is written here from secrets.
+      - name: Write production configuration
+        env:
+          DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
+          RFID_AUTOCONNECT: ${{ secrets.RFID_AUTOCONNECT }}
+          RFID_HOST: ${{ secrets.RFID_HOST }}
+        run: |
+          if [ -z "$DB_CONNECTION_STRING" ]; then
+            echo "::error::Secret DB_CONNECTION_STRING is not set. Add it under Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+          # jq builds the JSON so a password containing quotes, backslashes or $ cannot
+          # break the file or leak through shell expansion.
+          jq -n \
+            --arg conn "$DB_CONNECTION_STRING" \
+            --arg rfidHost "${RFID_HOST:-192.168.0.178}" \
+            --argjson rfidAuto "${RFID_AUTOCONNECT:-false}" \
+            '{
+              ConnectionStrings: { DefaultConnection: $conn },
+              Logging: { LogLevel: { Default: "Warning", "Microsoft.AspNetCore": "Warning", "Microsoft.EntityFrameworkCore": "Warning" } },
+              AllowedHosts: "*",
+              Rfid: {
+                Provider: "D2184",
+                Host: $rfidHost,
+                Port: 4001,
+                ReaderAddress: 1,
+                AutoConnect: $rfidAuto,
+                HeartbeatSeconds: 15,
+                ReconnectDelaySeconds: 5,
+                MaxReconnectDelaySeconds: 60,
+                DuplicateWindowMs: 2500
+              },
+              LibraryHours: {
+                WeekdayOpen: "07:30", WeekdayClose: "20:30",
+                WeekendOpen: "07:30", WeekendClose: "16:30",
+                Note: "Except public holidays."
+              },
+              SeedAdmin: { Email: "admin@sourceemeall.com", ResetPasswordOnStartup: false },
+              SeedDemoUsers: { Enabled: false },
+              SeedStudentAccounts: { Enabled: false },
+              Catalogue: { FreshImport: false, FreshImportFile: "Data/Seed/rfid-book-tags.csv" },
+              CredentialReset: { Enabled: false }
+            }' > ./publish/appsettings.json
+
+          rm -f ./publish/appsettings.Development.json
+
+          # Fail loudly rather than shipping a config that silently points nowhere.
+          grep -q '"DefaultConnection"' ./publish/appsettings.json || { echo "::error::config not written"; exit 1; }
+          echo "Configuration written. Connection string length: ${#DB_CONNECTION_STRING}"
+
+      # IIS holds the application's own DLLs open while it is running, so FTP cannot
+      # overwrite them. app_offline.htm makes the ASP.NET Core module shut the app down and
+      # release the files; removing it afterwards starts the new build.
+      - name: Take the site offline
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          local-dir: ./.github/offline/
+          dangerous-clean-slate: false
+
+      - name: Upload the build
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          local-dir: ./publish/
+          # The action keeps a manifest on the server and uploads only what changed, so the
+          # first deploy is slow and later ones are not.
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/appsettings.Development.json
+            **/*.pdb
+
+      # Removing app_offline.htm is what brings the new build up, so it must run even if the
+      # upload failed - otherwise a failed deploy leaves the site permanently offline.
+      - name: Bring the site back online
+        if: always()
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq lftp
+          lftp -c "
+            set ftp:ssl-allow true;
+            set ssl:verify-certificate false;
+            open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
+            cd '${{ secrets.FTP_SERVER_DIR }}';
+            rm -f app_offline.htm;
+          " || echo "::warning::Could not remove app_offline.htm. Delete it by hand or the site stays offline."
+
+      - name: Check the site responds
+        run: |
+          url="${{ secrets.SITE_URL }}"
+          if [ -z "$url" ]; then echo "SITE_URL secret not set; skipping check."; exit 0; fi
+
+          # The first request after a restart pays for JIT and the EF migration, so allow time.
+          for i in 1 2 3 4 5 6; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 60 "$url" || echo 000)
+            echo "attempt $i: HTTP $code"
+            [ "$code" = "200" ] && { echo "Site is up."; exit 0; }
+            sleep 20
+          done
+
+          echo "::error::Site did not return 200. Check $url and the stdout log on the server."
+          exit 1

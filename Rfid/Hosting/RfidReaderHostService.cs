@@ -73,15 +73,11 @@ public sealed class RfidReaderHostService : BackgroundService
         _logger = logger;
     }
 
+    /// <summary>How long to wait before looking again when there is nothing to connect to.</summary>
+    private static readonly TimeSpan IdleRecheckInterval = TimeSpan.FromSeconds(30);
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        if (!_options.AutoConnect)
-        {
-            _logger.LogInformation(
-                "RFID auto-connect is off (Rfid:AutoConnect = false). No reader connection will be opened.");
-            return;
-        }
-
         if (_options.IsSimulator)
         {
             _logger.LogInformation(
@@ -90,29 +86,61 @@ public sealed class RfidReaderHostService : BackgroundService
             return;
         }
 
-        var readers = await LoadReadersAsync(stoppingToken);
+        // Re-checked on a timer rather than decided once at start-up. Enabling a reader on the
+        // Reader health screen, or correcting its address, used to require restarting the site,
+        // which on shared hosting means a redeploy. Now it takes effect within
+        // IdleRecheckInterval and nothing has to be redeployed to turn the pad on or off.
+        var announcedIdle = false;
 
-        if (readers.Count == 0)
+        while (!stoppingToken.IsCancellationRequested)
         {
-            _logger.LogWarning(
-                "RFID is set to D2184 but no enabled reader has a TCP host configured. "
-                + "Add one on the Reader health screen, or set Rfid:Host for the default reader.");
-            return;
+            var readers = _options.AutoConnect
+                ? await LoadReadersAsync(stoppingToken)
+                : [];
+
+            if (readers.Count == 0)
+            {
+                if (!announcedIdle)
+                {
+                    _logger.LogInformation(
+                        _options.AutoConnect
+                            ? "No enabled TCP reader is configured. Waiting - add or enable one on the "
+                              + "Reader health screen and it will be picked up within {Seconds}s."
+                            : "RFID auto-connect is off (Rfid:AutoConnect = false). Waiting, and "
+                              + "re-checking every {Seconds}s in case a reader is enabled.",
+                        IdleRecheckInterval.TotalSeconds);
+
+                    announcedIdle = true;
+                }
+
+                try
+                {
+                    await Task.Delay(IdleRecheckInterval, stoppingToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+
+                continue;
+            }
+
+            announcedIdle = false;
+
+            _logger.LogInformation(
+                "Starting {Count} RFID reader connection(s): {Readers}",
+                readers.Count,
+                string.Join(", ", readers.Select(r => $"{r.Name} @ {r.Host}:{r.Port}")));
+
+            // The consumer and the supervisors run until cancellation. Task.WhenAll rather than
+            // fire-and-forget so a crash in any of them surfaces rather than vanishing.
+            var work = readers
+                .Select(reader => SuperviseAsync(reader, stoppingToken))
+                .Append(ConsumeAsync(stoppingToken))
+                .ToList();
+
+            await Task.WhenAll(work);
         }
-
-        _logger.LogInformation(
-            "Starting {Count} RFID reader connection(s): {Readers}",
-            readers.Count,
-            string.Join(", ", readers.Select(r => $"{r.Name} @ {r.Host}:{r.Port}")));
-
-        // The consumer and the supervisors run for the lifetime of the application. Task.WhenAll
-        // rather than fire-and-forget so a crash in any of them surfaces rather than vanishing.
-        var work = readers
-            .Select(reader => SuperviseAsync(reader, stoppingToken))
-            .Append(ConsumeAsync(stoppingToken))
-            .ToList();
-
-        await Task.WhenAll(work);
     }
 
     // ------------------------------------------------------------------ configuration
