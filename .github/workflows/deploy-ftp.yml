@@ -97,6 +97,29 @@ jobs:
           grep -q '"DefaultConnection"' ./publish/appsettings.json || { echo "::error::config not written"; exit 1; }
           echo "Configuration written. Connection string length: ${#DB_CONNECTION_STRING}"
 
+      # The target folder is not a credential, and masking it as a secret made every
+      # diagnostic print *** exactly when the path was the thing in doubt. It is read from a
+      # repository variable first so it shows in the log; the secret still works as a
+      # fallback. The trailing slash is added here because the deploy action rejects a path
+      # without one, which is a silly thing to fail a five-minute job on.
+      - name: Resolve target folder
+        id: dir
+        run: |
+          raw="${{ vars.FTP_SERVER_DIR }}"
+          if [ -z "$raw" ]; then raw="${{ secrets.FTP_SERVER_DIR }}"; fi
+          if [ -z "$raw" ]; then raw="/"; fi
+
+          case "$raw" in */) dir="$raw" ;; *) dir="$raw/" ;; esac
+          case "$dir" in /*) ;; *) dir="/$dir" ;; esac
+
+          echo "path=$dir" >> "$GITHUB_OUTPUT"
+          if [ -n "${{ vars.FTP_SERVER_DIR }}" ]; then
+            echo "Target folder: $dir"
+          else
+            echo "Target folder resolved from the secret (value hidden). Move it to a repository"
+            echo "variable named FTP_SERVER_DIR to see it here."
+          fi
+
       # Login and path are the two things that go wrong, and both are cheap to check. Doing it
       # here turns a 530 or a wrong folder into a ten-second failure with the remote listing in
       # the log, instead of a failure after pushing 210MB.
@@ -111,7 +134,10 @@ jobs:
             set net:timeout 20;
             open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
             pwd;
-            cd '${{ secrets.FTP_SERVER_DIR }}';
+            echo '--- home ---';
+            cls -1;
+            echo '--- target ---';
+            cd '${{ steps.dir.outputs.path }}';
             pwd;
             cls -1;
           " 2>&1) || {
@@ -122,7 +148,7 @@ jobs:
             exit 1
           }
 
-          echo "Remote listing of ${{ secrets.FTP_SERVER_DIR }}:"
+          echo "Remote listing of ${{ steps.dir.outputs.path }}:"
           echo "$out"
 
           # web.config is the marker that this is the folder IIS serves the app from.
@@ -145,7 +171,7 @@ jobs:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          server-dir: ${{ steps.dir.outputs.path }}
           # Overridable without touching this file: add a repository variable
           # FTP_PROTOCOL = ftps if the host insists on explicit TLS.
           protocol: ${{ vars.FTP_PROTOCOL || 'ftp' }}
@@ -158,7 +184,7 @@ jobs:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          server-dir: ${{ steps.dir.outputs.path }}
           # Overridable without touching this file: add a repository variable
           # FTP_PROTOCOL = ftps if the host insists on explicit TLS.
           protocol: ${{ vars.FTP_PROTOCOL || 'ftp' }}
@@ -181,7 +207,7 @@ jobs:
             set ftp:ssl-allow true;
             set ssl:verify-certificate false;
             open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
-            cd '${{ secrets.FTP_SERVER_DIR }}';
+            cd '${{ steps.dir.outputs.path }}';
             rm -f app_offline.htm;
           " || echo "::warning::Could not remove app_offline.htm. Delete it by hand or the site stays offline."
 
