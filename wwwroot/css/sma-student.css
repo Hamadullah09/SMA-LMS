@@ -2761,3 +2761,20 @@ footer.sma-footer {
        view first, so the same rule applies. */
     .sma-nav--defer-search.is-search-revealed .sma-nav__search { display: flex; }
 }
+
+/* The search field was the only flexible item in the bar, so it was what pushed
+   the icons and account block to the right edge. On the home page, where the
+   field is deferred to the hero, nothing absorbed the slack and the whole bar
+   collapsed into the left half with ~470px of dead space beside it.
+
+   An auto left margin pins that group to the right in both states: when the
+   search is present and growing there is no free space left, so this resolves
+   to zero and changes nothing. */
+.sma-nav__actions { margin-left: auto; }
+
+@media (max-width: 48rem) {
+    /* Below the stacking breakpoint the burger already claims the slack with its
+       own auto margin. Two auto margins split it, which left the burger floating
+       mid-row instead of sitting with the icons. */
+    .sma-nav__actions { margin-left: 0; }
+}

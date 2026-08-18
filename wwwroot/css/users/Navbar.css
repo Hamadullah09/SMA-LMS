@@ -9,7 +9,11 @@ body {
 }
 
 body.has-breadcrumb {
-    padding-top: 148px;
+    /* Was 148px: clearance for the header when it was position:fixed, plus the
+       breadcrumb. The header is sticky now, so it occupies real space in the flow
+       and this was pure dead margin above the bar on every page with a breadcrumb.
+       (The no-breadcrumb equivalent, body{padding-top:104px}, is gone too.) */
+    padding-top: 0;
 }
 
 /* Scoped to the site chrome. As a bare element selector this pinned EVERY <header> on
@@ -580,7 +584,7 @@ footer .container-footer {
 
 @media (max-width: 992px) {
     body.has-breadcrumb {
-        padding-top: 144px;
+        padding-top: 0;   /* see the note on the base rule */
     }
 
     .mobile-menu-toggle {
@@ -648,7 +652,7 @@ footer .container-footer {
 
 @media (max-width: 768px) {
     body.has-breadcrumb {
-        padding-top: 140px;
+        padding-top: 0;   /* see the note on the base rule */
     }
 
     .user-info {
