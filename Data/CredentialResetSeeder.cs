@@ -10,6 +10,9 @@ public sealed class CredentialResetAccount
     public string CurrentEmail { get; set; } = string.Empty;
     public string NewEmail { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
+
+    /// <summary>Optional display name. Left alone when blank.</summary>
+    public string? FullName { get; set; }
 }
 
 public sealed class CredentialResetOptions
@@ -136,6 +139,11 @@ public static class CredentialResetSeeder
         if (!added.Succeeded)
         {
             return Describe(added);
+        }
+
+        if (!string.IsNullOrWhiteSpace(account.FullName))
+        {
+            user.FullName = account.FullName;
         }
 
         // Sign-in requires a confirmed account, and a changed address is unconfirmed by default —
