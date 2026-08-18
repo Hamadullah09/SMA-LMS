@@ -731,15 +731,32 @@ body {
    pointers so the desktop layout keeps its tighter proportions. */
 
 @media (pointer: coarse) {
+    /* Every interactive control clears 44px on touch.
+
+       Deliberately px, not rem: site.css sets html { font-size: 14px } below 768px, so a rem
+       measurement shrinks by 12.5% on exactly the devices where the target matters most —
+       2.75rem measured 39px on a phone. 44px is a physical guideline, so it is written as one. */
+    .sma-chip,
+    .sma-pager__step,
+    .sma-pager__page,
+    .sma-nav__burger,
+    .sma-nav__user,
+    .sma-nav__brand,
+    .sma-cart__primary,
+    .sma-cart__secondary,
+    .sma-detail__review-open { min-height: 44px; }
+
+    .sma-detail__circle { width: 48px; height: 48px; }
+
     .sma-book__icons .sma-icon-btn,
     .sma-book__fav {
-        width: 2.75rem;
-        height: 2.75rem;
+        width: 44px;
+        height: 44px;
     }
 
-    .sma-nav .icon-btn { width: 2.75rem; height: 2.75rem; }
+    .sma-nav .icon-btn { width: 44px; height: 44px; }
 
-    .sma-nav__search .search-submit { min-width: 2.75rem; min-height: 2.75rem; }
+    .sma-nav__search .search-submit { min-width: 44px; min-height: 44px; }
 
     .sma-book__view { padding-block: 0.85rem; }
 
@@ -766,3 +783,1969 @@ body {
 .custom-scrollbar::-webkit-scrollbar { height: 8px; }
 .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--sma-line-strong, #cfc7c0); border-radius: var(--sma-r-pill); }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+
+/* ============================================================================
+   Browse  (/book, /category)
+   ============================================================================ */
+
+.sma-browse {
+    width: 100%;
+    max-width: var(--sma-measure);
+    margin-inline: auto;
+    padding: clamp(1.5rem, 4vw, 2.75rem) var(--sma-gutter) clamp(3rem, 6vw, 4.5rem);
+}
+
+.sma-browse__head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+}
+
+.sma-browse__title {
+    font-size: clamp(1.75rem, 4vw, 2.75rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    margin: 0;
+}
+
+/* The count is the point of this line: a filtered list that does not say how much it
+   filtered leaves a student unsure whether something was dropped. */
+.sma-browse__sub {
+    color: var(--sma-ink-muted, #57504b);
+    font-size: 1rem;
+    margin: 0.4rem 0 0;
+}
+
+.sma-browse__clear {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.55rem 1.1rem;
+    border-radius: var(--sma-r-pill);
+    border: 1px solid var(--sma-line-strong, #cfc7c0);
+    background: var(--sma-surface, #fff);
+    color: var(--sma-ink, #1a1614);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.9375rem;
+    white-space: nowrap;
+    transition: border-color 160ms ease, color 160ms ease;
+}
+
+.sma-browse__clear:hover { border-color: var(--sma-brand, #f07c20); color: var(--sma-brand-deep, #8f4209); }
+
+.sma-browse__alert {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    padding: 0.9rem 1.1rem;
+    margin-bottom: 1.25rem;
+    border-radius: var(--sma-r);
+    background: var(--sma-warning-bg, #fff8e6);
+    border: 1px solid var(--sma-warning, #b7791f);
+    box-shadow: inset 3px 0 0 0 var(--sma-warning, #b7791f);
+    font-weight: 600;
+}
+
+/* ---- subject chips ---- */
+
+.sma-chips {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.75rem;
+    margin-bottom: 1.75rem;
+    /* Scrolls rather than wrapping: a wrapped block of twenty subjects pushes the books
+       below the fold on a laptop. */
+    scroll-snap-type: x proximity;
+}
+
+.sma-chip {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+    padding: 0.55rem 1.1rem;
+    border-radius: var(--sma-r-pill);
+    background: var(--sma-surface, #fff);
+    border: 1px solid var(--sma-line, #e7e1dc);
+    color: var(--sma-ink-muted, #57504b);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.9375rem;
+    white-space: nowrap;
+    transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.sma-chip:hover { border-color: var(--sma-line-strong, #cfc7c0); color: var(--sma-ink, #1a1614); }
+
+.sma-chip.is-active {
+    background: var(--sma-chrome-900, #1a1614);
+    border-color: var(--sma-chrome-900, #1a1614);
+    color: #fff;
+}
+
+/* ---- empty state ---- */
+
+.sma-browse__empty {
+    text-align: center;
+    padding: clamp(2.5rem, 7vw, 5rem) 1.5rem;
+    background: var(--sma-surface, #fff);
+    border: 1px dashed var(--sma-line-strong, #cfc7c0);
+    border-radius: var(--sma-r-lg);
+}
+
+.sma-browse__empty-glyph { font-size: clamp(2.5rem, 6vw, 3.5rem); line-height: 1; margin-bottom: 0.75rem; }
+
+.sma-browse__empty-title { font-size: clamp(1.25rem, 2.5vw, 1.625rem); font-weight: 800; margin: 0 0 0.5rem; }
+
+.sma-browse__empty p {
+    color: var(--sma-ink-muted, #57504b);
+    max-width: 46ch;
+    margin: 0 auto 1.5rem;
+    line-height: 1.6;
+}
+
+.sma-browse__empty-action {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--sma-r-pill);
+    background: var(--sma-brand, #f07c20);
+    color: #fff;
+    text-decoration: none;
+    font-weight: 800;
+}
+
+.sma-browse__empty-action:hover { background: var(--sma-brand-strong, #d96a15); color: #fff; }
+
+/* ---- pagination ---- */
+
+.sma-pager {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: clamp(2rem, 5vw, 3rem);
+}
+
+.sma-pager__pages { display: flex; gap: 0.3rem; align-items: center; }
+
+.sma-pager__step,
+.sma-pager__page {
+    display: inline-grid;
+    place-items: center;
+    min-width: 2.75rem;
+    height: 2.75rem;
+    padding-inline: 0.9rem;
+    border-radius: var(--sma-r-pill);
+    border: 1px solid var(--sma-line, #e7e1dc);
+    background: var(--sma-surface, #fff);
+    color: var(--sma-ink, #1a1614);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.9375rem;
+    transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+}
+
+.sma-pager__step:hover,
+.sma-pager__page:hover { border-color: var(--sma-brand, #f07c20); color: var(--sma-brand-deep, #8f4209); }
+
+.sma-pager__page.is-active {
+    background: var(--sma-brand, #f07c20);
+    border-color: var(--sma-brand, #f07c20);
+    color: #fff;
+}
+
+.sma-pager__gap { color: var(--sma-ink-subtle, #8a807a); padding-inline: 0.25rem; }
+
+@media (max-width: 34rem) {
+    /* Numbers go, arrows stay: on a phone the step controls are what get used. */
+    .sma-pager__pages { display: none; }
+}
+
+/* ============================================================================
+   Book detail  (/book/{id})
+   ============================================================================ */
+
+.sma-detail {
+    width: 100%;
+    max-width: var(--sma-measure);
+    margin-inline: auto;
+    padding: clamp(1.5rem, 4vw, 2.75rem) var(--sma-gutter) clamp(3rem, 6vw, 4.5rem);
+}
+
+.sma-detail__main {
+    display: grid;
+    grid-template-columns: minmax(0, 20rem) minmax(0, 1fr);
+    gap: clamp(1.5rem, 4vw, 3.5rem);
+    align-items: start;
+}
+
+@media (max-width: 54rem) {
+    .sma-detail__main { grid-template-columns: minmax(0, 1fr); }
+    /* Cover shrinks and centres rather than filling a phone screen with artwork. */
+    .sma-detail__media { max-width: 15rem; margin-inline: auto; }
+}
+
+/* ---- cover ---- */
+
+.sma-detail__media { position: sticky; top: calc(var(--sma-nav-h) + 1.5rem); }
+
+@media (max-width: 54rem) {
+    .sma-detail__media { position: static; }
+}
+
+.sma-detail__cover {
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    object-fit: cover;
+    border-radius: var(--sma-r-lg);
+    box-shadow: var(--sma-elev-3);
+    background: var(--sma-surface-sunken, #faf7f4);
+}
+
+/* ---- headings ---- */
+
+.sma-detail__cat {
+    display: inline-block;
+    padding: 0.25rem 0.7rem;
+    border-radius: var(--sma-r-pill);
+    background: var(--sma-orange-050, #fff4ea);
+    color: var(--sma-brand-deep, #8f4209);
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin: 0 0 0.75rem;
+}
+
+.sma-detail__title {
+    font-size: clamp(1.75rem, 4.5vw, 3rem);
+    font-weight: 800;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    margin: 0 0 0.4rem;
+}
+
+.sma-detail__author { font-size: 1.125rem; color: var(--sma-ink-muted, #57504b); margin: 0 0 0.85rem; }
+
+.sma-detail__rating { display: flex; align-items: center; gap: 0.15rem; margin-bottom: 1.25rem; }
+.sma-detail__star { color: var(--sma-line-strong, #cfc7c0); font-size: 1.15rem; }
+.sma-detail__star.is-on { color: #e8a33d; }
+.sma-detail__rating-text { margin-left: 0.5rem; color: var(--sma-ink-muted, #57504b); font-size: 0.875rem; font-weight: 700; }
+
+/* ---- availability: the headline fact ---- */
+
+.sma-detail__availability {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    padding: 1rem 1.15rem;
+    border-radius: var(--sma-r);
+    margin-bottom: 1.5rem;
+    border: 1px solid;
+}
+
+.sma-detail__availability.is-ok {
+    background: var(--sma-success-bg, #e9f7ef);
+    border-color: color-mix(in srgb, var(--sma-success, #1a7f4b) 35%, transparent);
+    box-shadow: inset 4px 0 0 0 var(--sma-success, #1a7f4b);
+}
+
+.sma-detail__availability.is-out {
+    background: var(--sma-danger-bg, #fdecea);
+    border-color: color-mix(in srgb, var(--sma-danger, #b42318) 35%, transparent);
+    box-shadow: inset 4px 0 0 0 var(--sma-danger, #b42318);
+}
+
+.sma-detail__availability-glyph { font-size: 1.35rem; font-weight: 800; line-height: 1.2; }
+.sma-detail__availability.is-ok .sma-detail__availability-glyph { color: var(--sma-success, #1a7f4b); }
+.sma-detail__availability.is-out .sma-detail__availability-glyph { color: var(--sma-danger, #b42318); }
+
+.sma-detail__availability strong { display: block; font-size: 1.0625rem; }
+
+.sma-detail__availability-sub {
+    display: block;
+    font-size: 0.875rem;
+    color: var(--sma-ink-muted, #57504b);
+    margin-top: 0.15rem;
+}
+
+/* ---- flash messages ---- */
+
+.sma-detail__flash {
+    padding: 0.8rem 1.1rem;
+    border-radius: var(--sma-r);
+    margin-bottom: 1rem;
+    font-weight: 600;
+    border: 1px solid;
+}
+
+.sma-detail__flash.is-ok {
+    background: var(--sma-success-bg, #e9f7ef);
+    border-color: var(--sma-success, #1a7f4b);
+    color: var(--sma-success, #1a7f4b);
+}
+
+.sma-detail__flash.is-bad {
+    background: var(--sma-danger-bg, #fdecea);
+    border-color: var(--sma-danger, #b42318);
+    color: var(--sma-danger, #b42318);
+}
+
+/* ---- actions ---- */
+
+.sma-detail__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.75rem;
+}
+
+.sma-detail__actions form { margin: 0; }
+
+.sma-detail__cart {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    padding: 0.9rem 1.9rem;
+    border: 0;
+    border-radius: var(--sma-r-pill);
+    background: linear-gradient(180deg, var(--sma-brand, #f07c20), var(--sma-brand-strong, #d96a15));
+    color: #fff;
+    text-decoration: none;
+    font: inherit;
+    font-weight: 800;
+    font-size: 1.0625rem;
+    cursor: pointer;
+    box-shadow: 0 8px 20px -8px rgb(240 124 32 / 0.7);
+    transition: filter 160ms ease, transform 120ms ease;
+}
+
+.sma-detail__cart:hover { filter: brightness(1.06); color: #fff; }
+.sma-detail__cart:active { transform: translateY(1px); }
+
+/* Circular secondary actions. The favourite and share buttons keep their original class
+   names so the existing script and stylesheet hooks still find them. */
+.sma-detail__circle {
+    width: 3rem;
+    height: 3rem;
+    display: grid;
+    place-items: center;
+    border-radius: var(--sma-r-pill);
+    border: 1px solid var(--sma-line-strong, #cfc7c0);
+    background: var(--sma-surface, #fff);
+    color: var(--sma-ink-muted, #57504b);
+    cursor: pointer;
+    font-size: 1.15rem;
+    transition: border-color 160ms ease, color 160ms ease, transform 140ms ease;
+}
+
+.sma-detail__circle:hover { border-color: var(--sma-brand, #f07c20); color: var(--sma-brand, #f07c20); transform: translateY(-2px); }
+.sma-detail__circle.is-active { border-color: var(--sma-danger, #b42318); color: var(--sma-danger, #b42318); }
+
+.sma-detail__review-open {
+    padding: 0.8rem 1.35rem;
+    border-radius: var(--sma-r-pill);
+    border: 1px solid var(--sma-line-strong, #cfc7c0);
+    background: var(--sma-surface, #fff);
+    color: var(--sma-ink, #1a1614);
+    font: inherit;
+    font-weight: 700;
+    font-size: 0.9375rem;
+    cursor: pointer;
+    transition: border-color 160ms ease, color 160ms ease;
+}
+
+.sma-detail__review-open:hover { border-color: var(--sma-brand, #f07c20); color: var(--sma-brand-deep, #8f4209); }
+
+/* ---- facts ---- */
+
+.sma-detail__facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    gap: 1rem 1.5rem;
+    margin: 0 0 2rem;
+    padding: 1.25rem;
+    background: var(--sma-surface, #fff);
+    border: 1px solid var(--sma-line, #e7e1dc);
+    border-radius: var(--sma-r-lg);
+}
+
+.sma-detail__facts dt {
+    font-size: 0.6875rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--sma-ink-subtle, #8a807a);
+    margin-bottom: 0.2rem;
+}
+
+.sma-detail__facts dd { margin: 0; font-weight: 700; font-size: 0.9375rem; }
+
+/* ---- description ---- */
+
+.sma-detail__section-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    margin: 0 0 0.75rem;
+}
+
+.sma-detail__desc {
+    color: var(--sma-ink-muted, #57504b);
+    line-height: 1.7;
+    font-size: 1.0625rem;
+    /* A readable measure: full-width prose on a wide monitor is hard to track back. */
+    max-width: 68ch;
+    margin: 0;
+}
+
+/* ---- related ---- */
+
+.sma-detail__related { margin-top: clamp(2.5rem, 6vw, 4rem); }
+
+/* ============================================================================
+   Cart  (/cart)
+   ============================================================================ */
+
+.sma-cart {
+    width: 100%;
+    max-width: var(--sma-measure);
+    margin-inline: auto;
+    padding: clamp(1.5rem, 4vw, 2.75rem) var(--sma-gutter) clamp(3rem, 6vw, 4.5rem);
+}
+
+.sma-cart__head { margin-bottom: 1.5rem; }
+
+.sma-cart__title {
+    font-size: clamp(1.75rem, 4vw, 2.75rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    margin: 0;
+}
+
+.sma-cart__sub { color: var(--sma-ink-muted, #57504b); margin: 0.4rem 0 0; }
+
+.sma-cart__flash {
+    padding: 0.9rem 1.15rem;
+    border-radius: var(--sma-r);
+    margin-bottom: 1.25rem;
+    font-weight: 600;
+    border: 1px solid;
+}
+
+.sma-cart__flash.is-ok {
+    background: var(--sma-success-bg, #e9f7ef);
+    border-color: var(--sma-success, #1a7f4b);
+    color: var(--sma-success, #1a7f4b);
+}
+
+.sma-cart__flash.is-bad {
+    background: var(--sma-danger-bg, #fdecea);
+    border-color: var(--sma-danger, #b42318);
+    color: var(--sma-danger, #b42318);
+}
+
+/* Items beside a sticky summary: the primary action stays visible while the
+   student is still scrolling the list it applies to. */
+.sma-cart__layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 20rem);
+    gap: clamp(1.25rem, 3vw, 2rem);
+    align-items: start;
+}
+
+@media (max-width: 58rem) {
+    .sma-cart__layout { grid-template-columns: minmax(0, 1fr); }
+    /* Summary first on a phone: the action matters more than re-reading the list. */
+    .sma-cart__summary { order: -1; }
+}
+
+/* ---- groups ---- */
+
+.sma-cart__group { margin-bottom: 1.5rem; }
+
+.sma-cart__group-head {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0 0.25rem 0.6rem;
+}
+
+.sma-cart__group-title {
+    font-size: 0.8125rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--sma-ink-subtle, #8a807a);
+    margin: 0;
+}
+
+.sma-cart__group-items { display: flex; flex-direction: column; gap: 0.75rem; }
+
+/* ---- item ---- */
+
+.sma-cart__item {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.9rem 1.1rem;
+    background: var(--sma-surface, #fff);
+    border: 1px solid var(--sma-line, #e7e1dc);
+    border-radius: var(--sma-r-lg);
+    box-shadow: var(--sma-elev-1);
+    transition: border-color 160ms ease, box-shadow 200ms ease;
+}
+
+.sma-cart__item:hover { border-color: var(--sma-line-strong, #cfc7c0); box-shadow: var(--sma-elev-2); }
+
+/* A locked row is already requested, so it reads as settled rather than selectable. */
+.sma-cart__item.is-locked { background: var(--sma-surface-sunken, #faf7f4); }
+
+.sma-cart__cover {
+    display: block;
+    width: 3.25rem;
+    height: 4.5rem;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--sma-surface-sunken, #faf7f4);
+    box-shadow: 0 2px 8px -3px rgb(16 12 8 / 0.45);
+}
+
+.sma-cart__cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.sma-cart__book { font-size: 1.0625rem; font-weight: 800; line-height: 1.3; margin: 0; }
+.sma-cart__book a { color: inherit; text-decoration: none; }
+.sma-cart__book a:hover { color: var(--sma-brand-deep, #8f4209); }
+.sma-cart__author { color: var(--sma-ink-muted, #57504b); font-size: 0.875rem; margin: 0.15rem 0 0; }
+.sma-cart__meta { color: var(--sma-ink-subtle, #8a807a); font-size: 0.8125rem; margin: 0.15rem 0 0; }
+
+.sma-cart__badge {
+    padding: 0.3rem 0.75rem;
+    border-radius: var(--sma-r-pill);
+    font-size: 0.75rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.sma-cart__badge.is-pending { background: var(--sma-warning-bg, #fff8e6); color: var(--sma-warning, #b7791f); }
+.sma-cart__badge.is-approved { background: var(--sma-success-bg, #e9f7ef); color: var(--sma-success, #1a7f4b); }
+.sma-cart__badge.is-rejected { background: var(--sma-danger-bg, #fdecea); color: var(--sma-danger, #b42318); }
+
+/* ---- custom checkbox ----
+   Markup preserved from the original (hidden input plus .custom-check span) because
+   cart.js drives .master-tick and .cart-item-checkbox directly. */
+
+.sma-check { display: inline-flex; align-items: center; cursor: pointer; }
+.sma-check .hidden-input { position: absolute; opacity: 0; width: 0; height: 0; }
+
+.sma-check .custom-check {
+    display: grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 7px;
+    border: 2px solid var(--sma-line-strong, #cfc7c0);
+    background: var(--sma-surface, #fff);
+    transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.sma-check .custom-check::after {
+    content: "\2713";
+    font-size: 0.85rem;
+    font-weight: 900;
+    color: #fff;
+    opacity: 0;
+    transform: scale(0.6);
+    transition: opacity 120ms ease, transform 140ms ease;
+}
+
+.sma-check .hidden-input:checked + .custom-check {
+    background: var(--sma-brand, #f07c20);
+    border-color: var(--sma-brand, #f07c20);
+}
+
+.sma-check .hidden-input:checked + .custom-check::after { opacity: 1; transform: scale(1); }
+
+.sma-check .hidden-input:disabled + .custom-check { opacity: 0.5; cursor: not-allowed; }
+
+.sma-check .hidden-input:focus-visible + .custom-check {
+    outline: 3px solid var(--sma-brand, #f07c20);
+    outline-offset: 2px;
+}
+
+/* ---- summary ---- */
+
+.sma-cart__summary { position: sticky; top: calc(var(--sma-nav-h) + 1.25rem); }
+
+@media (max-width: 58rem) {
+    .sma-cart__summary { position: static; }
+}
+
+.sma-cart__summary-inner {
+    background: var(--sma-surface, #fff);
+    border: 1px solid var(--sma-line, #e7e1dc);
+    border-radius: var(--sma-r-lg);
+    box-shadow: var(--sma-elev-2);
+    padding: 1.35rem;
+}
+
+.sma-cart__summary-title { font-size: 1.125rem; font-weight: 800; margin: 0 0 1rem; }
+
+.sma-cart__totals { margin: 0 0 1.15rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.sma-cart__totals > div { display: flex; justify-content: space-between; gap: 1rem; }
+.sma-cart__totals dt { color: var(--sma-ink-muted, #57504b); font-size: 0.9375rem; }
+.sma-cart__totals dd { margin: 0; font-weight: 800; }
+
+.sma-cart__state {
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    color: var(--sma-ink-muted, #57504b);
+    margin: 0 0 1.15rem;
+    padding: 0.8rem 0.95rem;
+    border-radius: var(--sma-r);
+    background: var(--sma-surface-sunken, #faf7f4);
+}
+
+.sma-cart__state.is-pending { background: var(--sma-warning-bg, #fff8e6); color: var(--sma-ink, #1a1614); }
+.sma-cart__state.is-approved { background: var(--sma-success-bg, #e9f7ef); color: var(--sma-ink, #1a1614); }
+.sma-cart__state.is-rejected { background: var(--sma-danger-bg, #fdecea); color: var(--sma-ink, #1a1614); }
+
+.sma-cart__primary,
+.sma-cart__secondary {
+    display: block;
+    width: 100%;
+    padding: 0.9rem 1.25rem;
+    border-radius: var(--sma-r-pill);
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+    text-align: center;
+    transition: filter 160ms ease, border-color 160ms ease, color 160ms ease, transform 120ms ease;
+}
+
+.sma-cart__primary {
+    border: 0;
+    background: linear-gradient(180deg, var(--sma-brand, #f07c20), var(--sma-brand-strong, #d96a15));
+    color: #fff;
+    font-size: 1.0625rem;
+    box-shadow: 0 8px 20px -8px rgb(240 124 32 / 0.7);
+    margin-bottom: 0.6rem;
+}
+
+.sma-cart__primary:hover { filter: brightness(1.06); }
+.sma-cart__primary:active { transform: translateY(1px); }
+
+.sma-cart__secondary {
+    border: 1px solid var(--sma-line-strong, #cfc7c0);
+    background: var(--sma-surface, #fff);
+    color: var(--sma-ink-muted, #57504b);
+    font-size: 0.9375rem;
+}
+
+.sma-cart__secondary:hover { border-color: var(--sma-danger, #b42318); color: var(--sma-danger, #b42318); }
+
+/* ---- empty ---- */
+
+.sma-cart__empty,
+.sma-history__empty {
+    text-align: center;
+    padding: clamp(2.5rem, 7vw, 5rem) 1.5rem;
+    background: var(--sma-surface, #fff);
+    border: 1px dashed var(--sma-line-strong, #cfc7c0);
+    border-radius: var(--sma-r-lg);
+}
+
+.sma-cart__empty-glyph,
+.sma-history__empty-glyph { font-size: clamp(2.5rem, 6vw, 3.5rem); line-height: 1; margin-bottom: 0.75rem; }
+
+.sma-cart__empty-title,
+.sma-history__empty-title { font-size: clamp(1.25rem, 2.5vw, 1.625rem); font-weight: 800; margin: 0 0 0.5rem; }
+
+.sma-cart__empty p,
+.sma-history__empty p {
+    color: var(--sma-ink-muted, #57504b);
+    max-width: 46ch;
+    margin: 0 auto 1.5rem;
+    line-height: 1.6;
+}
+
+/* ============================================================================
+   Borrowing history  (/history)
+   ============================================================================ */
+
+.sma-history {
+    width: 100%;
+    max-width: var(--sma-measure);
+    margin-inline: auto;
+    padding: clamp(1.5rem, 4vw, 2.75rem) var(--sma-gutter) clamp(3rem, 6vw, 4.5rem);
+}
+
+.sma-history__head { margin-bottom: 1.5rem; }
+
+.sma-history__title {
+    font-size: clamp(1.75rem, 4vw, 2.75rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    margin: 0;
+}
+
+.sma-history__sub { color: var(--sma-ink-muted, #57504b); margin: 0.4rem 0 0; }
+
+/* ---- summary tiles ---- */
+
+.sma-history__stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.sma-stat {
+    padding: 1.15rem 1.25rem;
+    background: var(--sma-surface, #fff);
+    border: 1px solid var(--sma-line, #e7e1dc);
+    border-radius: var(--sma-r-lg);
+    box-shadow: var(--sma-elev-1);
+}
+
+.sma-stat__value {
+    display: block;
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+}
+
+.sma-stat__label {
+    display: block;
+    color: var(--sma-ink-muted, #57504b);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+/* Money owed is the tile that may require action, so it is the one that stands out. */
+.sma-stat.is-owed {
+    background: var(--sma-danger-bg, #fdecea);
+    border-color: var(--sma-danger, #b42318);
+    box-shadow: inset 4px 0 0 0 var(--sma-danger, #b42318);
+}
+
+.sma-stat.is-owed .sma-stat__value { color: var(--sma-danger, #b42318); }
+.sma-stat.is-clear .sma-stat__value { color: var(--sma-success, #1a7f4b); font-size: 1.25rem; }
+
+.sma-history__terms {
+    font-size: 0.9375rem;
+    color: var(--sma-ink-muted, #57504b);
+    margin: 0 0 1.75rem;
+    line-height: 1.6;
+}
+
+.sma-history__terms a { color: var(--sma-brand-deep, #8f4209); font-weight: 700; }
+
+/* ---- list ---- */
+
+.sma-history__list { display: flex; flex-direction: column; gap: 0.85rem; }
+
+.sma-history__item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 1rem 1.25rem;
+    background: var(--sma-surface, #fff);
+    border: 1px solid var(--sma-line, #e7e1dc);
+    border-radius: var(--sma-r-lg);
+    box-shadow: var(--sma-elev-1);
+}
+
+@media (max-width: 60rem) {
+    .sma-history__item { grid-template-columns: auto minmax(0, 1fr); row-gap: 1rem; }
+    .sma-history__dates, .sma-history__money { grid-column: 1 / -1; }
+    .sma-history__money { justify-self: start; }
+}
+
+.sma-history__cover {
+    display: block;
+    width: 3.25rem;
+    height: 4.5rem;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--sma-surface-sunken, #faf7f4);
+    box-shadow: 0 2px 8px -3px rgb(16 12 8 / 0.45);
+}
+
+.sma-history__cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.sma-history__book { font-size: 1.0625rem; font-weight: 800; line-height: 1.3; margin: 0; }
+.sma-history__book a { color: inherit; text-decoration: none; }
+.sma-history__book a:hover { color: var(--sma-brand-deep, #8f4209); }
+.sma-history__author { color: var(--sma-ink-muted, #57504b); font-size: 0.875rem; margin: 0.15rem 0 0; }
+.sma-history__meta { color: var(--sma-ink-subtle, #8a807a); font-size: 0.8125rem; margin: 0.15rem 0 0; }
+
+.sma-history__status {
+    display: inline-block;
+    margin-top: 0.5rem;
+    padding: 0.25rem 0.7rem;
+    border-radius: var(--sma-r-pill);
+    font-size: 0.75rem;
+    font-weight: 800;
+    background: var(--sma-surface-sunken, #faf7f4);
+    color: var(--sma-ink-muted, #57504b);
+}
+
+.sma-history__status.is-borrowing { background: var(--sma-info-bg, #eaf1fd); color: var(--sma-info, #1d4ed8); }
+.sma-history__status.is-overdue { background: var(--sma-danger-bg, #fdecea); color: var(--sma-danger, #b42318); }
+.sma-history__status.is-returned { background: var(--sma-success-bg, #e9f7ef); color: var(--sma-success, #1a7f4b); }
+
+.sma-history__dates { display: flex; gap: 1.5rem; margin: 0; }
+
+.sma-history__dates dt {
+    font-size: 0.6875rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sma-ink-subtle, #8a807a);
+}
+
+.sma-history__dates dd { margin: 0.15rem 0 0; font-size: 0.875rem; font-weight: 700; white-space: nowrap; }
+
+.sma-history__money { display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem; text-align: right; }
+
+@media (max-width: 60rem) {
+    .sma-history__money { align-items: flex-start; text-align: left; }
+}
+
+.sma-history__late {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--sma-danger, #b42318);
+    white-space: nowrap;
+}
+
+.sma-history__fine { font-size: 1rem; font-weight: 800; white-space: nowrap; }
+.sma-history__fine small { display: block; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+.sma-history__fine.is-due { color: var(--sma-danger, #b42318); }
+.sma-history__fine.is-paid { color: var(--sma-success, #1a7f4b); }
+.sma-history__fine.is-none { color: var(--sma-ink-subtle, #8a807a); font-size: 0.8125rem; font-weight: 700; }
+
+.sma-history__paid-on { font-size: 0.75rem; color: var(--sma-ink-subtle, #8a807a); }
+
+/* ============================================================================
+   Overrides for inherited rules that fought the new layout.
+
+   These live at the end deliberately: the older stylesheets still load for the
+   pages that have not migrated yet, and several of their rules were written for
+   a dark hero and a position:fixed header that no longer exist.
+   ============================================================================ */
+
+/* The hero is a light surface now. sma-theme-bridge.css sets the title to #fff
+   for the old dark hero, which made the headline invisible on white. */
+.sma-hero__title { color: var(--sma-ink, #1a1614); }
+
+/* The search icon is a flex sibling of the input, not an overlay. Both older
+   sheets still position it absolutely over the field, and Navbar.css adds a
+   translateY(-50%) to centre it against a top:50% that no longer applies —
+   which lifted the icon out of the pill. */
+.sma-nav__search .search-submit {
+    position: static;
+    left: auto;
+    top: auto;
+    transform: none;
+    width: auto;
+    padding: 0.5rem 0.35rem 0.5rem 0.85rem;
+}
+
+/* Navbar.css fixes the field at 220px (120px on small screens) and pads 40px on
+   the left for the icon it used to overlay. Neither holds now that the pill is a
+   flex row. */
+.sma-nav__search input {
+    width: auto;
+    padding: 0.65rem 1rem 0.65rem 0.25rem;
+}
+
+.sma-nav__search input:focus { width: auto; }
+
+/* Claim a real share of the bar rather than living off whatever slack is left
+   after six links: at 1440 that was 126px, barely wider than the icon. */
+.sma-nav__search {
+    flex: 1 1 15rem;
+    min-width: 10rem;
+    max-width: 24rem;
+    margin-inline: 0;
+}
+
+/* The 28px gap between six nav children ate 140px on its own. */
+.sma-nav__inner { gap: clamp(0.6rem, 1.2vw, 1rem); }
+
+/* Card badge and action icons sit inside .sma-book__body in the shared partial,
+   not inside the cover. Positioning them absolutely without a positioned card
+   sent them to the top corners of the PAGE — which is why a category pill and a
+   pair of icons appeared pinned above the header. The card is the containing
+   block, and the cover is its first child, so they land over the artwork. */
+.sma-book { position: relative; }
+
+@media (max-width: 48rem) {
+    /* The bridge stacks the search full-width below 768px; keep that, but the
+       nav rows need their own spacing rather than the bridge's margin. */
+    .sma-nav__search { margin: 0; }
+}
+
+/* ============================================================================
+   Returning a book.
+
+   Previously the only route to a return was: History -> open a loan -> find the
+   link. These are the direct ones — nav, page header, and per-loan — all landing
+   on the station already switched to return mode.
+   ============================================================================ */
+
+.sma-nav__link--return {
+    background: rgb(255 255 255 / 0.10);
+    border: 1px solid rgb(255 255 255 / 0.22);
+}
+
+.sma-nav__link--return:hover { background: rgb(255 255 255 / 0.18); }
+.sma-nav__link--return.is-active { background: var(--sma-orange-500, #f07c20); border-color: transparent; }
+
+/* Header call to action. Only rendered when something is actually still out. */
+.sma-history__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.sma-history__return-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    min-height: 44px;                 /* absolute px: site.css drops the root to 14px on mobile */
+    padding: 0 1.25rem;
+    border-radius: 999px;
+    background: var(--sma-orange-500, #f07c20);
+    color: #fff;
+    font-weight: 700;
+    font-size: .9375rem;
+    text-decoration: none;
+    box-shadow: 0 6px 18px -8px rgb(240 124 32 / 0.9);
+    transition: background .15s ease, transform .15s ease;
+}
+
+.sma-history__return-cta:hover { background: var(--sma-orange-600, #d2691a); color: #fff; transform: translateY(-1px); }
+.sma-history__return-cta:focus-visible { outline: 3px solid var(--sma-orange-300, #f7b071); outline-offset: 2px; }
+.sma-history__return-cta span { font-size: 1.1em; }
+
+/* Per-loan. A fifth column on the row, folded to its own line on narrow screens. */
+.sma-history__item { grid-template-columns: auto minmax(0, 1fr) auto auto auto; }
+
+.sma-history__return {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 0 1rem;
+    border-radius: 999px;
+    border: 1.5px solid var(--sma-orange-500, #f07c20);
+    color: var(--sma-orange-600, #d2691a);
+    background: transparent;
+    font-weight: 700;
+    font-size: .875rem;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background .15s ease, color .15s ease;
+}
+
+.sma-history__return:hover { background: var(--sma-orange-500, #f07c20); color: #fff; }
+.sma-history__return:focus-visible { outline: 3px solid var(--sma-orange-300, #f7b071); outline-offset: 2px; }
+
+@media (max-width: 60rem) {
+    .sma-history__item { grid-template-columns: auto minmax(0, 1fr); }
+    .sma-history__return { grid-column: 1 / -1; justify-self: start; }
+}
+
+/* ============================================================================
+   PROFILE
+   ============================================================================
+   Cover, then an identity bar that overlaps it, then the account summary. The
+   overlap is what makes it read as one object rather than three stacked boxes.
+   ============================================================================ */
+
+.sma-profile {
+    max-width: 68rem;
+    margin: 0 auto;
+    padding: 0 1.25rem 4rem;
+}
+
+/* ---------------- cover ---------------- */
+
+.sma-profile__head {
+    background: var(--sma-surface, #fff);
+    border: 1px solid var(--sma-line, #e7e1dc);
+    border-radius: var(--sma-r-xl, 20px);
+    box-shadow: var(--sma-elev-1);
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+
+.sma-profile__cover {
+    position: relative;
+    height: clamp(140px, 22vw, 240px);
+    background: var(--sma-surface-sunken, #faf7f4);
+}
+
+.sma-profile__cover-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* Keeps the Change cover button legible over an arbitrary photo. */
+.sma-profile__cover-scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgb(16 12 8 / 0.45), transparent 45%);
+    pointer-events: none;
+}
+
+.sma-profile__cover-form {
+    position: absolute;
+    right: 1rem;
+    bottom: 1rem;
+}
+
+.image-upload-input { display: none; }
+
+.sma-profile__cover-btn,
+.sma-profile__avatar-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    border: 0;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: .875rem;
+    background: rgb(255 255 255 / 0.92);
+    color: var(--sma-ink, #1a1614);
+    backdrop-filter: blur(6px);
+    transition: background .15s ease;
+}
+
+.sma-profile__cover-btn {
+    min-height: 44px;
+    padding: 0 1rem;
+    border-radius: 999px;
+    box-shadow: 0 4px 14px -6px rgb(16 12 8 / 0.6);
+}
+
+.sma-profile__cover-btn:hover,
+.sma-profile__avatar-btn:hover { background: #fff; }
+
+.sma-profile__cover-btn:focus-visible,
+.sma-profile__avatar-btn:focus-visible {
+    outline: 3px solid var(--sma-orange-400, #f4923f);
+    outline-offset: 2px;
+}
+
+/* ---------------- identity ---------------- */
+
+.sma-profile__identity {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: flex-end;
+    gap: 1.25rem;
+    padding: 0 1.75rem 1.5rem;
+    /* Pulls the avatar up over the cover. */
+    margin-top: -2.75rem;
+}
+
+.sma-profile__avatar-wrap {
+    position: relative;
+    width: 8.5rem;
+    height: 8.5rem;
+    flex: none;
+}
+
+.sma-profile__initials {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--sma-orange-500, #f07c20);
+    color: #fff;
+    font-size: 2.25rem;
+    font-weight: 800;
+    letter-spacing: .02em;
+}
+
+.sma-profile__avatar {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+    background: var(--sma-surface, #fff);
+    border: 4px solid var(--sma-surface, #fff);
+    box-shadow: 0 8px 24px -12px rgb(16 12 8 / 0.7);
+}
+
+.sma-profile__avatar-form {
+    position: absolute;
+    right: 0;
+    bottom: .35rem;
+}
+
+.sma-profile__avatar-btn {
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    border-radius: 50%;
+    justify-content: center;
+    box-shadow: 0 3px 10px -4px rgb(16 12 8 / 0.7);
+}
+
+.sma-profile__who { min-width: 0; padding-bottom: .35rem; }
+
+.sma-profile__name {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    margin: 0;
+    color: var(--sma-ink, #1a1614);
+}
+
+.sma-profile__email {
+    margin: .2rem 0 0;
+    color: var(--sma-ink-muted, #6b6259);
+    font-size: .9375rem;
+    word-break: break-word;
+}
+
+.sma-profile__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin-top: .75rem;
+}
+
+.sma-profile__tag {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .3rem .7rem;
+    border-radius: 999px;
+    font-size: .8125rem;
+    font-weight: 600;
+    background: var(--sma-orange-50, #fff4ea);
+    color: var(--sma-orange-700, #a8500f);
+    border: 1px solid var(--sma-orange-100, #ffe3cc);
+}
+
+.sma-profile__tag.is-muted {
+    background: var(--sma-surface-sunken, #faf7f4);
+    color: var(--sma-ink-muted, #6b6259);
+    border-color: var(--sma-line, #e7e1dc);
+}
+
+.sma-profile__cta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem;
+    padding-bottom: .35rem;
+}
+
+.sma-profile__cta form { margin: 0; }
+
+.sma-profile__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;              /* absolute px: site.css drops the root to 14px on mobile */
+    padding: 0 1.1rem;
+    border-radius: 10px;
+    border: 1px solid var(--sma-line, #e7e1dc);
+    background: var(--sma-surface, #fff);
+    color: var(--sma-ink, #1a1614);
+    font-weight: 600;
+    font-size: .9375rem;
+    text-decoration: none;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .15s ease, border-color .15s ease;
+}
+
+.sma-profile__btn:hover {
+    background: var(--sma-surface-sunken, #faf7f4);
+    border-color: var(--sma-ink-subtle, #9a9088);
+    color: var(--sma-ink, #1a1614);
+}
+
+.sma-profile__btn.is-primary {
+    background: var(--sma-orange-500, #f07c20);
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 6px 18px -8px rgb(240 124 32 / 0.9);
+}
+
+.sma-profile__btn.is-primary:hover { background: var(--sma-orange-600, #d2691a); color: #fff; }
+
+.sma-profile__btn.is-quiet { color: var(--sma-ink-muted, #6b6259); }
+
+.sma-profile__btn:focus-visible {
+    outline: 3px solid var(--sma-orange-400, #f4923f);
+    outline-offset: 2px;
+}
+
+/* ---------------- summary cards ---------------- */
+
+.sma-profile__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.sma-profile__card {
+    background: var(--sma-surface, #fff);
+    border: 1px solid var(--sma-line, #e7e1dc);
+    border-radius: var(--sma-r-lg, 16px);
+    box-shadow: var(--sma-elev-1);
+    padding: 1.25rem;
+}
+
+.sma-profile__card.is-quiet { background: var(--sma-surface-sunken, #faf7f4); box-shadow: none; }
+
+.sma-profile__card.is-owed {
+    background: #fff5f4;
+    border-color: #f6c9c2;
+}
+
+.sma-profile__card-title {
+    margin: 0;
+    font-size: .8125rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--sma-ink-muted, #6b6259);
+}
+
+.sma-profile__big {
+    margin: .5rem 0 .15rem;
+    font-size: 2.25rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    color: var(--sma-ink, #1a1614);
+}
+
+.sma-profile__big.is-date { font-size: 1.75rem; }
+.sma-profile__big.is-money { font-size: 1.625rem; }
+
+.sma-profile__big-of {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--sma-ink-subtle, #9a9088);
+}
+
+.sma-profile__card-note {
+    margin: 0;
+    font-size: .875rem;
+    color: var(--sma-ink-muted, #6b6259);
+}
+
+.sma-profile__card-sub {
+    margin: .5rem 0 0;
+    font-size: .8125rem;
+    font-weight: 600;
+    color: var(--sma-ink, #1a1614);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sma-profile__flag { color: #b3261e; }
+
+.sma-profile__bar {
+    margin-top: .85rem;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--sma-orange-100, #ffe3cc);
+    overflow: hidden;
+}
+
+.sma-profile__bar span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--sma-orange-500, #f07c20);
+}
+
+/* ---------------- panels ---------------- */
+
+.sma-profile__cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    gap: 1.25rem;
+    align-items: start;
+}
+
+.sma-profile__panel {
+    background: var(--sma-surface, #fff);
+    border: 1px solid var(--sma-line, #e7e1dc);
+    border-radius: var(--sma-r-lg, 16px);
+    box-shadow: var(--sma-elev-1);
+    padding: 1.25rem 1.5rem 1.5rem;
+}
+
+.sma-profile__panel-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.sma-profile__panel-title {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+}
+
+.sma-profile__panel-link {
+    font-size: .875rem;
+    font-weight: 700;
+    color: var(--sma-orange-600, #d2691a);
+    text-decoration: none;
+}
+
+.sma-profile__panel-link:hover { text-decoration: underline; }
+
+.sma-profile__empty {
+    margin: 0;
+    padding: 1.25rem 0;
+    color: var(--sma-ink-muted, #6b6259);
+    font-size: .9375rem;
+}
+
+.sma-profile__empty a { color: var(--sma-orange-600, #d2691a); font-weight: 600; }
+
+/* ---------------- recent loans ---------------- */
+
+.sma-profile__loans { list-style: none; margin: 0; padding: 0; display: grid; gap: .25rem; }
+
+.sma-profile__loan {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: .9rem;
+    padding: .7rem 0;
+    border-top: 1px solid var(--sma-line, #e7e1dc);
+}
+
+.sma-profile__loan:first-child { border-top: 0; }
+
+.sma-profile__loan-cover {
+    display: block;
+    width: 2.5rem;
+    height: 3.5rem;
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--sma-surface-sunken, #faf7f4);
+    box-shadow: 0 2px 8px -4px rgb(16 12 8 / 0.5);
+    flex: none;
+}
+
+.sma-profile__loan-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.sma-profile__loan-body { min-width: 0; }
+
+.sma-profile__loan-title {
+    margin: 0;
+    font-size: .9375rem;
+    font-weight: 700;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sma-profile__loan-title a { color: inherit; text-decoration: none; }
+.sma-profile__loan-title a:hover { color: var(--sma-orange-600, #d2691a); }
+
+.sma-profile__loan-author,
+.sma-profile__loan-when {
+    margin: .1rem 0 0;
+    font-size: .8125rem;
+    color: var(--sma-ink-muted, #6b6259);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Status carries a word as well as a colour (specification section 111). */
+.sma-profile__loan-status {
+    padding: .2rem .6rem;
+    border-radius: 999px;
+    font-size: .75rem;
+    font-weight: 700;
+    white-space: nowrap;
+    background: var(--sma-surface-sunken, #faf7f4);
+    color: var(--sma-ink-muted, #6b6259);
+    border: 1px solid var(--sma-line, #e7e1dc);
+}
+
+.sma-profile__loan-status.is-borrowing { background: #eef4ff; color: #1a49a5; border-color: #cddcf8; }
+.sma-profile__loan-status.is-overdue   { background: #fff0ee; color: #b3261e; border-color: #f6c9c2; }
+.sma-profile__loan-status.is-returned  { background: #eefaf1; color: #1c6b3a; border-color: #c6ead2; }
+
+/* ---------------- saved books ---------------- */
+
+.sma-profile__saved {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+    gap: 1rem;
+}
+
+.sma-profile__save-link { display: block; text-decoration: none; color: inherit; }
+
+.sma-profile__save-cover {
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    object-fit: cover;
+    border-radius: 10px;
+    display: block;
+    background: var(--sma-surface-sunken, #faf7f4);
+    box-shadow: 0 4px 14px -8px rgb(16 12 8 / 0.6);
+    transition: transform .15s ease;
+}
+
+.sma-profile__save-link:hover .sma-profile__save-cover { transform: translateY(-2px); }
+
+.sma-profile__save-title,
+.sma-profile__save-author {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sma-profile__save-title { margin-top: .5rem; font-size: .8125rem; font-weight: 700; }
+.sma-profile__save-author { font-size: .75rem; color: var(--sma-ink-muted, #6b6259); }
+
+.sma-profile__save-link:focus-visible {
+    outline: 3px solid var(--sma-orange-400, #f4923f);
+    outline-offset: 3px;
+    border-radius: 12px;
+}
+
+/* ---------------- narrow ---------------- */
+
+@media (max-width: 60rem) {
+    .sma-profile__cols { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 48rem) {
+    .sma-profile { padding-inline: 1rem; }
+
+    /* Stack: avatar centred over the cover, then name, then the buttons full width. */
+    .sma-profile__identity {
+        grid-template-columns: minmax(0, 1fr);
+        justify-items: center;
+        text-align: center;
+        padding-inline: 1.25rem;
+        margin-top: -2.25rem;
+    }
+
+    .sma-profile__avatar-wrap { width: 6.5rem; height: 6.5rem; }
+    .sma-profile__initials { font-size: 1.65rem; }
+    .sma-profile__tags { justify-content: center; }
+
+    .sma-profile__cta { width: 100%; }
+    .sma-profile__cta > * { flex: 1 1 8rem; }
+    .sma-profile__cta form { display: flex; }
+    .sma-profile__cta form .sma-profile__btn { width: 100%; }
+}
+
+/* The hero was written as a full-bleed band ("max-width: none"), but .sma-home
+   pads its children by a gutter, so the band stopped 40px short on each side and
+   20px below the nav — a colour block floating in the page background with a
+   border-bottom hanging in mid-air. Cancel the parent's padding so it actually
+   reaches the edges. Width must be auto for the negative margins to widen it;
+   .sma-home > * sets width:100%, which would otherwise pin it. */
+.sma-hero {
+    width: auto !important;
+    margin-inline: calc(var(--sma-gutter) * -1);
+    margin-top: -1.25rem;   /* .sma-home's padding-top */
+}
+
+/* Touch targets. Absolute px, not rem: site.css drops the root to 14px below
+   768px, so a rem-based 2.75rem silently becomes 38.5px on exactly the devices
+   that need the target most. */
+.sma-profile__avatar-btn {
+    width: 44px;
+    height: 44px;
+}
+
+/* "See all" is a standalone control, not a link inside a sentence, so it gets a
+   real hit area. The negative margin keeps it optically aligned with the heading
+   baseline despite the padding. */
+.sma-profile__panel-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding-inline: 8px;
+    margin-right: -8px;
+}
+
+/* --sma-navy-900 is referenced in eight places across Navbar.css and Category.css
+   but is declared nowhere. An undefined custom property is not "no value" — it
+   makes the whole declaration invalid at computed-value time, so those elements
+   fell back to transparent. The footer was the visible casualty: Navbar.css's
+   `footer.sma-footer` (0,1,1) outranks the design system's `.sma-footer` (0,1,0),
+   so it replaced a working background with an invalid one while keeping
+   `color: white` — white text on the page's own near-white background.
+
+   Defining it repairs every consumer at once rather than patching them one by one. */
+:root {
+    --sma-navy-900: #1a1614;
+
+    /* Ramp steps and radii these components reference. The design system ships
+       --sma-orange-050 (note the zero) but no -50/-100/-300 and no radius scale,
+       so they are defined here against the existing ramp rather than left to
+       resolve as invalid. */
+    --sma-orange-50: var(--sma-orange-050, #fff4ea);
+    --sma-orange-100: #ffe3cc;
+    --sma-orange-300: #f7b071;
+
+    --sma-r-md: 10px;
+    --sma-r-lg: 16px;
+    --sma-r-xl: 20px;
+}
+
+/* The footer's surface belongs to the design system; Navbar.css should not be
+   painting it at all. */
+footer.sma-footer {
+    background-color: var(--sma-chrome-900, #1a1614);
+    padding: 0;
+    margin-top: 3rem;
+}
+
+/* ============================================================================
+   LIBRARY ASSISTANT (floating)
+   ============================================================================
+   Home.css styles this widget in blue (#193d87 / #2e86c4 / rgba(150,236,255)),
+   which is why it read as a third-party chat bubble dropped onto an orange and
+   charcoal site. These rules load after it and put the widget on the same
+   palette, type scale and radii as everything else.
+
+   The old ornament classes (__toggle-mark, __pulse, __hero, __logo-stage,
+   __orb*, __logo*) no longer exist in the markup, so their rules in Home.css
+   are inert and are not overridden here.
+   ============================================================================ */
+
+.home-chatbot {
+    right: clamp(1rem, 3vw, 1.5rem);
+    bottom: clamp(1rem, 3vw, 1.5rem);
+    gap: 0.75rem;
+}
+
+/* ---------------- launcher ---------------- */
+
+.home-chatbot__toggle {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--sma-orange-500, #f07c20) !important;
+    color: #fff;
+    box-shadow: 0 10px 28px -10px rgb(240 124 32 / 0.85), 0 2px 6px rgb(16 12 8 / 0.25);
+    transition: background .15s ease, transform .15s ease, box-shadow .15s ease;
+}
+
+.home-chatbot__toggle:hover {
+    background: var(--sma-orange-600, #d2691a) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 14px 32px -10px rgb(240 124 32 / 0.9), 0 2px 6px rgb(16 12 8 / 0.3);
+}
+
+.home-chatbot__toggle:focus-visible {
+    outline: 3px solid var(--sma-orange-300, #f7b071);
+    outline-offset: 3px;
+}
+
+.home-chatbot__toggle-icon { font-size: 1.5rem; line-height: 1; grid-area: 1 / 1; }
+
+/* Exactly one mark on screen at a time: the launcher carries it while closed,
+   and hands it to the panel header while open. */
+.home-chatbot__toggle-icon--close { display: none; }
+.home-chatbot.is-open .home-chatbot__toggle-icon--open { display: none; }
+.home-chatbot.is-open .home-chatbot__toggle-icon--close { display: block; }
+
+.home-chatbot.is-open .home-chatbot__toggle {
+    background: var(--sma-chrome-800, #2b2320) !important;
+    box-shadow: 0 8px 22px -10px rgb(16 12 8 / 0.7);
+}
+
+/* ---------------- panel ---------------- */
+
+.home-chatbot__panel {
+    width: min(24rem, calc(100vw - 2rem));
+    max-height: min(70vh, 34rem);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--sma-surface, #fff);
+    border: 1px solid var(--sma-line, #e7e1dc);
+    border-radius: var(--sma-r-lg, 16px);
+    box-shadow: 0 24px 60px -24px rgb(16 12 8 / 0.55), 0 2px 8px rgb(16 12 8 / 0.12);
+    color: var(--sma-ink, #1a1614);
+}
+
+/* ---------------- header ---------------- */
+
+.home-chatbot__header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.85rem 0.85rem 0.85rem 1rem;
+    background: var(--sma-chrome-900, #1a1614);
+    border-bottom: 0;
+    color: #fff;
+}
+
+.home-chatbot__avatar {
+    flex: none;
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--sma-orange-500, #f07c20);
+    color: #fff;
+    font-size: 1.05rem;
+}
+
+.home-chatbot__heading { min-width: 0; flex: 1 1 auto; }
+
+.home-chatbot__title {
+    margin: 0;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #fff;
+}
+
+.home-chatbot__status {
+    margin: 0;
+    font-size: 0.75rem;
+    color: rgb(255 255 255 / 0.6);
+}
+
+.home-chatbot__close {
+    flex: none;
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: rgb(255 255 255 / 0.7);
+    cursor: pointer;
+    font-size: 0.8125rem;
+}
+
+.home-chatbot__close:hover { background: rgb(255 255 255 / 0.12); color: #fff; }
+.home-chatbot__close:focus-visible { outline: 2px solid var(--sma-orange-400, #f4923f); outline-offset: 1px; }
+
+/* ---------------- messages ---------------- */
+
+.home-chatbot__messages {
+    flex: 1 1 auto;
+    min-height: 6rem;
+    overflow-y: auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    background: var(--sma-surface-sunken, #faf7f4);
+}
+
+.home-chatbot__msg {
+    max-width: 88%;
+    padding: 0.6rem 0.85rem;
+    border-radius: 14px;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    background: var(--sma-surface, #fff);
+    border: 1px solid var(--sma-line, #e7e1dc);
+    color: var(--sma-ink, #1a1614);
+}
+
+.home-chatbot__msg--bot {
+    align-self: flex-start;
+    border-bottom-left-radius: 5px;
+}
+
+.home-chatbot__msg--user {
+    align-self: flex-end;
+    border-bottom-right-radius: 5px;
+    background: var(--sma-orange-500, #f07c20);
+    border-color: transparent;
+    color: #fff;
+}
+
+.home-chatbot__answer-links a {
+    background: var(--sma-orange-50, #fff4ea);
+    border: 1px solid var(--sma-orange-100, #ffe3cc);
+    color: var(--sma-orange-700, #a8500f);
+}
+
+.home-chatbot__answer-links a:hover {
+    background: var(--sma-orange-500, #f07c20);
+    border-color: transparent;
+    color: #fff;
+}
+
+.home-chatbot__msg--typing span { background: var(--sma-ink-subtle, #9a9088); }
+
+/* ---------------- quick actions ---------------- */
+
+.home-chatbot__quick-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--sma-line, #e7e1dc);
+    background: var(--sma-surface, #fff);
+}
+
+.home-chatbot__quick-actions button {
+    min-height: 34px;
+    padding: 0 0.7rem;
+    border-radius: 999px;
+    border: 1px solid var(--sma-line, #e7e1dc);
+    background: var(--sma-surface, #fff);
+    color: var(--sma-ink-muted, #6b6259);
+    font-size: 0.78125rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .12s ease, color .12s ease, border-color .12s ease;
+}
+
+.home-chatbot__quick-actions button:hover {
+    background: var(--sma-orange-50, #fff4ea);
+    border-color: var(--sma-orange-300, #f7b071);
+    color: var(--sma-orange-700, #a8500f);
+}
+
+.home-chatbot__quick-actions button:focus-visible {
+    outline: 2px solid var(--sma-orange-400, #f4923f);
+    outline-offset: 1px;
+}
+
+/* ---------------- input ---------------- */
+
+.home-chatbot__input-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem 0.9rem;
+    border-top: 1px solid var(--sma-line, #e7e1dc);
+    background: var(--sma-surface, #fff);
+}
+
+.home-chatbot__input-row input {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 42px;
+    padding: 0 0.9rem;
+    border-radius: 999px;
+    border: 1px solid var(--sma-line, #e7e1dc);
+    background: var(--sma-surface-sunken, #faf7f4);
+    color: var(--sma-ink, #1a1614);
+    font: inherit;
+    font-size: 0.875rem;
+}
+
+.home-chatbot__input-row input::placeholder { color: var(--sma-ink-subtle, #9a9088); }
+
+.home-chatbot__input-row input:focus {
+    outline: none;
+    background: var(--sma-surface, #fff);
+    border-color: var(--sma-orange-400, #f4923f);
+    box-shadow: 0 0 0 3px rgb(240 124 32 / 0.25);
+}
+
+.home-chatbot__input-row button {
+    flex: none;
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 50%;
+    background: var(--sma-orange-500, #f07c20);
+    color: #fff;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background .15s ease;
+}
+
+.home-chatbot__input-row button:hover { background: var(--sma-orange-600, #d2691a); }
+.home-chatbot__input-row button:focus-visible { outline: 3px solid var(--sma-orange-300, #f7b071); outline-offset: 2px; }
+
+/* ---------------- narrow ---------------- */
+
+@media (max-width: 30rem) {
+    /* Home.css sets these with !important in its own breakpoints. */
+    .home-chatbot__panel {
+        width: calc(100vw - 1.5rem) !important;
+        max-height: min(68vh, 30rem) !important;
+    }
+}
+
+/* ============================================================================
+   CHECKOUT CHOICE DIALOG
+
+   Self-checkout and asking a librarian are alternatives, not a sequence, so the
+   cart asks which one rather than assuming. Native <dialog>: it brings the top
+   layer, focus trapping, Escape-to-close and the backdrop for free.
+   ============================================================================ */
+
+.sma-checkout {
+    width: min(34rem, calc(100vw - 2rem));
+    padding: 1.75rem;
+    border: 1px solid var(--sma-line, #e7e1dc);
+    border-radius: var(--sma-r-xl, 20px);
+    background: var(--sma-surface, #fff);
+    color: var(--sma-ink, #1a1614);
+    box-shadow: 0 32px 70px -28px rgb(16 12 8 / 0.6);
+}
+
+.sma-checkout::backdrop {
+    background: rgb(16 12 8 / 0.5);
+    backdrop-filter: blur(2px);
+}
+
+.sma-checkout__title {
+    margin: 0 0 0.35rem;
+    font-size: 1.375rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.sma-checkout__lede {
+    margin: 0 0 1.25rem;
+    font-size: 0.9375rem;
+    color: var(--sma-ink-muted, #6b6259);
+}
+
+.sma-checkout__options {
+    display: grid;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.sma-checkout__option {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.9rem;
+    width: 100%;
+    min-height: 44px;
+    padding: 1rem;
+    text-align: left;
+    border: 1.5px solid var(--sma-line, #e7e1dc);
+    border-radius: var(--sma-r-lg, 16px);
+    background: var(--sma-surface, #fff);
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    transition: border-color .15s ease, background .15s ease, transform .15s ease;
+}
+
+.sma-checkout__option:hover {
+    border-color: var(--sma-orange-400, #f4923f);
+    background: var(--sma-orange-50, #fff4ea);
+    transform: translateY(-1px);
+}
+
+.sma-checkout__option:focus-visible {
+    outline: 3px solid var(--sma-orange-400, #f4923f);
+    outline-offset: 2px;
+}
+
+.sma-checkout__option.is-primary {
+    border-color: var(--sma-orange-500, #f07c20);
+    background: var(--sma-orange-50, #fff4ea);
+}
+
+.sma-checkout__option.is-primary:hover {
+    background: var(--sma-orange-100, #ffe3cc);
+}
+
+.sma-checkout__option-icon {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--sma-orange-500, #f07c20);
+    color: #fff;
+    font-size: 1.1rem;
+}
+
+.sma-checkout__option-body { display: block; min-width: 0; }
+
+.sma-checkout__option-title {
+    display: block;
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 0.15rem;
+}
+
+.sma-checkout__option-hint {
+    display: block;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: var(--sma-ink-muted, #6b6259);
+}
+
+.sma-checkout__cancel {
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--sma-ink-muted, #6b6259);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.sma-checkout__cancel:hover { background: var(--sma-surface-sunken, #faf7f4); }
+.sma-checkout__cancel:focus-visible { outline: 3px solid var(--sma-orange-400, #f4923f); outline-offset: 2px; }
+
+@media (max-width: 30rem) {
+    .sma-checkout { padding: 1.25rem; }
+    .sma-checkout__option { padding: 0.85rem; }
+}

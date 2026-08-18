@@ -73,6 +73,8 @@ builder.Services.AddScoped<Library_Management_system.Application.Rfid.IRfidScanR
                            Library_Management_system.Application.Rfid.RfidScanRecorder>();
 builder.Services.AddScoped<Library_Management_system.Application.Rfid.IRfidTagImportService,
                            Library_Management_system.Application.Rfid.RfidTagImportService>();
+builder.Services.AddScoped<Library_Management_system.Application.Search.IStudentDossierService,
+                           Library_Management_system.Application.Search.StudentDossierService>();
 builder.Services.AddScoped<Library_Management_system.Application.Search.IGlobalSearchService,
                            Library_Management_system.Application.Search.GlobalSearchService>();
 builder.Services.AddScoped<Library_Management_system.Application.Reporting.IReportingService,
@@ -82,6 +84,9 @@ builder.Services.AddScoped<Library_Management_system.Application.Assistant.ILibr
 
 // Self-service station. The store is a singleton because a kiosk is a piece of furniture: the books
 // on its antenna outlive any one HTTP request or browser session.
+builder.Services.Configure<Library_Management_system.Application.Policies.LibraryHoursOptions>(
+    builder.Configuration.GetSection(Library_Management_system.Application.Policies.LibraryHoursOptions.SectionName));
+
 builder.Services.Configure<Library_Management_system.Application.Kiosk.KioskOptions>(
     builder.Configuration.GetSection(Library_Management_system.Application.Kiosk.KioskOptions.SectionName));
 builder.Services.AddSingleton<Library_Management_system.Application.Kiosk.KioskStationStore>();
@@ -302,6 +307,24 @@ static async Task EnsureDemoUserAsync(
     string password)
 {
     var user = await userManager.FindByEmailAsync(email);
+
+    if (user == null)
+    {
+        // The demo account is found by email, but Identity keys uniqueness on the username too,
+        // and the username here is derived from the display name. An admin who edits the demo
+        // account's email leaves the username behind, so the email lookup misses while the
+        // username is still taken — and creation then fails on a duplicate username.
+        //
+        // Adopt that account rather than failing: it is the same demo account, renamed.
+        var derivedUserName = new string(fullName.Where(char.IsLetterOrDigit).ToArray());
+        var byUserName = await userManager.FindByNameAsync(derivedUserName);
+
+        if (byUserName is not null)
+        {
+            user = byUserName;
+        }
+    }
+
     if (user == null)
     {
         user = new ApplicationUser
@@ -320,7 +343,12 @@ static async Task EnsureDemoUserAsync(
         if (!createResult.Succeeded)
         {
             var errors = string.Join("; ", createResult.Errors.Select(e => e.Description));
-            throw new InvalidOperationException($"Failed to create demo user '{email}': {errors}");
+
+            // A demo account is a convenience. It is not worth refusing to start the library over,
+            // which is what throwing here did.
+            Console.Error.WriteLine(
+                $"[seed] Skipping demo user '{email}': {errors}");
+            return;
         }
     }
 

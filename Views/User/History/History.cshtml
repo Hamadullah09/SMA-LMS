@@ -2,153 +2,161 @@
 @model Library_Management_system.Models.HistoryViewModel
 @{
     Layout = "~/Views/Shared/_Layout.cshtml";
-    ViewBag.Title = "History";
+    ViewData["Title"] = "My borrowing";
+    ViewData["FullWidth"] = true;   // the design system supplies its own measure
+
+    string Money(decimal amount) =>
+        $"{Model.Currency} {amount.ToString("0.00", CultureInfo.InvariantCulture)}";
+
+    var owes = Model.EstimatedFine > 0;
 }
 
-<section class="page-bg history-page" id="historyPage">
-    <div class="container page-wrap">
-        <div class="d-flex align-items-center justify-content-between gap-3 mb-3 history-head">
-            <h1 class="page-title mb-0">History</h1>
+@*
+    Borrowing history.
 
-            <div class="summary-dropdown">
-                <button class="btn btn-primary borrowing-btn" id="toggleSummary" type="button">
-                    Borrowing Summary
-                </button>
+    Rebuilt on the student design system. Two things changed beyond styling:
 
-                <div class="summary-card shadow" id="summaryDetails">
-                    <div class="summary-row">
-                        <span>Sub total</span>
-                        <span class="fw-bold">@Model.TotalCount</span>
-                    </div>
-                    <div class="summary-row">
-                        <span>On hold</span>
-                        <span class="fw-bold">@Model.OnHoldCount</span>
-                    </div>
-                    <div class="summary-row">
-                        <span>Return</span>
-                        <span class="fw-bold">@Model.ReturnedCount</span>
-                    </div>
+    * the fine figures are real. The page printed "Late return fee ($1/day)" and dollar amounts
+      while the library charges PKR 20.00 a day — the rate came from a constant in the controller
+      rather than from LibraryPolicy, so a student was told they owed a twentieth of the truth in
+      the wrong currency. Rate and currency now come from policy.
 
-                    <hr class="summary-divider" />
+    * what you owe is stated up front rather than hidden behind a dropdown. It was in a panel
+      that had to be clicked to open, which is the wrong place for the one number a student
+      might have to act on.
+*@
 
-                    <div class="summary-row mb-4">
-                        <span class="small">Late return fee ($1/day):</span>
-                        <span class="fw-bold">$@Model.EstimatedFine.ToString("0.00", CultureInfo.InvariantCulture)</span>
-                    </div>
+<div class="sma-history">
 
-                    <a asp-controller="Home" asp-action="AboutPolicies" class="btn btn-light w-100 fw-bold mb-2 py-2 summary-terms-btn">
-                        By borrowing, you agree to our <u>Terms and Conditions</u>.
-                    </a>
-
-                    <div class="text-center">
-                        <small class="gold-text">*Term and Condition Applied</small>
-                    </div>
-                </div>
-            </div>
+    <header class="sma-history__head">
+        <div>
+            <h1 class="sma-history__title">My borrowing</h1>
+            <p class="sma-history__sub">Everything you have borrowed, returned, or still have out.</p>
         </div>
 
-        <div class="history-list">
-            @if (Model.Items.Any())
+        @* Returning used to require opening a loan first. The button is on the page now, and on
+           each book still out below, because a student who came here to give a book back should
+           not have to hunt for how. *@
+        @if (Model.OnHoldCount > 0)
+        {
+            <a class="sma-history__return-cta" href="/kiosk?mode=Return">
+                <span aria-hidden="true">&#8617;</span>
+                Return a book
+            </a>
+        }
+    </header>
+
+    @* ---------------- summary ---------------- *@
+    <section class="sma-history__stats" aria-label="Borrowing summary">
+        <div class="sma-stat">
+            <span class="sma-stat__value">@Model.TotalCount</span>
+            <span class="sma-stat__label">Total borrowed</span>
+        </div>
+        <div class="sma-stat">
+            <span class="sma-stat__value">@Model.OnHoldCount</span>
+            <span class="sma-stat__label">Still out</span>
+        </div>
+        <div class="sma-stat">
+            <span class="sma-stat__value">@Model.ReturnedCount</span>
+            <span class="sma-stat__label">Returned</span>
+        </div>
+
+        @* The one number that may require action, so it is on the page rather than behind a click. *@
+        <div class="sma-stat @(owes ? "is-owed" : "is-clear")">
+            <span class="sma-stat__value">@Money(Model.EstimatedFine)</span>
+            <span class="sma-stat__label">@(owes ? "Outstanding fines" : "Nothing owed")</span>
+        </div>
+    </section>
+
+    <p class="sma-history__terms">
+        Overdue books are charged at <strong>@Money(Model.FinePerDay) per day</strong>, per book.
+        Fines are settled at the circulation desk.
+        <a asp-controller="Home" asp-action="AboutPolicies">Borrowing terms</a>
+    </p>
+
+    @* ---------------- list ---------------- *@
+    @if (Model.Items.Any())
+    {
+        <div class="sma-history__list">
+            @foreach (var item in Model.Items)
             {
-                @foreach (var item in Model.Items)
-                {
-                    var yearText = item.Year > 0 ? item.Year.ToString(CultureInfo.InvariantCulture) : "N/A";
-                    var borrowDateText = item.BorrowDate.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
-                    var dueDateText = item.DueDate.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
-                    var returnDateText = item.ReturnDate.HasValue
-                        ? item.ReturnDate.Value.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)
-                        : "-";
+                var yearText = item.Year > 0 ? item.Year.ToString(CultureInfo.InvariantCulture) : "—";
+                var borrowDateText = item.BorrowDate.ToString("d MMM yyyy", CultureInfo.InvariantCulture);
+                var dueDateText = item.DueDate.ToString("d MMM yyyy", CultureInfo.InvariantCulture);
+                var returnDateText = item.ReturnDate.HasValue
+                    ? item.ReturnDate.Value.ToString("d MMM yyyy", CultureInfo.InvariantCulture)
+                    : "—";
+                var cover = string.IsNullOrWhiteSpace(item.ImageUrl)
+                    ? Url.Content("~/images/User/Book/book2.png")
+                    : Url.Content(item.ImageUrl);
 
-                    <article class="history-card shadow-sm">
-                        <div class="row g-0 history-row">
-                            <div class="col-auto history-thumb-col">
-                                <div class="thumb">
-                                    <img src="@Url.Content(item.ImageUrl)" alt="@item.Title cover" />
-                                </div>
-                            </div>
+                <article class="sma-history__item">
+                    <a class="sma-history__cover" asp-controller="Home" asp-action="BookDetail"
+                       asp-route-id="@item.BookId" tabindex="-1" aria-hidden="true">
+                        <img src="@cover" alt="" loading="lazy" />
+                    </a>
 
-                            <div class="col history-book-col">
-                                <div class="px-3 py-3">
-                                    <h5 class="book-name mb-1">@item.Title</h5>
-                                    <div class="small text-muted2">Author: @item.Author</div>
-                                    <div class="small text-muted2">Publish Year: @yearText</div>
-                                    <div class="small text-muted2">Book Code: @item.BookCode</div>
+                    <div class="sma-history__body">
+                        <h2 class="sma-history__book">
+                            <a asp-controller="Home" asp-action="BookDetail" asp-route-id="@item.BookId">@item.Title</a>
+                        </h2>
+                        <p class="sma-history__author">@item.Author</p>
+                        <p class="sma-history__meta">
+                            <span class="sma-mono">@item.BookCode</span> &middot; @yearText
+                        </p>
 
-                                    <div class="stars mt-2" aria-label="Book rating">
-                                        @for (var i = 0; i < 5; i++)
-                                        {
-                                            if (i < item.Rating)
-                                            {
-                                                <i class="bi bi-star-fill"></i>
-                                            }
-                                            else
-                                            {
-                                                <i class="bi bi-star"></i>
-                                            }
-                                        }
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="col-lg-4 history-status-col">
-                                <div class="status-box px-3 py-3">
-                                    <div class="small">
-                                        <span class="label">Status:</span>
-                                        <span class="status @item.Status">@item.StatusLabel</span>
-                                    </div>
-                                    <div class="history-date-list mt-1">
-                                        <div class="small text-muted2">Borrow Date: @borrowDateText</div>
-                                        <div class="small text-muted2">Due Date: @dueDateText</div>
-                                        <div class="small text-muted2">Return Date: @returnDateText</div>
-                                    </div>
-                                    @if (item.LateDays > 0)
-                                    {
-                                        <div class="small text-danger mt-1">
-                                            Late @item.LateDays day(s)
-                                        </div>
-                                    }
-                                    @if (item.FineAmount > 0)
-                                    {
-                                        <div class="small mt-1 @(item.FinePaid ? "text-success" : "text-danger")">
-                                            Fine: $@item.FineAmount.ToString("0.00", CultureInfo.InvariantCulture)
-                                            (@(item.FinePaid ? "Paid" : "Unpaid"))
-                                        </div>
-                                        @if (item.FinePaidDate.HasValue)
-                                        {
-                                            <div class="small text-success">Paid Date: @item.FinePaidDate.Value.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)</div>
-                                        }
-                                    }
-                                </div>
-                            </div>
-                        </div>
-                    </article>
-                }
-            }
-            else
-            {
-                <article class="history-card shadow-sm">
-                    <div class="empty-state">
-                        No borrowing history found yet.
+                        @* Status carries a word as well as colour (section 111). *@
+                        <span class="sma-history__status is-@item.Status">@item.StatusLabel</span>
                     </div>
+
+                    <dl class="sma-history__dates">
+                        <div><dt>Borrowed</dt><dd>@borrowDateText</dd></div>
+                        <div><dt>Due</dt><dd>@dueDateText</dd></div>
+                        <div><dt>Returned</dt><dd>@returnDateText</dd></div>
+                    </dl>
+
+                    <div class="sma-history__money">
+                        @if (item.LateDays > 0)
+                        {
+                            <span class="sma-history__late">@item.LateDays day@(item.LateDays == 1 ? "" : "s") late</span>
+                        }
+
+                        @if (item.FineAmount > 0)
+                        {
+                            <span class="sma-history__fine @(item.FinePaid ? "is-paid" : "is-due")">
+                                @Money(item.FineAmount)
+                                <small>@(item.FinePaid ? "paid" : "to pay")</small>
+                            </span>
+
+                            @if (item.FinePaid && item.FinePaidDate.HasValue)
+                            {
+                                <span class="sma-history__paid-on">
+                                    on @item.FinePaidDate.Value.ToString("d MMM yyyy", CultureInfo.InvariantCulture)
+                                </span>
+                            }
+                        }
+                        else if (item.LateDays == 0)
+                        {
+                            <span class="sma-history__fine is-none">No fine</span>
+                        }
+                    </div>
+
+                    @* Still out, so offer the way to give it back right here. *@
+                    @if (item.Status is "borrowing" or "overdue")
+                    {
+                        <a class="sma-history__return" href="/kiosk?mode=Return">Return</a>
+                    }
                 </article>
             }
         </div>
-    </div>
-</section>
-
-@section Scripts {
-    <script>
-        $(function () {
-            $("#toggleSummary").on("click", function (e) {
-                e.stopPropagation();
-                $("#summaryDetails").fadeToggle(180);
-            });
-
-            $(document).on("click", function (e) {
-                if (!$(e.target).closest(".summary-dropdown").length) {
-                    $("#summaryDetails").fadeOut(180);
-                }
-            });
-        });
-    </script>
-}
+    }
+    else
+    {
+        <div class="sma-history__empty">
+            <div class="sma-history__empty-glyph" aria-hidden="true">📚</div>
+            <h2 class="sma-history__empty-title">You have not borrowed anything yet</h2>
+            <p>When you borrow a book it appears here with its due date, so you can see what to bring back and when.</p>
+            <a class="sma-browse__empty-action" asp-controller="Home" asp-action="Book">Browse the catalogue</a>
+        </div>
+    }
+</div>

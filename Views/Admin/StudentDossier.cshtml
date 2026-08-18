@@ -1,0 +1,375 @@
+@using System.Globalization
+@using Library_Management_system.Application.Policies
+@using Library_Management_system.Domain.Enums
+@model Library_Management_system.Application.Search.StudentDossier
+@{
+    ViewData["Title"] = Model.FullName;
+    ViewBag.SmaActive = "search";
+    ViewBag.SmaSubtitle = $"{Model.RollNumber} · everything on file";
+    Layout = "~/Views/Shared/_StaffLayout.cshtml";
+
+    var policy = ViewBag.Policy as LoanPolicySnapshot;
+    var currency = policy?.Currency ?? "PKR";
+    var limit = policy?.MaximumBooksPerStudent ?? 0;
+
+    string Money(decimal amount) =>
+        $"{currency} {amount.ToString("0.00", CultureInfo.InvariantCulture)}";
+
+    string Day(DateTime d) => d.ToString("d MMM yyyy", CultureInfo.InvariantCulture);
+    string DayOrDash(DateTime? d) => d.HasValue ? Day(d.Value) : "—";
+}
+
+@*
+    Student dossier.
+
+    Global search could find a student but only ever linked to the manual-issue screen, which
+    shows a name and a picker. Answering an ordinary desk question — "what have you got out, what
+    do you owe, why can't I issue this to you" — meant opening loans, returns, fines, reservations
+    and tags separately and joining them by eye. This is that join, on one page.
+*@
+
+<div class="sma-card" style="margin-bottom:var(--sma-space-5)">
+    <div class="sma-card__header">
+        <h2 class="sma-card__title">@Model.FullName</h2>
+
+        @if (Model.IsBorrowingBlocked)
+        {
+            <span class="sma-badge sma-badge--danger">▲ Borrowing blocked</span>
+        }
+        else if (Model.Status != StudentStatus.Active)
+        {
+            <span class="sma-badge sma-badge--warning">▲ @Model.Status</span>
+        }
+        else
+        {
+            <span class="sma-badge sma-badge--success">✓ Active</span>
+        }
+    </div>
+
+    <div class="sma-card__body">
+        @if (Model.IsBorrowingBlocked && !string.IsNullOrWhiteSpace(Model.BorrowingBlockReason))
+        {
+            <p class="sma-alert sma-alert--danger">
+                <strong>Borrowing is blocked.</strong> @Model.BorrowingBlockReason
+            </p>
+        }
+
+        <dl class="sma-kv">
+            <div><dt>Roll number</dt><dd>@Model.RollNumber</dd></div>
+            <div><dt>Student ID</dt><dd>@Model.StudentIdNumber</dd></div>
+            <div><dt>Email</dt><dd>@(Model.Email ?? "—")</dd></div>
+            <div><dt>Phone</dt><dd>@(Model.Phone ?? "—")</dd></div>
+            @* Masked, never the full number (specification section 44). *@
+            <div><dt>CNIC</dt><dd>@(Model.MaskedCnic ?? "—")</dd></div>
+            <div><dt>Department</dt><dd>@(Model.Department ?? "—")</dd></div>
+            <div><dt>Programme</dt><dd>@(Model.Programme ?? "—")</dd></div>
+            <div><dt>Semester</dt><dd>@(Model.Semester?.ToString(CultureInfo.InvariantCulture) ?? "—")</dd></div>
+            <div><dt>On file since</dt><dd>@Day(Model.CreatedUtc)</dd></div>
+        </dl>
+
+        <div style="margin-top:var(--sma-space-4);display:flex;gap:var(--sma-space-3);flex-wrap:wrap">
+            <a class="sma-btn sma-btn--primary" href="/desk/manual?studentId=@Model.StudentId">Issue a book</a>
+            <a class="sma-btn sma-btn--ghost" href="/desk/return">Return a book</a>
+            <a class="sma-btn sma-btn--ghost" href="/desk/search">Back to search</a>
+        </div>
+    </div>
+</div>
+
+@* ---------------- at a glance ---------------- *@
+<div class="sma-card" style="margin-bottom:var(--sma-space-5)">
+    <div class="sma-card__header">
+        <h2 class="sma-card__title">At a glance</h2>
+    </div>
+    <div class="sma-card__body">
+        <dl class="sma-kv">
+            <div>
+                <dt>Out now</dt>
+                <dd>@Model.CurrentLoans.Count@(limit > 0 ? $" of {limit}" : "")</dd>
+            </div>
+            <div>
+                <dt>Overdue</dt>
+                <dd>
+                    @if (Model.OverdueCount > 0)
+                    {
+                        <span class="sma-badge sma-badge--danger">▲ @Model.OverdueCount</span>
+                    }
+                    else
+                    {
+                        <text>None</text>
+                    }
+                </dd>
+            </div>
+            <div>
+                <dt>Outstanding fines</dt>
+                <dd>
+                    @if (Model.OutstandingFine > 0)
+                    {
+                        <span class="sma-badge sma-badge--warning">▲ @Money(Model.OutstandingFine)</span>
+                    }
+                    else
+                    {
+                        <text>@Money(0)</text>
+                    }
+                </dd>
+            </div>
+            <div><dt>Fines already paid</dt><dd>@Money(Model.PaidFine)</dd></div>
+            <div><dt>Next due</dt><dd>@DayOrDash(Model.NextDue)</dd></div>
+            <div><dt>Loans all time</dt><dd>@Model.Loans.Count</dd></div>
+        </dl>
+    </div>
+</div>
+
+@* ---------------- currently out ---------------- *@
+<div class="sma-card" style="margin-bottom:var(--sma-space-4)">
+    <div class="sma-card__header">
+        <h2 class="sma-card__title">Currently out</h2>
+        <span class="sma-badge sma-badge--neutral">@Model.CurrentLoans.Count</span>
+    </div>
+    <div class="sma-card__body">
+        @if (Model.CurrentLoans.Count == 0)
+        {
+            <div class="sma-empty">
+                <div class="sma-empty__icon" aria-hidden="true">✓</div>
+                <div class="sma-empty__title">Nothing on loan</div>
+                <p class="sma-empty__body">This student has no books out.</p>
+            </div>
+        }
+        else
+        {
+            <div class="sma-table-wrap">
+                <table class="sma-table">
+                    <caption class="sma-sr-only">Books @Model.FullName currently has on loan</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Book</th>
+                            <th scope="col">Copy</th>
+                            <th scope="col">Borrowed</th>
+                            <th scope="col">Due</th>
+                            <th scope="col">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var loan in Model.CurrentLoans)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@loan.BookTitle</strong>
+                                <div class="sma-small sma-muted">
+                                    @loan.Author
+                                    @if (!string.IsNullOrWhiteSpace(loan.TransactionNumber))
+                                    {
+                                        <text> · @loan.TransactionNumber</text>
+                                    }
+                                </div>
+                            </td>
+                            <td class="sma-small">
+                                @(loan.AccessionNumber ?? loan.CopyNumber ?? "—")
+                            </td>
+                            <td class="sma-small">@Day(loan.BorrowDate)</td>
+                            <td class="sma-small">@Day(loan.DueDate)</td>
+                            <td style="white-space:nowrap">
+                                @* Status carries a word as well as colour (section 111). *@
+                                @if (loan.IsOverdue)
+                                {
+                                    <span class="sma-badge sma-badge--danger">
+                                        ▲ @loan.LateDays day@(loan.LateDays == 1 ? "" : "s") overdue
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="sma-badge sma-badge--success">✓ On loan</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@* ---------------- returned ---------------- *@
+<div class="sma-card" style="margin-bottom:var(--sma-space-4)">
+    <div class="sma-card__header">
+        <h2 class="sma-card__title">Returned</h2>
+        <span class="sma-badge sma-badge--neutral">@Model.ReturnedLoans.Count</span>
+    </div>
+    <div class="sma-card__body">
+        @if (Model.ReturnedLoans.Count == 0)
+        {
+            <div class="sma-empty">
+                <div class="sma-empty__icon" aria-hidden="true">↩</div>
+                <div class="sma-empty__title">Nothing returned yet</div>
+                <p class="sma-empty__body">Completed loans will be listed here.</p>
+            </div>
+        }
+        else
+        {
+            <div class="sma-table-wrap">
+                <table class="sma-table">
+                    <caption class="sma-sr-only">Books @Model.FullName has returned</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Book</th>
+                            <th scope="col">Borrowed</th>
+                            <th scope="col">Due</th>
+                            <th scope="col">Returned</th>
+                            <th scope="col">Method</th>
+                            <th scope="col">Fine</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var loan in Model.ReturnedLoans)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@loan.BookTitle</strong>
+                                <div class="sma-small sma-muted">
+                                    @loan.Author
+                                    @if (!string.IsNullOrWhiteSpace(loan.TransactionNumber))
+                                    {
+                                        <text> · @loan.TransactionNumber</text>
+                                    }
+                                </div>
+                            </td>
+                            <td class="sma-small">@Day(loan.BorrowDate)</td>
+                            <td class="sma-small">@Day(loan.DueDate)</td>
+                            <td class="sma-small">@DayOrDash(loan.ReturnDate)</td>
+                            <td class="sma-small">
+                                @loan.IssueMethod@(loan.ReturnMethod.HasValue ? $" → {loan.ReturnMethod}" : "")
+                            </td>
+                            <td style="white-space:nowrap">
+                                @if (loan.FineAmount > 0)
+                                {
+                                    <span class="sma-badge @(loan.FinePaid ? "sma-badge--success" : "sma-badge--warning")">
+                                        @(loan.FinePaid ? "✓" : "▲") @Money(loan.FineAmount) @(loan.FinePaid ? "paid" : "due")
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="sma-small sma-muted">—</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@* ---------------- reservations and requests ---------------- *@
+<div class="sma-card" style="margin-bottom:var(--sma-space-4)">
+    <div class="sma-card__header">
+        <h2 class="sma-card__title">Reservations &amp; requests</h2>
+        <span class="sma-badge sma-badge--neutral">@(Model.Reservations.Count + Model.Requests.Count)</span>
+    </div>
+    <div class="sma-card__body">
+        @if (Model.Reservations.Count == 0 && Model.Requests.Count == 0)
+        {
+            <div class="sma-empty">
+                <div class="sma-empty__icon" aria-hidden="true">◷</div>
+                <div class="sma-empty__title">Nothing outstanding</div>
+                <p class="sma-empty__body">No holds queued and no desk requests waiting.</p>
+            </div>
+        }
+        else
+        {
+            <div class="sma-table-wrap">
+                <table class="sma-table">
+                    <caption class="sma-sr-only">Reservations and desk requests for @Model.FullName</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Book</th>
+                            <th scope="col">Kind</th>
+                            <th scope="col">Raised</th>
+                            <th scope="col">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var hold in Model.Reservations)
+                    {
+                        <tr>
+                            <td><strong>@hold.BookTitle</strong></td>
+                            <td class="sma-small">Hold@(hold.QueuePosition > 0 ? $" · #{hold.QueuePosition} in queue" : "")</td>
+                            <td class="sma-small">@Day(hold.CreatedUtc)</td>
+                            <td>
+                                <span class="sma-badge @(hold.Status == ReservationStatus.Available ? "sma-badge--success" : "sma-badge--info")">
+                                    @hold.Status
+                                </span>
+                            </td>
+                        </tr>
+                    }
+                    @foreach (var request in Model.Requests)
+                    {
+                        var isPending = string.Equals(request.Status, "pending", StringComparison.OrdinalIgnoreCase);
+                        var isApproved = string.Equals(request.Status, "approved", StringComparison.OrdinalIgnoreCase);
+
+                        <tr>
+                            <td><strong>@request.BookTitle</strong></td>
+                            <td class="sma-small">Desk request</td>
+                            <td class="sma-small">@DayOrDash(request.RequestedDate)</td>
+                            <td>
+                                <span class="sma-badge @(isPending ? "sma-badge--warning" : isApproved ? "sma-badge--success" : "sma-badge--neutral")">
+                                    @(isPending ? "▲ " : isApproved ? "✓ " : "")@request.Status
+                                </span>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@* ---------------- cards ---------------- *@
+<div class="sma-card">
+    <div class="sma-card__header">
+        <h2 class="sma-card__title">RFID cards</h2>
+        <span class="sma-badge sma-badge--neutral">@Model.Cards.Count</span>
+    </div>
+    <div class="sma-card__body">
+        @if (Model.Cards.Count == 0)
+        {
+            <div class="sma-empty">
+                <div class="sma-empty__icon" aria-hidden="true">▭</div>
+                <div class="sma-empty__title">No card issued</div>
+                <p class="sma-empty__body">
+                    This student cannot use the self-service station until a card is assigned.
+                </p>
+            </div>
+        }
+        else
+        {
+            <div class="sma-table-wrap">
+                <table class="sma-table">
+                    <caption class="sma-sr-only">RFID cards assigned to @Model.FullName</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">EPC</th>
+                            <th scope="col">Assigned</th>
+                            <th scope="col">State</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var card in Model.Cards)
+                    {
+                        <tr>
+                            <td><code class="sma-small">@card.Epc</code></td>
+                            <td class="sma-small">@DayOrDash(card.AssignedUtc)</td>
+                            <td>
+                                <span class="sma-badge @(card.IsActive ? "sma-badge--success" : "sma-badge--neutral")">
+                                    @(card.IsActive ? "✓ Active" : card.State)
+                                </span>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

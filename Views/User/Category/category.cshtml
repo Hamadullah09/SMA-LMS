@@ -1,127 +1,170 @@
 @using System.Linq
+@using Library_Management_system.Models
 @model IEnumerable<Library_Management_system.Models.Book>
 @{
     Layout = "~/Views/Shared/_Layout.cshtml";
-    ViewData["Title"] = "Book";
-    ViewBag.Title = "Book Category";
+    ViewData["Title"] = "Browse";
+    ViewData["FullWidth"] = true;   // the design system supplies its own measure
 
     var currentCategory = ViewBag.CurrentCategory as string;
     var currentSearch = ViewBag.CurrentSearch as string;
     var currentPage = ViewBag.CurrentPage is int page ? page : 1;
     var totalPages = ViewBag.TotalPages is int pages ? pages : 1;
+    var totalItems = ViewBag.TotalItems is int count ? count : Model?.Count() ?? 0;
     var categories = ViewBag.Categories as IEnumerable<string> ?? Enumerable.Empty<string>();
+    var cards = ViewBag.Cards as HomeViewModel ?? new HomeViewModel();
+    var returnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
+
+    var hasFilter = !string.IsNullOrWhiteSpace(currentCategory) || !string.IsNullOrWhiteSpace(currentSearch);
+
+    // Windowed pagination. The old page rendered every page number, so a large catalogue
+    // produced a strip of dozens of links that wrapped across the page.
+    var windowStart = Math.Max(1, currentPage - 2);
+    var windowEnd = Math.Min(totalPages, windowStart + 4);
+    windowStart = Math.Max(1, windowEnd - 4);
 }
 
-<div id="bookCategoryPage" class="container book-category-page">
-    <h2 class="text-center fw-bold text-navy category-heading">Book Categories</h2>
-    <p class="text-center text-muted category-subheading">Explore our collection of books by category. Find your next
-        great read!</p>
-        @if (TempData["BookCategoryError"] is string categoryError && !string.IsNullOrWhiteSpace(categoryError))
-        {
-            <div class="alert alert-warning text-center mb-3" role="alert">
-                @categoryError
-            </div>
-        }
-        @if (!string.IsNullOrWhiteSpace(currentSearch))
-        {
-            <p class="text-center text-muted mb-3">
-                Search results for: <strong>@currentSearch</strong>
+@*
+    Browse.
+
+    Rebuilt on the student design system. Two things changed beyond styling:
+
+    * the card markup is gone. This page had its own copy of a book card — Bootstrap grid,
+      inline height, a star rating — while the homepage used _SmaBookCard. They had already
+      drifted: browse never told a student whether a book could actually be borrowed. It now
+      renders the same partial, so the two cannot diverge again.
+
+    * the filter row states the result count. "Showing 8 of 200" is the difference between a
+      student trusting the filter and wondering whether it silently dropped something.
+*@
+
+<div class="sma-browse">
+
+    <header class="sma-browse__head">
+        <div>
+            <h1 class="sma-browse__title">
+                @(string.IsNullOrWhiteSpace(currentCategory) ? "Browse the catalogue" : currentCategory)
+            </h1>
+            <p class="sma-browse__sub">
+                @if (!string.IsNullOrWhiteSpace(currentSearch))
+                {
+                    <text>Results for &ldquo;<strong>@currentSearch</strong>&rdquo; &middot; </text>
+                }
+                @totalItems book@(totalItems == 1 ? "" : "s")
+                @if (hasFilter)
+                {
+                    <text> found</text>
+                }
+                else
+                {
+                    <text> in the library</text>
+                }
             </p>
+        </div>
+
+        @if (hasFilter)
+        {
+            <a class="sma-browse__clear" asp-controller="Home" asp-action="Book">Clear filters</a>
         }
-        <div class="filter-scroll-container mb-5">
-            <div class="d-flex flex-nowrap px-4">
-                <a asp-controller="Home" asp-action="Book" asp-route-category=""
-                   asp-route-q="@currentSearch"
-                   class="btn btn-filter category-chip @(string.IsNullOrEmpty(currentCategory) ? "active" : "")">All</a>
+    </header>
 
-                @foreach (var categoryName in categories)
-                {
-                    <a asp-controller="Home" asp-action="Book" asp-route-category="@categoryName"
-                       asp-route-q="@currentSearch"
-                       class="btn btn-filter category-chip @(currentCategory == categoryName ? "active" : "")">@categoryName</a>
-                }
-            </div>
+    @if (TempData["BookCategoryError"] is string categoryError && !string.IsNullOrWhiteSpace(categoryError))
+    {
+        <div class="sma-browse__alert" role="alert">
+            <span aria-hidden="true">▲</span>
+            <span>@categoryError</span>
         </div>
+    }
 
-        <div class="row g-4 category-grid">
-            @if (Model != null && Model.Any())
-            {
-                @foreach (var book in Model)
-                {
-                    var imagePath = string.IsNullOrWhiteSpace(book.ImageUrl)
-                        ? Url.Content("~/images/User/Book/book2.png")
-                        : Url.Content(book.ImageUrl);
-                    var rating = Math.Clamp(book.Rating, 0, 5);
+    @* Subject filter. Horizontal scroll on narrow screens rather than a wrapping block. *@
+    <nav class="sma-chips custom-scrollbar" aria-label="Filter by subject">
+        <a asp-controller="Home" asp-action="Book" asp-route-q="@currentSearch"
+           class="sma-chip @(string.IsNullOrEmpty(currentCategory) ? "is-active" : "")">All subjects</a>
 
-                    <div class="col-6 col-md-4 col-lg-3">
-                        <div class="card book-card category-card border-0 shadow-sm h-100 position-relative">
-                            <div class="p-2 position-relative">
-                                <img src="@imagePath" class="card-img-top rounded-3" alt="Book Cover"
-                                     style="height: 200px; object-fit: cover;">
-                            </div>
-                            <div class="card-body pt-0 px-3 pb-3">
-                                <span class="category-text-tiny fw-bold text-muted">@book.CategoryName</span>
-                                <h6 class="book-title-clamped mb-1 fw-bold">@book.Title</h6>
-                                <p class="author-text-tiny text-muted mb-2">@book.Author</p>
-                                <div class="text-end text-warning small">
-                                    @for (var i = 0; i < 5; i++)
-                                    {
-                                        if (i < rating)
-                                        {
-                                            <i class="fa-solid fa-star"></i>
-                                        }
-                                        else
-                                        {
-                                            <i class="fa-regular fa-star"></i>
-                                        }
-                                    }
-                                </div>
-                            </div>
-                            <a asp-controller="Home" asp-action="BookDetail" asp-route-id="@book.Id" class="stretched-link"
-                               aria-label="View details for @book.Title"></a>
-                        </div>
-                    </div>
-                }
-            }
-            else
+        @foreach (var categoryName in categories)
+        {
+            <a asp-controller="Home" asp-action="Book" asp-route-category="@categoryName"
+               asp-route-q="@currentSearch"
+               class="sma-chip @(currentCategory == categoryName ? "is-active" : "")">@categoryName</a>
+        }
+    </nav>
+
+    @if (Model != null && Model.Any())
+    {
+        <div class="sma-book-grid">
+            @foreach (var book in Model)
             {
-                <div class="col-12">
-                    <div class="text-center py-5 text-muted">
-                        @(string.IsNullOrWhiteSpace(currentSearch)
-                            ? "No books found in this category."
-                            : "No books found for your search.")
-                    </div>
-                </div>
+                <partial name="_SmaBookCard" model="@((book, cards, returnUrl))" />
             }
         </div>
+    }
+    else
+    {
+        <div class="sma-browse__empty">
+            <div class="sma-browse__empty-glyph" aria-hidden="true">🔍</div>
+            <h2 class="sma-browse__empty-title">
+                @(string.IsNullOrWhiteSpace(currentSearch)
+                    ? "Nothing in this subject yet"
+                    : "No books matched that search")
+            </h2>
+            <p>
+                @(string.IsNullOrWhiteSpace(currentSearch)
+                    ? "Try another subject, or browse everything the library holds."
+                    : "Check the spelling, or try a shorter search — a title word or the author's surname usually works best.")
+            </p>
+            <a class="sma-browse__empty-action" asp-controller="Home" asp-action="Book">Browse everything</a>
+        </div>
+    }
 
-        <nav class="mt-5 d-flex justify-content-center">
-            <div class="pagination-wrapper d-flex border rounded overflow-hidden">
-                @if (totalPages > 1)
+    @if (totalPages > 1)
+    {
+        <nav class="sma-pager" aria-label="Pagination">
+            @if (currentPage > 1)
+            {
+                <a class="sma-pager__step" asp-controller="Home" asp-action="Book"
+                   asp-route-category="@currentCategory" asp-route-q="@currentSearch"
+                   asp-route-page="@(currentPage - 1)" rel="prev">← Previous</a>
+            }
+
+            <div class="sma-pager__pages">
+                @if (windowStart > 1)
                 {
-                    @if (currentPage > 1)
+                    <a class="sma-pager__page" asp-controller="Home" asp-action="Book"
+                       asp-route-category="@currentCategory" asp-route-q="@currentSearch"
+                       asp-route-page="1">1</a>
+                    @if (windowStart > 2)
                     {
-                        <a asp-controller="Home" asp-action="Book" asp-route-category="@currentCategory"
-                           asp-route-q="@currentSearch"
-                           asp-route-page="@(currentPage - 1)" class="page-node px-3">Prev</a>
-                    }
-
-                    @for (var i = 1; i <= totalPages; i++)
-                    {
-                        <a asp-controller="Home" asp-action="Book" asp-route-page="@i" asp-route-category="@currentCategory"
-                               asp-route-q="@currentSearch"
-                               class="page-node @(i == currentPage ? "active" : "")">
-                            @i
-                        </a>
-                    }
-
-                    @if (currentPage < totalPages)
-                    {
-                        <a asp-controller="Home" asp-action="Book" asp-route-category="@currentCategory"
-                           asp-route-q="@currentSearch"
-                           asp-route-page="@(currentPage + 1)" class="page-node px-3">Next</a>
+                        <span class="sma-pager__gap" aria-hidden="true">…</span>
                     }
                 }
+
+                @for (var i = windowStart; i <= windowEnd; i++)
+                {
+                    <a class="sma-pager__page @(i == currentPage ? "is-active" : "")"
+                       asp-controller="Home" asp-action="Book"
+                       asp-route-category="@currentCategory" asp-route-q="@currentSearch"
+                       asp-route-page="@i"
+                       aria-current="@(i == currentPage ? "page" : null)">@i</a>
+                }
+
+                @if (windowEnd < totalPages)
+                {
+                    @if (windowEnd < totalPages - 1)
+                    {
+                        <span class="sma-pager__gap" aria-hidden="true">…</span>
+                    }
+                    <a class="sma-pager__page" asp-controller="Home" asp-action="Book"
+                       asp-route-category="@currentCategory" asp-route-q="@currentSearch"
+                       asp-route-page="@totalPages">@totalPages</a>
+                }
             </div>
+
+            @if (currentPage < totalPages)
+            {
+                <a class="sma-pager__step" asp-controller="Home" asp-action="Book"
+                   asp-route-category="@currentCategory" asp-route-q="@currentSearch"
+                   asp-route-page="@(currentPage + 1)" rel="next">Next →</a>
+            }
         </nav>
-    </div>
+    }
+</div>

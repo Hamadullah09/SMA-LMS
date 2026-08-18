@@ -3,7 +3,8 @@
 @model CartPageViewModel
 @{
     Layout = "~/Views/Shared/_Layout.cshtml";
-    ViewBag.Title = "Cart";
+    ViewData["Title"] = "Cart";
+    ViewData["FullWidth"] = true;   // the design system supplies its own measure
 
     string GetGroupLabel(DateTime createdUtc)
     {
@@ -11,7 +12,7 @@
         var today = DateTime.Now.Date;
         if (localDate == today) return "Today";
         if (localDate == today.AddDays(-1)) return "Yesterday";
-        return localDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        return localDate.ToString("d MMMM yyyy", CultureInfo.InvariantCulture);
     }
 
     var groupedItems = Model.Items
@@ -31,169 +32,281 @@
     var showApprovedState = allLockedRequested && pendingCount == 0 && approvedCount > 0;
 }
 
-<section class="cart-page">
+@*
+    Cart.
+
+    Rebuilt on the student design system. The behaviour is unchanged and the hooks cart.js binds
+    to are preserved exactly: #reservation-alert-meta and its data- attributes, .inventory-group,
+    .master-tick, .cart-item-checkbox, the hidden-input/custom-check checkbox pair, and the
+    itemIds field names the form posts.
+
+    Layout change worth noting: the actions were a row of small toolbar buttons at the top, above
+    the list they acted on. They are now a summary panel beside the list, which keeps the primary
+    action visible while a student is still scrolling through what they picked.
+*@
+
+<div class="sma-cart">
+
+    @* Read by cart.js for the reservation decision toast. Attributes must not change. *@
     <div id="reservation-alert-meta"
          data-approved="@Model.ApprovedReservationsCount"
          data-rejected="@Model.RejectedReservationsCount"
          data-version="@Model.LastReservationDecisionVersion"></div>
 
+    <header class="sma-cart__head">
+        <div>
+            <h1 class="sma-cart__title">Your cart</h1>
+            <p class="sma-cart__sub">
+                @totalCount book@(totalCount == 1 ? "" : "s") ready to collect
+            </p>
+        </div>
+    </header>
+
     @if (TempData["CartMessage"] is string successMessage && !string.IsNullOrWhiteSpace(successMessage))
     {
-        <div class="alert alert-success cart-alert">@successMessage</div>
+        <div class="sma-cart__flash is-ok" role="status">@successMessage</div>
     }
 
     @if (TempData["CartError"] is string errorMessage && !string.IsNullOrWhiteSpace(errorMessage))
     {
-        <div class="alert alert-danger cart-alert">@errorMessage</div>
+        <div class="sma-cart__flash is-bad" role="alert">@errorMessage</div>
     }
 
-    <form id="cartForm" method="post">
-        @Html.AntiForgeryToken()
-
-        <div class="cart-toolbar">
-            <h1 class="cart-title">Cart</h1>
-            <div class="cart-toolbar-actions">
-                <span class="cart-total">Total: @Model.TotalBooks books</span>
-
-                @if (showPendingState)
-                {
-                    <span class="toolbar-pill toolbar-pending">Request Pending</span>
-                    <button type="submit"
-                            class="toolbar-btn toolbar-cancel"
-                            formaction="@Url.Action("CancelPendingRequests", "Home")">
-                        Cancel
-                    </button>
-                }
-                else if (showRejectedState)
-                {
-                    <span class="toolbar-pill toolbar-rejected">Request Decline</span>
-                }
-                else if (showApprovedState)
-                {
-                    <span class="toolbar-pill toolbar-approved">Request Approved</span>
-                }
-                else
-                {
-                    <button type="submit"
-                            class="toolbar-btn toolbar-delete"
-                            formaction="@Url.Action("DeleteSelectedCartItems", "Home")">
-                        Delete
-                    </button>
-                    @* Self-service checkout, not a librarian approval request. The books still have
-                       to be fetched and read by the reader at the station, so this only takes the
-                       student there — it does not issue anything on its own. *@
-                    <button type="submit"
-                            class="toolbar-btn toolbar-request"
-                            formaction="@Url.Action("ProceedToSelfCheckout", "Home")">
-                        Proceed to checkout
-                    </button>
-                }
-            </div>
+    @if (!Model.Items.Any())
+    {
+        <div class="sma-cart__empty">
+            <div class="sma-cart__empty-glyph" aria-hidden="true">🛒</div>
+            <h2 class="sma-cart__empty-title">Your cart is empty</h2>
+            <p>Add books as you browse, then take them to the self-service station or the desk.</p>
+            <a class="sma-browse__empty-action" asp-controller="Home" asp-action="Book">Browse the catalogue</a>
         </div>
-        
-        @if (!Model.Items.Any())
-        {
-            <div class="cart-empty-state">
-                Your cart is empty.
-            </div>
-        }
-        else
-        {
-            foreach (var group in groupedItems)
-            {
-                var selectableInGroup = group.Any(item =>
+    }
+    else
+    {
+        <form id="cartForm" method="post" class="sma-cart__layout">
+            @Html.AntiForgeryToken()
+
+            @* ---------------- items ---------------- *@
+            <div class="sma-cart__items">
+                @foreach (var group in groupedItems)
                 {
-                    var status = (item.ReservationStatus ?? "none").Trim().ToLowerInvariant();
-                    return status is not ("pending" or "approved");
-                });
+                    var selectableInGroup = group.Any(item =>
+                    {
+                        var status = (item.ReservationStatus ?? "none").Trim().ToLowerInvariant();
+                        return status is not ("pending" or "approved");
+                    });
 
-                <div class="inventory-group">
-                    <div class="group-header">
-                        <label class="checkbox-container">
-                            <input type="checkbox"
-                                   class="hidden-input master-tick"
-                                   @(selectableInGroup ? null : "disabled")>
-                            <span class="custom-check"></span>
-                        </label>
-                        <h5 class="group-title">@group.Key</h5>
-                    </div>
+                    <section class="inventory-group sma-cart__group">
+                        <div class="sma-cart__group-head group-header">
+                            <label class="checkbox-container sma-check">
+                                <input type="checkbox"
+                                       class="hidden-input master-tick"
+                                       aria-label="Select all in @group.Key"
+                                       @(selectableInGroup ? null : "disabled")>
+                                <span class="custom-check"></span>
+                            </label>
+                            <h2 class="sma-cart__group-title group-title">@group.Key</h2>
+                        </div>
 
-                    <div class="group-items">
-                        @foreach (var item in group)
-                        {
-                            var imagePath = string.IsNullOrWhiteSpace(item.ImageUrl)
-                                ? Url.Content("~/images/User/Book/book2.png")
-                                : Url.Content(item.ImageUrl);
-                            var publishYear = item.Year > 0 ? item.Year.ToString(CultureInfo.InvariantCulture) : "N/A";
-                            var bookCode = string.IsNullOrWhiteSpace(item.BookCode) ? $"A{item.BookId:0000}" : item.BookCode;
-                            var reservationStatus = (item.ReservationStatus ?? "none").Trim().ToLowerInvariant();
-                            var isLockedRequest = reservationStatus is "pending" or "approved";
-                            var badgeClass = reservationStatus switch
+                        <div class="group-items sma-cart__group-items">
+                            @foreach (var item in group)
                             {
-                                "approved" => "request-badge request-approved",
-                                "rejected" => "request-badge request-rejected",
-                                "pending" => "request-badge request-pending",
-                                _ => string.Empty
-                            };
-                            var badgeLabel = reservationStatus switch
-                            {
-                                "approved" => "Approved",
-                                "rejected" => "Declined",
-                                "pending" => "Pending",
-                                _ => string.Empty
-                            };
+                                var imagePath = string.IsNullOrWhiteSpace(item.ImageUrl)
+                                    ? Url.Content("~/images/User/Book/book2.png")
+                                    : Url.Content(item.ImageUrl);
+                                var publishYear = item.Year > 0 ? item.Year.ToString(CultureInfo.InvariantCulture) : "—";
+                                var bookCode = string.IsNullOrWhiteSpace(item.BookCode) ? $"A{item.BookId:0000}" : item.BookCode;
+                                var reservationStatus = (item.ReservationStatus ?? "none").Trim().ToLowerInvariant();
+                                var isLockedRequest = reservationStatus is "pending" or "approved";
+                                var badgeLabel = reservationStatus switch
+                                {
+                                    "approved" => "Approved",
+                                    "rejected" => "Declined",
+                                    "pending" => "Pending",
+                                    _ => string.Empty
+                                };
 
-                            <article class="cart-item-card">
-                                <div class="cart-item-select">
-                                    <label class="checkbox-container">
+                                <article class="sma-cart__item @(isLockedRequest ? "is-locked" : "")">
+                                    <label class="checkbox-container sma-check sma-cart__select">
                                         <input type="checkbox"
                                                class="hidden-input cart-item-checkbox"
                                                name="itemIds"
                                                value="@item.CartItemId"
+                                               aria-label="Select @item.Title"
                                                @(isLockedRequest ? "checked disabled" : null)>
                                         <span class="custom-check"></span>
                                     </label>
-                                </div>
 
-                                <div class="cart-item-cover">
-                                    <img src="@imagePath" alt="@item.Title" class="book-img">
-                                </div>
+                                    <a class="sma-cart__cover" asp-controller="Home" asp-action="BookDetail"
+                                       asp-route-id="@item.BookId" tabindex="-1" aria-hidden="true">
+                                        <img src="@imagePath" alt="" loading="lazy" />
+                                    </a>
 
-                                <div class="cart-item-content">
-                                    <h4 class="book-title">@item.Title</h4>
-                                    <p class="book-meta">Author: @item.Author</p>
-                                    <p class="book-meta">Publish Year: @publishYear</p>
-                                    <p class="book-meta">Book Code: @bookCode</p>
-                                    <div class="star-rating">
-                                        @for (var i = 0; i < 5; i++)
-                                        {
-                                            if (i < item.Rating)
-                                            {
-                                                <i class="fa-solid fa-star"></i>
-                                            }
-                                            else
-                                            {
-                                                <i class="fa-regular fa-star"></i>
-                                            }
-                                        }
+                                    <div class="sma-cart__body">
+                                        <h3 class="sma-cart__book">
+                                            <a asp-controller="Home" asp-action="BookDetail" asp-route-id="@item.BookId">@item.Title</a>
+                                        </h3>
+                                        <p class="sma-cart__author">@item.Author</p>
+                                        <p class="sma-cart__meta">
+                                            <span class="sma-mono">@bookCode</span> &middot; @publishYear
+                                        </p>
                                     </div>
-                </div>
 
-                                <div class="cart-item-state">
-                                    @if (!string.IsNullOrWhiteSpace(badgeClass))
+                                    @if (!string.IsNullOrWhiteSpace(badgeLabel))
                                     {
-                                        <span class="@badgeClass">@badgeLabel</span>
+                                        <span class="sma-cart__badge is-@reservationStatus">@badgeLabel</span>
                                     }
-                                </div>
-                            </article>
+                                </article>
+                            }
+                        </div>
+                    </section>
+                }
+            </div>
+
+            @* ---------------- summary ---------------- *@
+            <aside class="sma-cart__summary" aria-label="Cart actions">
+                <div class="sma-cart__summary-inner">
+                    <h2 class="sma-cart__summary-title">Summary</h2>
+
+                    <dl class="sma-cart__totals">
+                        <div><dt>Books in cart</dt><dd>@totalCount</dd></div>
+                        @if (pendingCount > 0)
+                        {
+                            <div><dt>Awaiting approval</dt><dd>@pendingCount</dd></div>
                         }
-                    </div>
+                        @if (approvedCount > 0)
+                        {
+                            <div><dt>Approved</dt><dd>@approvedCount</dd></div>
+                        }
+                        @if (rejectedCount > 0)
+                        {
+                            <div><dt>Declined</dt><dd>@rejectedCount</dd></div>
+                        }
+                    </dl>
+
+                    @if (showPendingState)
+                    {
+                        <p class="sma-cart__state is-pending">
+                            <strong>Request pending.</strong>
+                            A librarian is reviewing these. You can cancel while they wait.
+                        </p>
+                        <button type="submit" class="sma-cart__secondary"
+                                formaction="@Url.Action("CancelPendingRequests", "Home")">
+                            Cancel request
+                        </button>
+                    }
+                    else if (showApprovedState)
+                    {
+                        <p class="sma-cart__state is-approved">
+                            <strong>Approved.</strong> Collect these from the shelf and check them out.
+                        </p>
+                    }
+                    else if (showRejectedState)
+                    {
+                        <p class="sma-cart__state is-rejected">
+                            <strong>Request declined.</strong> Ask at the desk if you need these.
+                        </p>
+                    }
+                    else
+                    {
+                        <p class="sma-cart__state">
+                            Tick the books you want, then choose how you want to check them out.
+                        </p>
+
+                        @* Opens the choice dialog rather than committing to one route. The two
+                           paths are genuinely different — one issues the loan at the pad, the
+                           other asks a librarian — so the student picks. *@
+                        <button type="button" class="sma-cart__primary" id="checkoutOpen">
+                            Proceed to checkout
+                        </button>
+
+                        <button type="submit" class="sma-cart__secondary"
+                                formaction="@Url.Action("DeleteSelectedCartItems", "Home")">
+                            Remove selected
+                        </button>
+
+                        @*
+                            Inside the form on purpose: the submit buttons below carry the ticked
+                            itemIds with them, so the dialog needs no state of its own.
+                        *@
+                        <dialog id="checkoutDialog" class="sma-checkout" aria-labelledby="checkoutTitle">
+                            <h2 class="sma-checkout__title" id="checkoutTitle">How do you want to check out?</h2>
+                            <p class="sma-checkout__lede">
+                                Both issue the same loan under the same rules. Pick whichever suits you.
+                            </p>
+
+                            <div class="sma-checkout__options">
+                                <button type="submit" class="sma-checkout__option is-primary"
+                                        formaction="@Url.Action("ProceedToSelfCheckout", "Home")">
+                                    <span class="sma-checkout__option-icon" aria-hidden="true">⚡</span>
+                                    <span class="sma-checkout__option-body">
+                                        <span class="sma-checkout__option-title">Self-checkout</span>
+                                        <span class="sma-checkout__option-hint">
+                                            Take the books to the self-service station and scan them
+                                            yourself. Fastest, and no queue.
+                                        </span>
+                                    </span>
+                                </button>
+
+                                <button type="submit" class="sma-checkout__option"
+                                        formaction="@Url.Action("ProceedToRequest", "Home")">
+                                    <span class="sma-checkout__option-icon" aria-hidden="true">👤</span>
+                                    <span class="sma-checkout__option-body">
+                                        <span class="sma-checkout__option-title">Ask a librarian</span>
+                                        <span class="sma-checkout__option-hint">
+                                            Send the list to the circulation desk. A librarian issues
+                                            the books to you at the counter.
+                                        </span>
+                                    </span>
+                                </button>
+                            </div>
+
+                            @* formmethod="dialog" closes without submitting the cart form. *@
+                            <button type="submit" formmethod="dialog" class="sma-checkout__cancel">
+                                Cancel
+                            </button>
+                        </dialog>
+                    }
                 </div>
-            }
-        }
-    </form>
-</section>
+            </aside>
+        </form>
+    }
+</div>
 
 @section Scripts {
     <script src="~/js/users/cart.js" asp-append-version="true"></script>
+    <script>
+        (function () {
+            var open = document.getElementById('checkoutOpen');
+            var dialog = document.getElementById('checkoutDialog');
+            if (!open || !dialog) { return; }
+
+            open.addEventListener('click', function () {
+                // Nothing ticked means nothing to check out, and both routes would bounce
+                // straight back with an error. Say so here instead.
+                var picked = document.querySelectorAll('.cart-item-checkbox:checked:not([disabled])');
+                if (picked.length === 0) {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Nothing selected',
+                        text: 'Tick the books you want to check out first.',
+                        confirmButtonColor: '#f07c20'
+                    });
+                    return;
+                }
+
+                if (typeof dialog.showModal === 'function') {
+                    dialog.showModal();
+                } else {
+                    dialog.setAttribute('open', '');   // very old browsers
+                }
+            });
+
+            // Clicking the backdrop closes it. The dialog element itself covers its own box,
+            // so a click landing on <dialog> is a click outside the panel.
+            dialog.addEventListener('click', function (event) {
+                if (event.target === dialog) { dialog.close(); }
+            });
+        })();
+    </script>
 }

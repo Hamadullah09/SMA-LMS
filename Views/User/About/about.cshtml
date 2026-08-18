@@ -2,6 +2,7 @@
     @* The layout already appends the product name, so the page title is just the page. *@
     ViewData["Title"] = "About the Library";
 }
+@inject Microsoft.Extensions.Options.IOptions<Library_Management_system.Application.Policies.LibraryHoursOptions> LibraryHours
 
 
 <!-- Slide Show -->
@@ -51,9 +52,14 @@
         <h2>Service Hours</h2>
         <p>The library opens daily:</p>
         <ul>
-            <li>Monday – Friday: 07:30 – 20:30 (Except holidays)</li>
-            <li>Saturday – Sunday: 07:30 – 16:30 (Except holidays)</li>
+            @* Same source as the home page and the assistant. *@
+            <li>Monday – Friday: @LibraryHours.Value.WeekdayRange</li>
+            <li>Saturday – Sunday: @LibraryHours.Value.WeekendRange</li>
         </ul>
+        @if (!string.IsNullOrWhiteSpace(LibraryHours.Value.Note))
+        {
+            <p>@LibraryHours.Value.Note</p>
+        }
 
         <!-- Visit Us -->
         <section class="d-flex align-items-center gap-3 mb-3 about-feature">

@@ -69,7 +69,9 @@ public sealed class GlobalSearchService : IGlobalSearchService
                 "Student",
                 s.FullName,
                 s.RollNumber,
-                "/desk/manual?studentId=" + s.Id,
+                // Everything on file for them, rather than the manual-issue screen which
+                // shows only a name.
+                "/desk/student/" + s.Id,
                 s.Status.ToString(),
                 s.Status != StudentStatus.Active || s.IsBorrowingBlocked))
             .ToListAsync(ct);

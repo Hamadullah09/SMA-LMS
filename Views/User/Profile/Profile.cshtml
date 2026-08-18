@@ -1,144 +1,288 @@
+@using System.Globalization
 @model Library_Management_system.Models.ProfileViewModel
 
 @{
     Layout = "~/Views/Shared/_Layout.cshtml";
     ViewData["Title"] = "Profile";
+    ViewData["FullWidth"] = true;   // the design system supplies its own measure
+
+    string Money(decimal amount) =>
+        $"{Model.Currency} {amount.ToString("0.00", CultureInfo.InvariantCulture)}";
+
+    var owes = Model.OutstandingFine > 0;
+    var limit = Model.BorrowLimit > 0 ? Model.BorrowLimit : 0;
+    var remaining = limit > 0 ? Math.Max(0, limit - Model.BooksOutCount) : 0;
+    var usedPercent = limit > 0
+        ? Math.Clamp((int)Math.Round(Model.BooksOutCount * 100d / limit), 0, 100)
+        : 0;
+
+    // Initials sit behind the avatar and stand in if the image URL 404s.
+    var initials = string.Concat(
+        Model.FullName
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Take(2)
+            .Select(part => char.ToUpperInvariant(part[0])));
 }
 
-<link rel="stylesheet" href="~/css/users/Profile.css" asp-append-version="true" />
+@*
+    Profile.
 
-<div class="profile-page" id="profilePage">
-    <div class="fb-container">
-        <div class="fb-profile-width">
-            <section class="profile-hero">
-                <div class="cover-container">
-                    <img src="@Model.CoverImageUrl" alt="Cover Photo"
-                         class="cover-image">
-                    <div class="cover-overlay"></div>
-                    <form method="post" asp-controller="Home" asp-action="UploadCoverImage"
-                          enctype="multipart/form-data" class="image-upload-form image-upload-form-cover">
-                        @Html.AntiForgeryToken()
-                        <input type="file"
-                               name="imageFile"
-                               class="image-upload-input"
-                               id="coverImageInput"
-                               accept=".jpg,.jpeg,.png,.webp,image/*" />
-                        <button type="button" class="image-upload-trigger" data-target-input="coverImageInput">
-                            <i class="bi bi-image"></i>
-                            Change Cover
-                        </button>
-                    </form>
+    Rebuilt on the student design system. Beyond styling, the page now says something. It showed a
+    cover photo, a name, an email and a count of bookmarks — none of which answers what a student
+    opens their profile to find out. The header is an account summary now: what is out, what is due
+    next, what is owed, and how much of the borrowing limit is left, all from the same borrowing
+    records History reads.
+
+    The upload behaviour is unchanged: .image-upload-trigger clicks the .image-upload-input it names
+    by id, and that input submits its own form on change.
+*@
+
+<div class="sma-profile">
+
+    @* ---------------- cover + identity ---------------- *@
+    <header class="sma-profile__head">
+        <div class="sma-profile__cover">
+            <img src="@Model.CoverImageUrl" alt="" class="sma-profile__cover-img" />
+            <div class="sma-profile__cover-scrim" aria-hidden="true"></div>
+
+            <form method="post" asp-controller="Home" asp-action="UploadCoverImage"
+                  enctype="multipart/form-data" class="image-upload-form sma-profile__cover-form">
+                @Html.AntiForgeryToken()
+                <input type="file" name="imageFile" class="image-upload-input" id="coverImageInput"
+                       accept=".jpg,.jpeg,.png,.webp,image/*" />
+                <button type="button" class="sma-profile__cover-btn image-upload-trigger"
+                        data-target-input="coverImageInput">
+                    <i class="bi bi-image" aria-hidden="true"></i>
+                    Change cover
+                </button>
+            </form>
+        </div>
+
+        <div class="sma-profile__identity">
+            <div class="sma-profile__avatar-wrap">
+                <span class="sma-profile__initials" aria-hidden="true">@initials</span>
+                <img src="@Model.ProfileImageUrl" alt="" class="sma-profile__avatar" />
+
+                <form method="post" asp-controller="Home" asp-action="UploadProfileImage"
+                      enctype="multipart/form-data" class="image-upload-form sma-profile__avatar-form">
+                    @Html.AntiForgeryToken()
+                    <input type="file" name="imageFile" class="image-upload-input" id="profileImageInput"
+                           accept=".jpg,.jpeg,.png,.webp,image/*" />
+                    <button type="button" class="sma-profile__avatar-btn image-upload-trigger"
+                            data-target-input="profileImageInput" aria-label="Change profile picture">
+                        <i class="bi bi-camera-fill" aria-hidden="true"></i>
+                    </button>
+                </form>
+            </div>
+
+            <div class="sma-profile__who">
+                <h1 class="sma-profile__name">@Model.FullName</h1>
+                <p class="sma-profile__email">@Model.Email</p>
+
+                <div class="sma-profile__tags">
+                    <span class="sma-profile__tag">
+                        <i class="bi bi-person-badge" aria-hidden="true"></i> @Model.MembershipLabel
+                    </span>
+                    @if (Model.MemberSince.HasValue)
+                    {
+                        <span class="sma-profile__tag is-muted">
+                            <i class="bi bi-calendar3" aria-hidden="true"></i>
+                            Member since @Model.MemberSince.Value.ToString("MMMM yyyy", CultureInfo.InvariantCulture)
+                        </span>
+                    }
+                    <span class="sma-profile__tag is-muted">
+                        <i class="bi bi-bookmark-heart-fill" aria-hidden="true"></i>
+                        @Model.Interests.Count saved
+                    </span>
                 </div>
-            </section>
+            </div>
 
-            <section class="profile-header-card profile-reveal">
-                <div class="profile-header-section">
-                    <div class="profile-pic-container">
-                        <img src="@Model.ProfileImageUrl" alt="Profile Picture"
-                             class="profile-picture">
-                        <form method="post" asp-controller="Home" asp-action="UploadProfileImage"
-                              enctype="multipart/form-data" class="image-upload-form image-upload-form-avatar">
-                            @Html.AntiForgeryToken()
-                            <input type="file"
-                                   name="imageFile"
-                                   class="image-upload-input"
-                                   id="profileImageInput"
-                                   accept=".jpg,.jpeg,.png,.webp,image/*" />
-                            <button type="button" class="image-upload-trigger image-upload-trigger-avatar"
-                                    data-target-input="profileImageInput" aria-label="Change profile image">
-                                <i class="bi bi-camera-fill"></i>
-                            </button>
-                        </form>
-                    </div>
-
-                    <div class="profile-info">
-                        <h1 class="profile-name">@Model.FullName</h1>
-
-                        <div class="profile-stats">
-                            <span class="profile-email">@Model.Email</span>
-                        </div>
-
-                        <div class="profile-pill-row">
-                            <span class="profile-pill">
-                                <i class="bi bi-person-badge"></i>
-                                @Model.MembershipLabel
-                            </span>
-                            <span class="profile-pill profile-pill-muted">
-                                <i class="bi bi-bookmark-heart-fill"></i>
-                                @Model.Interests.Count interest(s)
-                            </span>
-                        </div>
-                    </div>
-
-                    <div class="profile-actions">
-                        <a asp-area="Identity" asp-page="/Account/ForgotPassword" class="btn btn-primary">
-                            Reset Password
-                        </a>
-
-                        <form asp-area="Identity" asp-page="/Account/Logout" method="post" id="logoutForm">
-                            <button type="submit" class="btn btn-secondary">
-                                Logout
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </section>
-
-            <section class="interest-section profile-reveal">
-                <div class="interest-title-row">
-                    <h2 class="interest-title">My Interest</h2>
-                    <span class="interest-count-badge">@Model.Interests.Count books</span>
-                </div>
-
-                @if (Model.Interests.Count == 0)
+            <div class="sma-profile__cta">
+                @if (Model.BooksOutCount > 0)
                 {
-                    <article class="interest-empty">
-                        No interests yet. Add books from
-                        <a asp-controller="Home" asp-action="Bookmark">Bookmark</a>.
-                    </article>
+                    <a class="sma-profile__btn is-primary" href="/kiosk?mode=Return">Return a book</a>
+                }
+                <a class="sma-profile__btn" asp-controller="Home" asp-action="History">My borrowing</a>
+                <a class="sma-profile__btn" asp-area="Identity" asp-page="/Account/ForgotPassword">Reset password</a>
+
+                <form asp-area="Identity" asp-page="/Account/Logout" method="post" id="logoutForm">
+                    <button type="submit" class="sma-profile__btn is-quiet">Log out</button>
+                </form>
+            </div>
+        </div>
+    </header>
+
+    @* ---------------- account summary ---------------- *@
+    <section class="sma-profile__grid" aria-label="Account summary">
+
+        <article class="sma-profile__card sma-profile__card--limit">
+            <h2 class="sma-profile__card-title">Borrowing limit</h2>
+
+            <p class="sma-profile__big">
+                @Model.BooksOutCount<span class="sma-profile__big-of">@(limit > 0 ? $" / {limit}" : "")</span>
+            </p>
+            <p class="sma-profile__card-note">
+                @if (limit > 0)
+                {
+                    @($"{remaining} more book{(remaining == 1 ? "" : "s")} allowed")
                 }
                 else
                 {
-                    <div class="interest-grid">
-                        @foreach (var item in Model.Interests)
-                        {
-                            <article class="interest-card">
-                                <a asp-controller="Home" asp-action="BookDetail" asp-route-id="@item.BookId" class="interest-image-link">
-                                    <img src="@Url.Content(item.ImageUrl)" alt="@item.Title" class="interest-image" />
-                                </a>
-
-                                <div class="interest-body">
-                                    <div class="interest-category">@item.CategoryName</div>
-                                    <h3 class="interest-book-title">@item.Title</h3>
-                                    <p class="interest-author">@item.Author</p>
-
-                                    <div class="interest-stars" aria-label="Book rating">
-                                        @for (var i = 0; i < 5; i++)
-                                        {
-                                            if (i < item.Rating)
-                                            {
-                                                <i class="bi bi-star-fill"></i>
-                                            }
-                                            else
-                                            {
-                                                <i class="bi bi-star"></i>
-                                            }
-                                        }
-                                    </div>
-                                </div>
-                            </article>
-                        }
-                    </div>
+                    @:books currently out
                 }
-            </section>
-        </div>
+            </p>
+
+            @if (limit > 0)
+            {
+                @* Decorative: the numbers above already state it (specification section 111). *@
+                <div class="sma-profile__bar" aria-hidden="true">
+                    <span style="width: @(usedPercent)%"></span>
+                </div>
+            }
+        </article>
+
+        <article class="sma-profile__card @(Model.NextDueDate.HasValue ? "" : "is-quiet")">
+            <h2 class="sma-profile__card-title">Due next</h2>
+
+            @if (Model.NextDueDate.HasValue)
+            {
+                var daysLeft = (Model.NextDueDate.Value.Date - DateTime.UtcNow.Date).Days;
+
+                <p class="sma-profile__big is-date">
+                    @Model.NextDueDate.Value.ToString("d MMM", CultureInfo.InvariantCulture)
+                </p>
+                <p class="sma-profile__card-note">
+                    @if (daysLeft < 0)
+                    {
+                        <strong class="sma-profile__flag">@(-daysLeft) day@((-daysLeft) == 1 ? "" : "s") overdue</strong>
+                    }
+                    else if (daysLeft == 0)
+                    {
+                        <strong class="sma-profile__flag">due today</strong>
+                    }
+                    else
+                    {
+                        @($"in {daysLeft} day{(daysLeft == 1 ? "" : "s")}")
+                    }
+                </p>
+                @if (!string.IsNullOrWhiteSpace(Model.NextDueTitle))
+                {
+                    <p class="sma-profile__card-sub">@Model.NextDueTitle</p>
+                }
+            }
+            else
+            {
+                <p class="sma-profile__big is-date">&mdash;</p>
+                <p class="sma-profile__card-note">nothing out</p>
+            }
+        </article>
+
+        <article class="sma-profile__card @(owes ? "is-owed" : "is-quiet")">
+            <h2 class="sma-profile__card-title">Fines</h2>
+            <p class="sma-profile__big is-money">@Money(Model.OutstandingFine)</p>
+            <p class="sma-profile__card-note">
+                @(owes ? "outstanding — settle at the desk" : "nothing owed")
+            </p>
+        </article>
+
+        <article class="sma-profile__card is-quiet">
+            <h2 class="sma-profile__card-title">All time</h2>
+            <p class="sma-profile__big">@Model.TotalBorrowedCount</p>
+            <p class="sma-profile__card-note">
+                @Model.ReturnedCount returned@(Model.OverdueCount > 0 ? $", {Model.OverdueCount} overdue" : "")
+            </p>
+        </article>
+    </section>
+
+    <div class="sma-profile__cols">
+
+        @* ---------------- recent activity ---------------- *@
+        <section class="sma-profile__panel" aria-label="Recent borrowing">
+            <div class="sma-profile__panel-head">
+                <h2 class="sma-profile__panel-title">Recent activity</h2>
+                <a class="sma-profile__panel-link" asp-controller="Home" asp-action="History">See all</a>
+            </div>
+
+            @if (Model.RecentLoans.Count == 0)
+            {
+                <p class="sma-profile__empty">
+                    Nothing borrowed yet.
+                    <a asp-controller="Home" asp-action="Book">Browse the catalogue</a>.
+                </p>
+            }
+            else
+            {
+                <ul class="sma-profile__loans">
+                    @foreach (var loan in Model.RecentLoans)
+                    {
+                        <li class="sma-profile__loan">
+                            <a class="sma-profile__loan-cover" asp-controller="Home" asp-action="BookDetail"
+                               asp-route-id="@loan.BookId" tabindex="-1" aria-hidden="true">
+                                <img src="@Url.Content(loan.ImageUrl)" alt="" loading="lazy" />
+                            </a>
+
+                            <div class="sma-profile__loan-body">
+                                <h3 class="sma-profile__loan-title">
+                                    <a asp-controller="Home" asp-action="BookDetail" asp-route-id="@loan.BookId">@loan.Title</a>
+                                </h3>
+                                <p class="sma-profile__loan-author">@loan.Author</p>
+                                <p class="sma-profile__loan-when">
+                                    @if (loan.ReturnDate.HasValue)
+                                    {
+                                        @($"Returned {loan.ReturnDate.Value.ToString("d MMM yyyy", CultureInfo.InvariantCulture)}")
+                                    }
+                                    else
+                                    {
+                                        @($"Due {loan.DueDate.ToString("d MMM yyyy", CultureInfo.InvariantCulture)}")
+                                    }
+                                </p>
+                            </div>
+
+                            <span class="sma-profile__loan-status is-@loan.Status">@loan.StatusLabel</span>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+
+        @* ---------------- saved books ---------------- *@
+        <section class="sma-profile__panel" aria-label="Saved books">
+            <div class="sma-profile__panel-head">
+                <h2 class="sma-profile__panel-title">Saved books</h2>
+                <a class="sma-profile__panel-link" asp-controller="Home" asp-action="Bookmark">See all</a>
+            </div>
+
+            @if (Model.Interests.Count == 0)
+            {
+                <p class="sma-profile__empty">
+                    Nothing saved yet. Tap the heart on any book to keep it here.
+                </p>
+            }
+            else
+            {
+                <ul class="sma-profile__saved">
+                    @foreach (var item in Model.Interests)
+                    {
+                        <li class="sma-profile__save">
+                            <a asp-controller="Home" asp-action="BookDetail" asp-route-id="@item.BookId"
+                               class="sma-profile__save-link">
+                                <img src="@Url.Content(item.ImageUrl)" alt="" class="sma-profile__save-cover" loading="lazy" />
+                                <span class="sma-profile__save-title">@item.Title</span>
+                                <span class="sma-profile__save-author">@item.Author</span>
+                            </a>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
     </div>
 </div>
 
 @section Scripts {
-
     <script>
         (function () {
+            // Unchanged: the visible button clicks the hidden file input it names, and that input
+            // submits its own form on change.
             document.querySelectorAll('.image-upload-trigger').forEach(function (button) {
                 button.addEventListener('click', function () {
                     var inputId = button.getAttribute('data-target-input');
@@ -157,51 +301,38 @@
                 });
             });
 
+            // A broken avatar URL otherwise leaves an empty box; hide it and let the initials
+            // sitting behind it show through.
+            var avatar = document.querySelector('.sma-profile__avatar');
+            if (avatar) {
+                avatar.addEventListener('error', function () { avatar.style.display = 'none'; });
+            }
+
             var success = '@(TempData["ProfileSuccess"]?.ToString() ?? string.Empty)'.trim();
             var error = '@(TempData["ProfileError"]?.ToString() ?? string.Empty)'.trim();
 
             if (success) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Updated',
-                    text: success,
-                    confirmButtonColor: '#1d4ed8'
-                });
+                Swal.fire({ icon: 'success', title: 'Updated', text: success, confirmButtonColor: '#f07c20' });
             } else if (error) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Upload Failed',
-                    text: error,
-                    confirmButtonColor: '#1d4ed8'
-                });
+                Swal.fire({ icon: 'error', title: 'Upload failed', text: error, confirmButtonColor: '#f07c20' });
             }
 
-            // Profile page specific logout confirmation
-            const logoutForm = document.getElementById('logoutForm');
+            var logoutForm = document.getElementById('logoutForm');
             if (logoutForm) {
-                logoutForm.addEventListener('submit', function(e) {
-                    e.preventDefault(); // Prevent immediate submission
+                logoutForm.addEventListener('submit', function (e) {
+                    e.preventDefault();
 
                     Swal.fire({
-                        title: "Are you sure?",
-                        text: "You will be logged out of your account.",
-                        icon: "warning",
+                        title: 'Log out?',
+                        text: 'You will be signed out of your account.',
+                        icon: 'warning',
                         showCancelButton: true,
-                        confirmButtonColor: "#3085d6",
-                        cancelButtonColor: "#d33",
-                        confirmButtonText: "Yes, log out!"
-                    }).then((result) => {
+                        confirmButtonColor: '#f07c20',
+                        cancelButtonColor: '#6b6259',
+                        confirmButtonText: 'Yes, log out'
+                    }).then(function (result) {
                         if (result.isConfirmed) {
-                            Swal.fire({
-                            title: "Logging out...",
-                            text: "You have been logged out successfully.",
-                            icon: "success",
-                            showConfirmButton: false,
-                            
-                            });
-                            setTimeout(() => {
-                                logoutForm.submit(); // Submit the form after showing the success message
-                            }, 1700);                      
+                            logoutForm.submit();
                         }
                     });
                 });

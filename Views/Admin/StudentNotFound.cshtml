@@ -1,0 +1,33 @@
+@{
+    ViewData["Title"] = "Student not found";
+    ViewBag.SmaActive = "search";
+    ViewBag.SmaSubtitle = "No student on file with that id.";
+    Layout = "~/Views/Shared/_StaffLayout.cshtml";
+
+    var id = ViewBag.StudentId as int?;
+}
+
+@*
+    A librarian reaches this by following a stale link or editing the id in the address bar.
+
+    This exists because a bare NotFound() renders a blank page in this application: Error/404 is
+    written but nothing routes to it, and there is no UseStatusCodePages. Wiring that up globally
+    would also re-execute for JSON endpoints that legitimately answer 404, so this route answers
+    for itself and leaves the rest of the application alone.
+*@
+
+<div class="sma-card">
+    <div class="sma-card__body">
+        <div class="sma-empty">
+            <div class="sma-empty__icon" aria-hidden="true">⌕</div>
+            <div class="sma-empty__title">
+                No student with id @(id?.ToString() ?? "—")
+            </div>
+            <p class="sma-empty__body">
+                The record may have been removed, or the link may be out of date.
+                Search by name, roll number or card to find the student you want.
+            </p>
+            <a class="sma-btn sma-btn--primary" href="/desk/search">Search students</a>
+        </div>
+    </div>
+</div>

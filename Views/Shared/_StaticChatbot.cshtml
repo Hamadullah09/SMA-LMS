@@ -1,60 +1,64 @@
+@*
+    Library assistant, floating.
+
+    Three things changed here.
+
+    The robot mark appeared three times at once when the panel opened: on the launcher, in the
+    panel header, and again as a large decorative stage with orbiting dots. Exactly one is shown
+    now — the launcher carries the mark while closed and becomes a close button while open, so the
+    header mark is the only one on screen once the panel is up. The decorative stage is gone; it
+    was pure ornament between the header and the first message.
+
+    The mark itself was a blue SVG with baked-in #193d87/#2e86c4 fills, which is why the assistant
+    read as a foreign widget pasted onto an orange-and-charcoal site. It is a themed glyph now and
+    inherits the palette like everything else.
+
+    The quick actions all send real questions to /assistant/ask. They used to include two that
+    served hard-coded text instead; see chatbot.js for why that mattered.
+*@
+
 <div id="homeChatbot" class="home-chatbot" aria-live="polite">
     <button type="button" id="homeChatbotToggle" class="home-chatbot__toggle" aria-expanded="false"
-            aria-controls="homeChatbotPanel">
-        <span class="home-chatbot__toggle-mark" aria-hidden="true">
-            <img src="~/images/User/chatbot/chatbot-logo.svg" asp-append-version="true"
-                 class="home-chatbot__logo home-chatbot__logo--tiny" alt="" />
-            <span class="home-chatbot__pulse"></span>
-        </span>
+            aria-controls="homeChatbotPanel" aria-label="Library assistant">
+        @* Both glyphs ship; CSS shows whichever matches the open state, so the launcher is the
+           mark when closed and the dismiss control when open. *@
+        <i class="bi bi-stars home-chatbot__toggle-icon home-chatbot__toggle-icon--open" aria-hidden="true"></i>
+        <i class="bi bi-x-lg home-chatbot__toggle-icon home-chatbot__toggle-icon--close" aria-hidden="true"></i>
     </button>
 
     <section id="homeChatbotPanel" class="home-chatbot__panel" aria-label="Library assistant" hidden>
         <header class="home-chatbot__header">
-            <div class="home-chatbot__title-wrap">
-                <span class="home-chatbot__avatar" aria-hidden="true">
-                    <img src="~/images/User/chatbot/chatbot-logo.svg" asp-append-version="true"
-                         class="home-chatbot__logo home-chatbot__logo--mini" alt="" />
-                </span>
-                <div>
-                    <h2 class="home-chatbot__title">Library Assistant</h2>
-                    <p class="home-chatbot__status" id="homeChatbotStatus">Answers from the live catalogue</p>
-                </div>
+            <span class="home-chatbot__avatar" aria-hidden="true">
+                <i class="bi bi-stars"></i>
+            </span>
+            <div class="home-chatbot__heading">
+                <h2 class="home-chatbot__title">Library assistant</h2>
+                <p class="home-chatbot__status" id="homeChatbotStatus">Answers from the live catalogue</p>
             </div>
-            <button type="button" id="homeChatbotClose" class="home-chatbot__close" aria-label="Close chatbot">
-                <i class="bi bi-x-lg"></i>
+            <button type="button" id="homeChatbotClose" class="home-chatbot__close" aria-label="Close assistant">
+                <i class="bi bi-x-lg" aria-hidden="true"></i>
             </button>
         </header>
-
-        <div class="home-chatbot__hero" aria-hidden="true">
-            <div class="home-chatbot__logo-stage">
-                <img src="~/images/User/chatbot/chatbot-logo.svg" asp-append-version="true"
-                     class="home-chatbot__logo home-chatbot__logo--hero" alt="" />
-                <span class="home-chatbot__orb home-chatbot__orb--one"></span>
-                <span class="home-chatbot__orb home-chatbot__orb--two"></span>
-                <span class="home-chatbot__orb home-chatbot__orb--three"></span>
-            </div>
-        </div>
 
         <div id="homeChatbotMessages" class="home-chatbot__messages"></div>
 
         <div class="home-chatbot__quick-actions" id="homeChatbotQuickActions">
-            @* data-ask sends a real question to the assistant; data-intent keeps the
-               canned reply for things the assistant has no data for. *@
+            @* Every one of these is a real question put to the live assistant. *@
             <button type="button" data-ask="What books do I have?">My books</button>
             <button type="button" data-ask="Do I owe any fines?">My fines</button>
             <button type="button" data-ask="What are my reservations?">My reservations</button>
             <button type="button" data-ask="How many books can I borrow?">Borrow limit</button>
             <button type="button" data-ask="What happens if I return a book late?">Late returns</button>
-            <button type="button" data-intent="hours">Opening hours</button>
-            <button type="button" data-intent="resetPassword">Reset my password</button>
+            <button type="button" data-ask="What are the opening hours?">Opening hours</button>
         </div>
 
         <form id="homeChatbotForm" class="home-chatbot__input-row">
+            <label class="sma-sr-only" for="homeChatbotInput">Ask the library assistant</label>
             <input id="homeChatbotInput" type="text" maxlength="140"
                    placeholder="Where is Clean Code? Do I owe fines?"
                    autocomplete="off" />
             <button type="submit" aria-label="Send message">
-                <i class="bi bi-send-fill"></i>
+                <i class="bi bi-send-fill" aria-hidden="true"></i>
             </button>
         </form>
     </section>

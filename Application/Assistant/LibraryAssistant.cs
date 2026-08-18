@@ -4,6 +4,7 @@ using Library_Management_system.Data;
 using Library_Management_system.Domain.Entities;
 using Library_Management_system.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Library_Management_system.Application.Assistant;
 
@@ -45,11 +46,16 @@ public sealed class LibraryAssistant : ILibraryAssistant
 {
     private readonly ApplicationDbContext _db;
     private readonly ILibraryPolicyService _policies;
+    private readonly LibraryHoursOptions _hours;
 
-    public LibraryAssistant(ApplicationDbContext db, ILibraryPolicyService policies)
+    public LibraryAssistant(
+        ApplicationDbContext db,
+        ILibraryPolicyService policies,
+        IOptions<LibraryHoursOptions> hours)
     {
         _db = db;
         _policies = policies;
+        _hours = hours.Value;
     }
 
     public async Task<AssistantAnswer> AskAsync(string question, int? studentId, CancellationToken ct = default)
@@ -75,6 +81,13 @@ public sealed class LibraryAssistant : ILibraryAssistant
                 : await AnswerAccountAsync(lower, studentId.Value, ct);
         }
 
+        // Opening hours were the last fact the widget served from a hard-coded string, and that
+        // string disagreed with the hours printed on the home and About pages. Answered here now.
+        if (MentionsHours(lower))
+        {
+            return AnswerHours();
+        }
+
         if (MentionsPolicy(lower))
         {
             return await AnswerPolicyAsync(lower, ct);
@@ -91,6 +104,13 @@ public sealed class LibraryAssistant : ILibraryAssistant
     private static bool MentionsOwnAccount(string q) =>
         Regex.IsMatch(q, @"\b(my|i owe|do i|am i|when do i|what do i)\b")
         && Regex.IsMatch(q, @"\b(book|loan|borrow|fine|owe|due|reserv|hold|account)");
+
+    // "open" and "close" are ordinary English words that turn up in titles ("The Closing of
+    // the American Mind"), so they only count as an hours question when the sentence is not
+    // asking for a book. The explicit hours vocabulary needs no such guard.
+    private static bool MentionsHours(string q) =>
+        !Regex.IsMatch(q, @"\b(do you have|where is|have you got|looking for|find me|is there a copy)\b")
+        && Regex.IsMatch(q, @"\b(hours|timing|timings|what time|open|opening|close|closing|closed)\b");
 
     private static bool MentionsPolicy(string q) =>
         Regex.IsMatch(q, @"\b(how many|how long|policy|rule|allowed|maximum|late|overdue charge|fine per)\b");
@@ -163,6 +183,24 @@ public sealed class LibraryAssistant : ILibraryAssistant
         return AssistantAnswer.Say("account.loans",
             $"You have {loans.Count} book(s):\n" + string.Join("\n", described),
             new AssistantLink("My Library", "/portal"));
+    }
+
+    // ------------------------------------------------------------------ hours
+
+    /// <summary>
+    /// Opening hours, plus whether the doors are open right now — the thing a student actually
+    /// wants when they ask, and something a printed table on a page cannot tell them.
+    /// </summary>
+    private AssistantAnswer AnswerHours()
+    {
+        var now = DateTime.Now;
+        var openNow = _hours.IsOpenAt(now);
+
+        var status = openNow
+            ? "We are open right now."
+            : "We are closed right now.";
+
+        return AssistantAnswer.Say("hours", $"{status} {_hours.Sentence}");
     }
 
     // ------------------------------------------------------------------ policy

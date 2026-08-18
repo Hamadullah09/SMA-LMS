@@ -1,5 +1,6 @@
 using System.Text;
 using Library_Management_system.Application.Reporting;
+using Library_Management_system.Application.Policies;
 using Library_Management_system.Application.Search;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,11 +13,19 @@ public class ReportsController : Controller
 {
     private readonly IReportingService _reports;
     private readonly IGlobalSearchService _search;
+    private readonly IStudentDossierService _dossier;
+    private readonly ILibraryPolicyService _policies;
 
-    public ReportsController(IReportingService reports, IGlobalSearchService search)
+    public ReportsController(
+        IReportingService reports,
+        IGlobalSearchService search,
+        IStudentDossierService dossier,
+        ILibraryPolicyService policies)
     {
         _reports = reports;
         _search = search;
+        _dossier = dossier;
+        _policies = policies;
     }
 
     [HttpGet("/desk/search")]
@@ -27,6 +36,29 @@ public class ReportsController : Controller
             : await _search.SearchAsync(q);
 
         return View("~/Views/Admin/GlobalSearch.cshtml", results);
+    }
+
+    /// <summary>
+    /// Everything on file for one student (§103). Global search sent a student hit to the
+    /// manual-issue screen, which shows a name and nothing else; the librarian then had to open
+    /// loans, returns, fines and reservations separately to answer a question at the desk.
+    /// </summary>
+    [HttpGet("/desk/student/{id:int}")]
+    public async Task<IActionResult> Student(int id, CancellationToken ct)
+    {
+        var dossier = await _dossier.GetAsync(id, ct);
+
+        if (dossier is null)
+        {
+            // Still a 404 to caches and crawlers, but with something a librarian can act on.
+            // A bare NotFound() renders blank here: nothing routes to Error/404.
+            ViewBag.StudentId = id;
+            Response.StatusCode = StatusCodes.Status404NotFound;
+            return View("~/Views/Admin/StudentNotFound.cshtml");
+        }
+
+        ViewBag.Policy = await _policies.GetLoanPolicyAsync(ct);
+        return View("~/Views/Admin/StudentDossier.cshtml", dossier);
     }
 
     [HttpGet("/admin/sma/reports")]

@@ -30,13 +30,16 @@ namespace Library_Management_system.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ILogger<HomeController> _logger;
         private readonly ApplicationDbContext _context;
+        private readonly Application.Policies.ILibraryPolicyService _policies;
 
         public HomeController(
             ILogger<HomeController> logger,
             ApplicationDbContext context,
             IWebHostEnvironment environment,
-            UserManager<ApplicationUser> userManager)
+            UserManager<ApplicationUser> userManager,
+            Application.Policies.ILibraryPolicyService policies)
         {
+            _policies = policies;
             _logger = logger;
             _context = context;
             _environment = environment;
@@ -70,34 +73,10 @@ namespace Library_Management_system.Controllers
                 .Take(newArrivalsLimit)
                 .ToListAsync();
 
-            var featuredBookIds = trendingBooks
-                .Select(b => b.Id)
-                .Concat(newArrivalBooks.Select(b => b.Id))
-                .Distinct()
-                .ToList();
-
-            var ownerKey = ResolveCartOwnerKey();
-            var favoriteBookIds = featuredBookIds.Count == 0
-                ? new HashSet<int>()
-                : (await _context.FavoriteBooks
-                    .AsNoTracking()
-                    .Where(x => x.OwnerKey == ownerKey && featuredBookIds.Contains(x.BookId))
-                    .Select(x => x.BookId)
-                    .ToListAsync())
-                .ToHashSet();
-
-            // Available copies for the featured books, counted from BookCopy. One grouped
-            // query for every card on the page rather than one per card.
-            var availableCopies = featuredBookIds.Count == 0
-                ? new Dictionary<int, int>()
-                : await _context.BookCopies
-                    .AsNoTracking()
-                    .Where(c => featuredBookIds.Contains(c.BookId)
-                                && c.CopyNumber != "LEGACY"
-                                && c.Status == Domain.Enums.BookCopyStatus.Available)
-                    .GroupBy(c => c.BookId)
-                    .Select(g => new { BookId = g.Key, Count = g.Count() })
-                    .ToDictionaryAsync(x => x.BookId, x => x.Count);
+            // Favourites and availability come from the shared helper, so the homepage and
+            // the browse page can never disagree about whether a book can be borrowed.
+            var cards = await BuildBookCardContextAsync(
+                trendingBooks.Concat(newArrivalBooks).ToList());
 
             // Get genres/categories for the genre section
             var genres = await _context.Categories
@@ -112,8 +91,8 @@ namespace Library_Management_system.Controllers
                 TrendingBooks = trendingBooks,
                 NewArrivalBooks = newArrivalBooks,
                 CategoryGenres = genres,
-                FavoriteBookIds = favoriteBookIds,
-                AvailableCopies = availableCopies
+                FavoriteBookIds = cards.FavoriteBookIds,
+                AvailableCopies = cards.AvailableCopies
             };
 
             return View(model);
@@ -166,6 +145,98 @@ namespace Library_Management_system.Controllers
         {
             ViewBag.Title = "History";
 
+            var normalizedRecords = await LoadBorrowingRecordsForCurrentUserAsync();
+
+            var borrowingIds = normalizedRecords.Select(br => br.Id).ToList();
+            var finesByBorrowingId = borrowingIds.Count == 0
+                ? new Dictionary<int, Fine>()
+                : await _context.Fines
+                    .AsNoTracking()
+                    .Where(f => borrowingIds.Contains(f.BorrowID))
+                    .ToDictionaryAsync(f => f.BorrowID);
+
+            // Fine rate and currency come from LibraryPolicy, not a constant. This was 1.00 a day
+            // while the configured policy (and therefore the kiosk and the circulation desk) charged
+            // 20.00 PKR — so this page quietly told a student they owed a twentieth of the truth.
+            var loanPolicy = await _policies.GetLoanPolicyAsync();
+            var finePerLateDay = loanPolicy.FinePerDay;
+            var nowUtc = DateTime.UtcNow;
+
+            var items = normalizedRecords
+                .Select(br =>
+                {
+                    var status = ComputeHistoryStatus(br, nowUtc);
+                    finesByBorrowingId.TryGetValue(br.Id, out var fineRecord);
+                    var statusLabel = status switch
+                    {
+                        "returned" => "Returned",
+                        "overdue" => "Overdue",
+                        "rejected" => "Rejected",
+                        _ => "Borrowing"
+                    };
+                    var fineDate = br.ReturnDate ?? nowUtc;
+                    var lateDays = status is "overdue" or "returned"
+                        ? CalculateLateDaysForHistory(br.DueDate, fineDate)
+                        : 0;
+                    var computedFineAmount = lateDays * finePerLateDay;
+                    var fineAmount = fineRecord?.Amount ?? computedFineAmount;
+                    var finePaid = fineRecord?.Paid ?? false;
+
+                    return new HistoryItemViewModel
+                    {
+                        BorrowingId = br.Id,
+                        BookId = br.BookId,
+                        Title = br.Book?.Title ?? "(Missing book)",
+                        Author = br.Book?.Author ?? "Unknown",
+                        Year = br.Book?.Year ?? 0,
+                        BookCode = string.IsNullOrWhiteSpace(br.Book?.BookCode) ? $"A{br.BookId:0000}" : br.Book!.BookCode,
+                        Rating = Math.Clamp(br.Book?.Rating ?? 0, 0, 5),
+                        ImageUrl = string.IsNullOrWhiteSpace(br.Book?.ImageUrl) ? "/images/User/Book/book2.png" : br.Book!.ImageUrl,
+                        Status = status,
+                        StatusLabel = statusLabel,
+                        BorrowDate = br.BorrowDate,
+                        DueDate = br.DueDate,
+                        ReturnDate = br.ReturnDate,
+                        LateDays = lateDays,
+                        FineAmount = fineAmount,
+                        FinePaid = finePaid,
+                        FinePaidDate = fineRecord?.PaidDate
+                    };
+                })
+                .ToList();
+
+            var onHoldCount = items.Count(x => x.Status is "borrowing" or "overdue");
+            var returnedCount = items.Count(x => x.Status == "returned");
+            var estimatedFine = items.Sum(x => x.FinePaid ? 0m : x.FineAmount);
+
+            var model = new HistoryViewModel
+            {
+                Items = items,
+                TotalCount = items.Count,
+                OnHoldCount = onHoldCount,
+                ReturnedCount = returnedCount,
+                EstimatedFine = estimatedFine,
+                FinePerDay = loanPolicy.FinePerDay,
+                Currency = loanPolicy.Currency
+            };
+
+            return View("~/Views/User/History/History.cshtml", model);
+        }
+
+        /// <summary>
+        /// Every borrowing record belonging to the signed-in student, newest first.
+        /// </summary>
+        /// <remarks>
+        /// Loans are matched two ways because they are created two ways: the circulation desk writes
+        /// a free-text <c>Username</c>, while a reservation-sourced loan carries a
+        /// <c>reservation:{cartItemId}</c> source key. Missing either one loses real loans, so both
+        /// are queried and the union is de-duplicated by id.
+        ///
+        /// Extracted so History and Profile agree. Profile previously showed no borrowing at all,
+        /// and a second hand-rolled copy of this matching would have been the way to drift.
+        /// </remarks>
+        private async Task<List<BorrowingRecord>> LoadBorrowingRecordsForCurrentUserAsync()
+        {
             var ownerKey = ResolveCartOwnerKey();
             var usernameCandidates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -233,81 +304,12 @@ namespace Library_Management_system.Controllers
                 borrowingRecords.AddRange(byReservationSource);
             }
 
-            var normalizedRecords = borrowingRecords
+            return borrowingRecords
                 .GroupBy(br => br.Id)
                 .Select(g => g.First())
                 .OrderByDescending(br => br.BorrowDate)
                 .ThenByDescending(br => br.Id)
                 .ToList();
-
-            var borrowingIds = normalizedRecords.Select(br => br.Id).ToList();
-            var finesByBorrowingId = borrowingIds.Count == 0
-                ? new Dictionary<int, Fine>()
-                : await _context.Fines
-                    .AsNoTracking()
-                    .Where(f => borrowingIds.Contains(f.BorrowID))
-                    .ToDictionaryAsync(f => f.BorrowID);
-
-            const decimal finePerLateDay = 1.00m;
-            var nowUtc = DateTime.UtcNow;
-
-            var items = normalizedRecords
-                .Select(br =>
-                {
-                    var status = ComputeHistoryStatus(br, nowUtc);
-                    finesByBorrowingId.TryGetValue(br.Id, out var fineRecord);
-                    var statusLabel = status switch
-                    {
-                        "returned" => "Returned",
-                        "overdue" => "Overdue",
-                        "rejected" => "Rejected",
-                        _ => "Borrowing"
-                    };
-                    var fineDate = br.ReturnDate ?? nowUtc;
-                    var lateDays = status is "overdue" or "returned"
-                        ? CalculateLateDaysForHistory(br.DueDate, fineDate)
-                        : 0;
-                    var computedFineAmount = lateDays * finePerLateDay;
-                    var fineAmount = fineRecord?.Amount ?? computedFineAmount;
-                    var finePaid = fineRecord?.Paid ?? false;
-
-                    return new HistoryItemViewModel
-                    {
-                        BorrowingId = br.Id,
-                        BookId = br.BookId,
-                        Title = br.Book?.Title ?? "(Missing book)",
-                        Author = br.Book?.Author ?? "Unknown",
-                        Year = br.Book?.Year ?? 0,
-                        BookCode = string.IsNullOrWhiteSpace(br.Book?.BookCode) ? $"A{br.BookId:0000}" : br.Book!.BookCode,
-                        Rating = Math.Clamp(br.Book?.Rating ?? 0, 0, 5),
-                        ImageUrl = string.IsNullOrWhiteSpace(br.Book?.ImageUrl) ? "/images/User/Book/book2.png" : br.Book!.ImageUrl,
-                        Status = status,
-                        StatusLabel = statusLabel,
-                        BorrowDate = br.BorrowDate,
-                        DueDate = br.DueDate,
-                        ReturnDate = br.ReturnDate,
-                        LateDays = lateDays,
-                        FineAmount = fineAmount,
-                        FinePaid = finePaid,
-                        FinePaidDate = fineRecord?.PaidDate
-                    };
-                })
-                .ToList();
-
-            var onHoldCount = items.Count(x => x.Status is "borrowing" or "overdue");
-            var returnedCount = items.Count(x => x.Status == "returned");
-            var estimatedFine = items.Sum(x => x.FinePaid ? 0m : x.FineAmount);
-
-            var model = new HistoryViewModel
-            {
-                Items = items,
-                TotalCount = items.Count,
-                OnHoldCount = onHoldCount,
-                ReturnedCount = returnedCount,
-                EstimatedFine = estimatedFine
-            };
-
-            return View("~/Views/User/History/History.cshtml", model);
         }
 
         [HttpGet("cart")]
@@ -483,7 +485,13 @@ namespace Library_Management_system.Controllers
 
             await _context.SaveChangesAsync();
 
-            TempData["CartMessage"] = $"Request submitted for {itemsToRequest.Count} item(s).";
+            // The student cannot be redirected into the staff panel — those screens are
+            // [Authorize(Roles = "Admin,Librarian")] and would 403. The request itself is what
+            // travels: it lands in the librarian queue in Manage Borrowing straight away, so the
+            // message tells the student where to go in the building instead.
+            TempData["CartMessage"] =
+                $"Sent to the circulation desk — {itemsToRequest.Count} book(s). "
+                + "Take them to the counter and a librarian will issue them to you.";
             return RedirectToAction(nameof(Cart));
         }
 
@@ -569,6 +577,7 @@ namespace Library_Management_system.Controllers
 
             var fullName = "User";
             var email = string.Empty;
+            DateTime? memberSince = null;
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             if (!string.IsNullOrWhiteSpace(userId))
@@ -583,6 +592,7 @@ namespace Library_Management_system.Controllers
                         ? currentUser.UserName ?? "User"
                         : currentUser.FullName;
                     email = currentUser.Email ?? string.Empty;
+                    memberSince = currentUser.CreatedDate;
                 }
             }
 
@@ -621,12 +631,93 @@ namespace Library_Management_system.Controllers
                 .Take(8)
                 .ToListAsync();
 
+
+            // Borrowing, from the same records History reads. The profile used to show a name, an
+            // email and a bookmark count, none of which answers what a student comes here to ask:
+            // what have I got out, when is it due, do I owe anything.
+            var loans = await LoadBorrowingRecordsForCurrentUserAsync();
+            var loanPolicy = await _policies.GetLoanPolicyAsync();
+            var nowUtc = DateTime.UtcNow;
+
+            var loanIds = loans.Select(br => br.Id).ToList();
+            var loanFines = loanIds.Count == 0
+                ? new Dictionary<int, Fine>()
+                : await _context.Fines
+                    .AsNoTracking()
+                    .Where(f => loanIds.Contains(f.BorrowID))
+                    .ToDictionaryAsync(f => f.BorrowID);
+
+            var loanStatuses = loans
+                .Select(br => (Record: br, Status: ComputeHistoryStatus(br, nowUtc)))
+                .ToList();
+
+            var stillOut = loanStatuses
+                .Where(x => x.Status is "borrowing" or "overdue")
+                .ToList();
+
+            // Unpaid only. A settled fine is history, not something to chase the student about.
+            var outstandingFine = loanStatuses
+                .Where(x => x.Status is "overdue" or "returned")
+                .Sum(x =>
+                {
+                    if (loanFines.TryGetValue(x.Record.Id, out var recorded))
+                    {
+                        return recorded.Paid ? 0m : recorded.Amount;
+                    }
+
+                    var lateDays = CalculateLateDaysForHistory(
+                        x.Record.DueDate, x.Record.ReturnDate ?? nowUtc);
+
+                    return lateDays * loanPolicy.FinePerDay;
+                });
+
+            var soonestDue = stillOut
+                .OrderBy(x => x.Record.DueDate)
+                .Select(x => x.Record)
+                .FirstOrDefault();
+
             var model = new ProfileViewModel
             {
                 FullName = fullName,
                 Email = email,
                 ProfileImageUrl = profileImageUrl,
                 CoverImageUrl = coverImageUrl,
+                MemberSince = memberSince,
+
+                BooksOutCount = stillOut.Count,
+                OverdueCount = loanStatuses.Count(x => x.Status == "overdue"),
+                ReturnedCount = loanStatuses.Count(x => x.Status == "returned"),
+                TotalBorrowedCount = loanStatuses.Count,
+                OutstandingFine = outstandingFine,
+                Currency = loanPolicy.Currency,
+                BorrowLimit = loanPolicy.MaximumBooksPerStudent,
+                NextDueDate = soonestDue?.DueDate,
+                NextDueTitle = soonestDue?.Book?.Title,
+
+                RecentLoans = loanStatuses
+                    .Take(6)
+                    .Select(x => new ProfileLoanItemViewModel
+                    {
+                        BookId = x.Record.BookId,
+                        Title = x.Record.Book?.Title ?? "(Missing book)",
+                        Author = x.Record.Book?.Author ?? "Unknown",
+                        ImageUrl = string.IsNullOrWhiteSpace(x.Record.Book?.ImageUrl)
+                            ? "/images/User/Book/book2.png"
+                            : x.Record.Book!.ImageUrl,
+                        BorrowDate = x.Record.BorrowDate,
+                        DueDate = x.Record.DueDate,
+                        ReturnDate = x.Record.ReturnDate,
+                        Status = x.Status,
+                        StatusLabel = x.Status switch
+                        {
+                            "returned" => "Returned",
+                            "overdue" => "Overdue",
+                            "rejected" => "Rejected",
+                            _ => "Borrowing"
+                        }
+                    })
+                    .ToList(),
+
                 Interests = favoriteBooks.Select(x =>
                 {
                     var book = x.Book!;
@@ -857,6 +948,10 @@ namespace Library_Management_system.Controllers
             }
         }
 
+        // Reachable at /category as well as /Home/Category. The nav links to the short form;
+        // without the attribute it 404d, because this controller uses conventional routing only.
+        [HttpGet("category")]
+        [HttpGet("Home/Category")]
         public async Task<IActionResult> Category(string? category, string? q, int page = 1)
         {
             var normalizedCategory = string.IsNullOrWhiteSpace(category) ? null : category.Trim();
@@ -906,6 +1001,11 @@ namespace Library_Management_system.Controllers
                 ViewBag.TotalPages = totalPages;
                 ViewBag.Categories = categories;
 
+                // Same favourites and availability the homepage cards use, so browse can answer
+                // "can I borrow this?" instead of showing a star rating and nothing else.
+                ViewBag.Cards = await BuildBookCardContextAsync(model);
+                ViewBag.TotalItems = totalItems;
+
                 return View("~/Views/User/Category/category.cshtml", model);
             }
             catch (Exception ex) when (IsDatabaseTimeoutException(ex))
@@ -923,6 +1023,8 @@ namespace Library_Management_system.Controllers
                 ViewBag.CurrentPage = 1;
                 ViewBag.TotalPages = 1;
                 ViewBag.Categories = new List<string>();
+                ViewBag.Cards = new HomeViewModel();
+                ViewBag.TotalItems = 0;
 
                 return View("~/Views/User/Category/category.cshtml", new List<Book>());
             }
@@ -993,12 +1095,28 @@ namespace Library_Management_system.Controllers
                     .ToListAsync())
                 .ToHashSet();
 
+            // Copy counts for the book being viewed. One query, two numbers: how many exist and how
+            // many can be taken right now.
+            var copyCounts = await _context.BookCopies
+                .AsNoTracking()
+                .Where(c => c.BookId == book.Id && c.CopyNumber != "LEGACY")
+                .GroupBy(c => 1)
+                .Select(g => new
+                {
+                    Total = g.Count(),
+                    Available = g.Count(c => c.Status == Domain.Enums.BookCopyStatus.Available)
+                })
+                .FirstOrDefaultAsync();
+
             var model = new BookDetailViewModel
             {
                 Book = book,
                 RelatedBooks = relatedBooks,
                 IsFavorite = isFavorite,
-                RelatedFavoriteBookIds = relatedFavoriteBookIds
+                RelatedFavoriteBookIds = relatedFavoriteBookIds,
+                TotalCopies = copyCounts?.Total ?? 0,
+                AvailableCopies = copyCounts?.Available ?? 0,
+                RelatedCards = await BuildBookCardContextAsync(relatedBooks)
             };
 
             return View("~/Views/User/Books/BookDetail.cshtml", model);
@@ -1249,6 +1367,51 @@ namespace Library_Management_system.Controllers
             }
 
             return RedirectToAction(nameof(BookDetail), new { id = bookId });
+        }
+
+        /// <summary>
+        /// Favourites and live availability for a set of books, in two grouped queries rather than
+        /// two per card.
+        ///
+        /// Extracted because the browse page needed exactly what the homepage already computed. A
+        /// second copy would have been the third time this logic appeared, and the first two had
+        /// already drifted: the homepage answered "can I borrow this?" on every card while browse
+        /// showed a star rating and no availability at all.
+        /// </summary>
+        private async Task<HomeViewModel> BuildBookCardContextAsync(IReadOnlyCollection<Book> books)
+        {
+            var ids = books.Select(b => b.Id).Distinct().ToList();
+
+            if (ids.Count == 0)
+            {
+                return new HomeViewModel();
+            }
+
+            var ownerKey = ResolveCartOwnerKey();
+
+            var favoriteBookIds = (await _context.FavoriteBooks
+                    .AsNoTracking()
+                    .Where(x => x.OwnerKey == ownerKey && ids.Contains(x.BookId))
+                    .Select(x => x.BookId)
+                    .ToListAsync())
+                .ToHashSet();
+
+            // Counted from BookCopy, never the legacy Book.Quantity scalar, so the number matches
+            // what the circulation desk and the kiosk would actually let a student take.
+            var availableCopies = await _context.BookCopies
+                .AsNoTracking()
+                .Where(c => ids.Contains(c.BookId)
+                            && c.CopyNumber != "LEGACY"
+                            && c.Status == Domain.Enums.BookCopyStatus.Available)
+                .GroupBy(c => c.BookId)
+                .Select(g => new { BookId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.BookId, x => x.Count);
+
+            return new HomeViewModel
+            {
+                FavoriteBookIds = favoriteBookIds,
+                AvailableCopies = availableCopies
+            };
         }
 
         private string ResolveCartOwnerKey()

@@ -33,7 +33,7 @@ public class KioskController : Controller
 
     [HttpGet("")]
     [HttpGet("{readerId:int}")]
-    public async Task<IActionResult> Index(int? readerId)
+    public async Task<IActionResult> Index(int? readerId, KioskMode? mode)
     {
         if (Refuse() is { } refusal)
         {
@@ -49,6 +49,17 @@ public class KioskController : Controller
         }
 
         var state = await _kiosk.RefreshAsync(resolved.Value);
+
+        // "Return a book" links here with mode=return so a student lands on the return screen
+        // rather than arriving in borrow mode and having to find the toggle.
+        //
+        // Only from Idle. A station is shared hardware: if somebody is mid-basket, switching mode
+        // would clear their books out from under them, because the same copy on the pad means the
+        // opposite thing in the other mode.
+        if (mode is { } requestedMode && state.Stage == KioskStage.Idle && state.Mode != requestedMode)
+        {
+            state = await _kiosk.SetModeAsync(resolved.Value, requestedMode);
+        }
 
         // A student arriving from their own cart is already identified, so asking them to tap a card
         // they may not be carrying would stop the flow dead. Only on this initial navigation: the

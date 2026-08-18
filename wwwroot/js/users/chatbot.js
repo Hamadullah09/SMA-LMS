@@ -27,143 +27,22 @@
             return;
         }
 
-        const staticReplies = {
-            greeting:
-                "Hi. I can help with hours, reservations, borrowing, fines, profile, and policies.",
-            hours: "Library hours: Monday-Friday 8:00 AM-8:00 PM, Saturday-Sunday 9:00 AM-5:00 PM.",
-            borrow: "Borrowing limit is up to 3 books at a time. The default borrowing duration is 14 days.",
-            reserve:
-                "To reserve a book: open a book detail page, add it to cart, then go to /cart and click Proceed Request.",
-            fine: "Late return fee is $1.00 per late day. You can check overdue and fine details in /history.",
-            history:
-                "Open /history to see borrowed, overdue, and returned books with fine payment status.",
-            
-            account:
-                "Use /login to sign in. After login, you can manage account details from /profile.",
-            profile:
-                "Use /profile to update your profile and /bookmark to manage favorite books.",
-            review: "You can submit a 1-5 star review from each book detail page using the Feedback button.",
-            policy: "Library policy is available at /about/policies.",
-            search: "Use /book to browse or search by title, author, and category. Category filters are available on the Book page.",
-            contact:
-                "Ask at the circulation desk, or see /about/support for help.",
-            location:
-                "Library location: the SMA campus library building.",
-            // The full walkthrough is built in addResetPasswordGuideMessage.
-            resetPassword:
-                "Open /Identity/Account/ForgotPassword and we will email you a reset link. If you cannot get in, staff at the circulation desk can reset it for you.",
-        };
+        // Everything factual comes from /assistant/ask, which reads the live catalogue,
+        // the configured library policy and the signed-in student's own record.
+        //
+        // There used to be a staticReplies table here that answered from hard-coded
+        // strings whenever a keyword matched, and it had drifted badly: it told
+        // students the limit was 3 books over 14 days at "$1.00 per late day", when
+        // the configured policy is 5 books and PKR 20.00 a day, and it quoted opening
+        // hours that contradicted the ones printed on the home and About pages. A
+        // confidently wrong answer about a fine is worse than no answer, so the table
+        // is gone and the only local message left is the reset-password walkthrough,
+        // which is a rich message with steps and a QR image rather than a fact.
 
-        const intentKeywords = [
-            {
-                intent: "greeting",
-                keywords: [
-                    "hello",
-                    "hi",
-                    "hey",
-                    "good morning",
-                    "good afternoon",
-                ],
-            },
-            {
-                intent: "hours",
-                keywords: ["hour", "opening", "open time", "close time"],
-            },
-            {
-                intent: "reserve",
-                keywords: [
-                    "reserve",
-                    "reservation",
-                    "request book",
-                    "proceed request",
-                    "cart request",
-                ],
-            },
-            {
-                intent: "borrow",
-                keywords: [
-                    "borrow limit",
-                    "borrowing limit",
-                    "how many books",
-                    "borrow period",
-                    "duration",
-                ],
-            },
-            {
-                intent: "fine",
-                keywords: [
-                    "fine",
-                    "late fee",
-                    "late return",
-                    "penalty",
-                    "overdue fee",
-                ],
-            },
-            {
-                intent: "history",
-                keywords: [
-                    "history",
-                    "borrow history",
-                    "overdue",
-                    "returned books",
-                ],
-            },
-            {
-                intent: "resetPassword",
-                keywords: [
-                    "reset password",
-                    "forgot password",
-                    "password reset",
-                    "telegram otp",
-                    "otp code",
-                    "send otp",
-                    "/start",
-                ],
-            },
-            {
-                intent: "account",
-                keywords: ["account", "login", "sign in", "register"],
-            },
-            {
-                intent: "profile",
-                keywords: [
-                    "profile",
-                    "bookmark",
-                    "favorite",
-                    "avatar",
-                    "cover image",
-                ],
-            },
-            {
-                intent: "review",
-                keywords: ["review", "rating", "star", "book feedback"],
-            },
-            {
-                intent: "policy",
-                keywords: ["policy", "rules", "terms", "copyright"],
-            },
-            {
-                intent: "contact",
-                keywords: ["contact", "support", "help", "feedback message"],
-            },
-            {
-                intent: "location",
-                keywords: ["where", "location", "address", "campus"],
-            },
-            {
-                intent: "search",
-                keywords: [
-                    "search",
-                    "find book",
-                    "book list",
-                    "category",
-                    "browse",
-                ],
-            },
-        ];
+        const isResetPasswordQuestion = (text) =>
+            /\b(reset|forgot|change).{0,20}(password|pin)\b|\bpassword\b.{0,20}\b(reset|forgot)\b/i
+                .test((text || "").trim());
 
-        const fallbackReply =
-            "I can look up books, your loans, your fines and your reservations, and answer questions about hours, borrowing limits and library policies. Try asking: Where is Clean Code?";
 
         const appendMessageElement = (item) => {
             messages.appendChild(item);
@@ -216,15 +95,6 @@
             appendMessageElement(item);
         };
 
-        const sendBotReplyByIntent = (intent) => {
-            if (intent === "resetPassword") {
-                addResetPasswordGuideMessage();
-                return;
-            }
-
-            addMessage(staticReplies[intent] || fallbackReply, "bot");
-        };
-
         const openPanel = () => {
             chatbot.classList.add("is-open");
             panel.hidden = false;
@@ -244,24 +114,6 @@
             chatbot.classList.remove("is-open");
             toggleButton.setAttribute("aria-expanded", "false");
             panel.hidden = true;
-        };
-
-        const getIntent = (text) => {
-            const normalized = (text || "").trim().toLowerCase();
-            if (!normalized) {
-                return "";
-            }
-
-            for (const entry of intentKeywords) {
-                const isMatch = entry.keywords.some((keyword) =>
-                    normalized.includes(keyword),
-                );
-                if (isMatch) {
-                    return entry.intent;
-                }
-            }
-
-            return "";
         };
 
         // ---- Live assistant -------------------------------------------------
@@ -327,18 +179,15 @@
                 addAssistantAnswer(answer);
             } catch (error) {
                 typing.remove();
-                // Never surface the technical failure - fall back to the canned reply.
+                // Say we could not reach it, rather than inventing an answer. The old
+                // path fell back to a keyword-matched canned string here, which is how
+                // a student could be told the fine was "$1.00 per late day".
                 console.warn("Library assistant unavailable:", error);
-                const intent = getIntent(question);
-                if (intent) {
-                    sendBotReplyByIntent(intent);
-                } else {
-                    addMessage(
-                        "I could not reach the catalogue just now. Please try again, " +
-                        "or ask at the circulation desk.",
-                        "bot",
-                    );
-                }
+                addMessage(
+                    "I could not reach the catalogue just now. Please try again, " +
+                    "or ask at the circulation desk.",
+                    "bot",
+                );
             }
         };
 
@@ -352,7 +201,7 @@
 
             // The Telegram OTP walkthrough is a rich message with steps and a QR image
             // that the assistant API does not produce, so it stays local.
-            if (getIntent(cleaned) === "resetPassword") {
+            if (isResetPasswordQuestion(cleaned)) {
                 addResetPasswordGuideMessage();
                 return;
             }
@@ -378,20 +227,14 @@
                 return;
             }
 
+            // Every quick action is a real question now, so they all take the same
+            // route a typed question does.
             const ask = target.dataset.ask || "";
-            const intent = target.dataset.intent || "";
-            const label = target.textContent
-                ? target.textContent.trim()
-                : "Question";
-
-            if (ask) {
-                addMessage(ask, "user");
-                askAssistant(ask);
+            if (!ask) {
                 return;
             }
 
-            addMessage(label, "user");
-            sendBotReplyByIntent(intent);
+            sendUserMessage(ask);
         });
 
         form.addEventListener("submit", (event) => {

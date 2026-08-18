@@ -166,11 +166,7 @@
     <link rel="stylesheet" href="~/css/users/Home.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/users/About.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/users/Bookmark.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/css/users/Category.css" asp-append-version="true" />
 
-    <link rel="stylesheet" href="~/css/users/detail.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/css/users/History.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/css/users/cart.css" asp-append-version="true" />
 
     <!-- Roboto font (Google Fonts) + local override to apply Roboto site-wide -->
     <link rel="stylesheet"
@@ -241,12 +237,18 @@
                     <a class="sma-nav__link @(navOn("/") ? "is-active" : "")" href="/">Home</a>
                     <a class="sma-nav__link @(navOn("/book") ? "is-active" : "")"
                        asp-controller="Home" asp-action="Book">Browse</a>
-                    <a class="sma-nav__link @(navOn("/category") ? "is-active" : "")" href="/category">Subjects</a>
                     @if (isSignedIn)
                     {
                         <a class="sma-nav__link @(navOn("/portal") ? "is-active" : "")" href="/portal">My library</a>
+
+                        @* Returning was reachable only by going to History, opening a loan and finding
+                           a link there. It is one of the two things a student comes to the library to
+                           do, so it gets a place in the nav. *@
+                        <a class="sma-nav__link sma-nav__link--return @(navOn("/kiosk") ? "is-active" : "")"
+                           href="/kiosk?mode=Return">Return a book</a>
                     }
-                    <a class="sma-nav__link @(navOn("/assistant") ? "is-active" : "")" href="/assistant">Ask</a>
+                    <a class="sma-nav__link @(navOn("/category") ? "is-active" : "")"
+                       href="/category">Subjects</a>
                 </nav>
 
                 <form asp-controller="Home" asp-action="Book" method="get" class="sma-nav__search search-box" role="search">

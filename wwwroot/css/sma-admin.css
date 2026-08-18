@@ -1333,3 +1333,35 @@ body.sidebar-collapsed .staff-sidebar { transform: translateX(-100%); visibility
     .tab-item,
     .qtab { transition: none; }
 }
+
+/* ---------------------------------------------------------------------------
+   Key/value list.
+
+   Used by the student dossier to lay out facts about a record. Auto-fit rather
+   than a fixed column count so it stays readable from a narrow desk terminal up
+   to a wide monitor without a breakpoint per width.
+   --------------------------------------------------------------------------- */
+.sma-kv {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: var(--sma-space-4, 1rem);
+    margin: 0;
+}
+
+.sma-kv > div { min-width: 0; }
+
+.sma-kv dt {
+    margin: 0 0 0.15rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--sma-ink-muted, #5c534e);
+}
+
+.sma-kv dd {
+    margin: 0;
+    font-size: 0.9375rem;
+    color: var(--sma-ink, #1a1614);
+    overflow-wrap: anywhere;
+}

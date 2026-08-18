@@ -7,6 +7,11 @@ namespace Library_Management_system.Models
         public int OnHoldCount { get; set; }
         public int ReturnedCount { get; set; }
         public decimal EstimatedFine { get; set; }
+
+        /// <summary>Fine rate and currency in force, so the page states the real policy rather
+        /// than a figure written into the markup.</summary>
+        public decimal FinePerDay { get; set; }
+        public string Currency { get; set; } = "PKR";
     }
 
     public sealed class HistoryItemViewModel

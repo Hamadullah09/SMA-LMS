@@ -1,230 +1,211 @@
 @using System.Globalization
+@using Library_Management_system.Models
 @model Library_Management_system.Models.BookDetailViewModel
 @{
     Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewData["FullWidth"] = true;   // the design system supplies its own measure
+
     var book = Model.Book;
-    ViewData["Title"] = "Book detail";
+    ViewData["Title"] = string.IsNullOrWhiteSpace(book.Title) ? "Book detail" : book.Title;
     ViewData["BreadcrumbCurrent"] = string.IsNullOrWhiteSpace(book.Title) ? "Book detail" : book.Title;
+
     var imagePath = string.IsNullOrWhiteSpace(book.ImageUrl)
         ? Url.Content("~/images/User/Book/book2.png")
         : Url.Content(book.ImageUrl);
     var rating = Math.Clamp(book.Rating, 0, 5);
     var publishYear = book.Year > 0
         ? book.Year.ToString(CultureInfo.InvariantCulture)
-        : book.CreatedDate?.Year.ToString(CultureInfo.InvariantCulture) ?? "N/A";
-    var totalPages = book.Pages > 0 ? book.Pages.ToString(CultureInfo.InvariantCulture) : "N/A";
+        : book.CreatedDate?.Year.ToString(CultureInfo.InvariantCulture) ?? "—";
+    var totalPages = book.Pages > 0 ? book.Pages.ToString(CultureInfo.InvariantCulture) : "—";
     var bookCode = string.IsNullOrWhiteSpace(book.BookCode) ? $"A{book.Id:0000}" : book.BookCode;
+    var category = string.IsNullOrWhiteSpace(book.CategoryName) ? "General" : book.CategoryName;
     var description = string.IsNullOrWhiteSpace(book.Description)
         ? "No summary is available for this book yet."
         : book.Description;
     var returnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
     var shareUrl = Url.Action("BookDetail", "Home", new { id = book.Id }) ?? $"/book/{book.Id}";
+    var isSignedIn = User.Identity?.IsAuthenticated == true;
 }
 
-<div id="bookDetailPage" class="page-wrap book-detail-page">
-    <div class="row g-4 g-lg-5 align-items-start detail-top">
-        <div class="col-12 col-sm-5 col-lg-4 detail-media">
-            <img src="@imagePath" class="main-img cover-sm detail-cover" alt="@book.Title">
+@*
+    Book detail.
+
+    Rebuilt on the student design system. Two substantive changes beyond styling:
+
+    * availability is now the headline fact. This page decides whether a student walks to a
+      shelf, and it previously answered with a star rating, a page count and a book code —
+      everything except whether the book could be borrowed.
+
+    * the related strip carried a third copy of the book-card markup. It renders _SmaBookCard
+      now, like the homepage and browse, so the three cannot drift apart again.
+
+    Behaviour preserved exactly: the add-to-cart form, both favourite forms with their
+    antiforgery tokens and returnUrl, the share button's class and data- attributes that the
+    script at the bottom binds to, and the review modal.
+*@
+
+<div class="sma-detail">
+
+    <div class="sma-detail__main">
+
+        @* ---------------- cover ---------------- *@
+        <div class="sma-detail__media">
+            <img class="sma-detail__cover" src="@imagePath" alt="Cover of @book.Title" />
         </div>
 
-        <div class="col-12 col-sm-7 col-lg-8 detail-content">
-            <div class="detail-header d-flex justify-content-between align-items-start gap-3">
-                <div>
-                    <h1 class="book-title">@book.Title</h1>
-                    <p class="author-name">Author: @book.Author</p>
-                </div>
+        @* ---------------- information ---------------- *@
+        <div class="sma-detail__info">
 
-                <div class="rate-box">
-                    <div class="text-end star-rating text-warning small">
-                        @for (var i = 0; i < 5; i++)
-                        {
-                            if (i < rating)
-                            {
-                                <i class="fa-solid fa-star"></i>
-                            }
-                            else
-                            {
-                                <i class="fa-regular fa-star"></i>
-                            }
-                        }
-                    </div>
-                    <div class="rate-score">@rating/5</div>
-                    <div class="rate-text">Rate this book</div>
+            <p class="sma-detail__cat">@category</p>
+            <h1 class="sma-detail__title">@book.Title</h1>
+            <p class="sma-detail__author">@book.Author</p>
+
+            <div class="sma-detail__rating" role="img" aria-label="Rated @rating out of 5">
+                @for (var i = 0; i < 5; i++)
+                {
+                    <span class="sma-detail__star @(i < rating ? "is-on" : "")" aria-hidden="true">★</span>
+                }
+                <span class="sma-detail__rating-text">@rating / 5</span>
+            </div>
+
+            @* The one thing a student actually needs. Glyph plus colour, never colour alone. *@
+            <div class="sma-detail__availability @(Model.IsBorrowable ? "is-ok" : "is-out")">
+                <span class="sma-detail__availability-glyph" aria-hidden="true">@(Model.IsBorrowable ? "✓" : "●")</span>
+                <div>
+                    <strong>@Model.AvailabilityText</strong>
+                    @if (Model.TotalCopies > 0)
+                    {
+                        <span class="sma-detail__availability-sub">
+                            of @Model.TotalCopies cop@(Model.TotalCopies == 1 ? "y" : "ies") held by the library
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="sma-detail__availability-sub">
+                            Ask at the desk — no copies of this title are on the shelf yet.
+                        </span>
+                    }
                 </div>
             </div>
 
-            <p class="desc-text">
-                @description
-            </p>
-
             @if (TempData["BookReviewSuccess"] is string reviewSuccess && !string.IsNullOrWhiteSpace(reviewSuccess))
             {
-                <div class="alert alert-success py-2 px-3 mb-3" role="alert">@reviewSuccess</div>
+                <div class="sma-detail__flash is-ok" role="status">@reviewSuccess</div>
             }
             @if (TempData["BookReviewError"] is string reviewError && !string.IsNullOrWhiteSpace(reviewError))
             {
-                <div class="alert alert-danger py-2 px-3 mb-3" role="alert">@reviewError</div>
+                <div class="sma-detail__flash is-bad" role="alert">@reviewError</div>
             }
 
-            <div class="btn-group-custom">
-                @if (User.Identity?.IsAuthenticated == true)
-                {
-                    <button type="button" class="btn-read" data-bs-toggle="modal" data-bs-target="#bookFeedbackModal">
-                        Feedback
-                    </button>
-                }
-                else
-                {
-                    <a class="btn-read text-decoration-none d-inline-flex align-items-center justify-content-center"
-                       asp-area="Identity"
-                       asp-page="/Account/Login"
-                       asp-route-returnUrl="@returnUrl">
-                        Feedback
-                    </a>
-                }
-                @if (User.Identity?.IsAuthenticated == true)
+            @* ---------------- actions ---------------- *@
+            <div class="sma-detail__actions">
+                @if (isSignedIn)
                 {
                     <form method="post" asp-controller="Home" asp-action="AddToCart" asp-route-bookId="@book.Id"
-                          class="d-inline cart-form">
+                          class="cart-form">
                         @Html.AntiForgeryToken()
-                        <button type="submit" class="btn-cart text-decoration-none border-0">
-                            <i class="bi bi-cart2 me-2"></i> Add to cart
+                        <button type="submit" class="sma-detail__cart">
+                            <i class="bi bi-cart2" aria-hidden="true"></i> Add to cart
                         </button>
                     </form>
                 }
                 else
                 {
-                    <a class="btn-cart text-decoration-none d-inline-flex align-items-center justify-content-center"
-                       asp-area="Identity"
-                       asp-page="/Account/Login"
+                    <a class="sma-detail__cart" asp-area="Identity" asp-page="/Account/Login"
                        asp-route-returnUrl="@returnUrl">
-                        <i class="bi bi-cart2 me-2"></i> Add to cart
+                        <i class="bi bi-cart2" aria-hidden="true"></i> Sign in to borrow
                     </a>
                 }
+
                 @if (Model.IsFavorite)
                 {
                     <form method="post" asp-controller="Home" asp-action="RemoveFavorite" asp-route-bookId="@book.Id"
-                          class="d-inline fav-form">
+                          class="fav-form">
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="returnUrl" value="@returnUrl" />
-                        <button type="submit" class="btn-fav-circle" aria-label="remove favorite" title="Remove favorite">
-                            <i class="bi bi-heart-fill text-danger"></i>
+                        <button type="submit" class="btn-fav-circle sma-detail__circle is-active"
+                                aria-label="Remove from saved books" title="Remove from saved">
+                            <i class="bi bi-heart-fill" aria-hidden="true"></i>
                         </button>
                     </form>
                 }
                 else
                 {
                     <form method="post" asp-controller="Home" asp-action="AddFavorite" asp-route-bookId="@book.Id"
-                          class="d-inline fav-form">
+                          class="fav-form">
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="returnUrl" value="@returnUrl" />
-                        <button type="submit" class="btn-fav-circle" aria-label="add favorite" title="Add favorite">
-                            <i class="bi bi-heart"></i>
+                        <button type="submit" class="btn-fav-circle sma-detail__circle"
+                                aria-label="Save for later" title="Save for later">
+                            <i class="bi bi-heart" aria-hidden="true"></i>
                         </button>
                     </form>
                 }
+
+                @* Class and data- attributes kept exactly: the script at the bottom binds to them. *@
                 <button type="button"
-                        class="btn-share-circle"
+                        class="btn-share-circle sma-detail__circle"
                         data-share-url="@shareUrl"
                         data-share-title="@book.Title"
                         data-share-author="@book.Author"
                         title="Share"
                         aria-label="Share @book.Title">
-                    <i class="bi bi-share"></i>
+                    <i class="bi bi-share" aria-hidden="true"></i>
                 </button>
-            </div>
-            <hr class="my-3 opacity-25" />
 
-            <div class="info-bar detail-info-bar">
-                <div class="info-item">Total page: @totalPages</div>
-                <div class="info-item">Publish year: @publishYear</div>
-                <div class="info-item">Book code: @bookCode</div>
+                @if (isSignedIn)
+                {
+                    <button type="button" class="sma-detail__review-open"
+                            data-bs-toggle="modal" data-bs-target="#bookFeedbackModal">
+                        Write a review
+                    </button>
+                }
             </div>
+
+            @* ---------------- facts ---------------- *@
+            <dl class="sma-detail__facts">
+                <div><dt>Book code</dt><dd class="sma-mono">@bookCode</dd></div>
+                <div><dt>Subject</dt><dd>@category</dd></div>
+                <div><dt>Published</dt><dd>@publishYear</dd></div>
+                <div><dt>Pages</dt><dd>@totalPages</dd></div>
+                @if (!string.IsNullOrWhiteSpace(book.Isbn))
+                {
+                    <div><dt>ISBN</dt><dd class="sma-mono">@book.Isbn</dd></div>
+                }
+            </dl>
+
+            <section class="sma-detail__about" aria-labelledby="aboutHeading">
+                <h2 class="sma-detail__section-title" id="aboutHeading">About this book</h2>
+                <p class="sma-detail__desc">@description</p>
+            </section>
         </div>
     </div>
 
-    <section class="mt-5 detail-related">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h3 class="fw-bold text-navy mb-0">You might also like:</h3>
+    @* ---------------- related ---------------- *@
+    <section class="sma-detail__related" aria-labelledby="relatedHeading">
+        <div class="sma-home-section__head">
+            <h2 class="sma-home-section__title" id="relatedHeading">You might also like</h2>
+            <a class="sma-home-link" asp-controller="Home" asp-action="Book"
+               asp-route-category="@book.CategoryName">More in @category</a>
         </div>
 
-        <div class="row row-cols-2 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3 g-md-4">
-            @if (Model.RelatedBooks.Any())
-            {
+        @if (Model.RelatedBooks != null && Model.RelatedBooks.Any())
+        {
+            <div class="sma-book-grid">
                 @foreach (var relatedBook in Model.RelatedBooks)
                 {
-                    var relatedImagePath = string.IsNullOrWhiteSpace(relatedBook.ImageUrl)
-                        ? Url.Content("~/images/User/Book/book2.png")
-                        : Url.Content(relatedBook.ImageUrl);
-                    var relatedRating = Math.Clamp(relatedBook.Rating, 0, 5);
-                    var relatedIsFavorite = Model.RelatedFavoriteBookIds.Contains(relatedBook.Id);
-
-                    <div class="col">
-                        <div class="card book-card detail-related-card border-0 shadow-sm h-100 position-relative">
-                            <div class="card-img-wrapper p-2">
-                                <img src="@relatedImagePath" class="card-img-top rounded related-card-img" alt="@relatedBook.Title">
-                            </div>
-                            <div class="card-body p-3">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <span class="category-text small fw-bold">@relatedBook.CategoryName</span>
-                                    @if (relatedIsFavorite)
-                                    {
-                                        <form method="post" asp-controller="Home" asp-action="RemoveFavorite" asp-route-bookId="@relatedBook.Id"
-                                              class="d-inline related-favorite-form">
-                                            @Html.AntiForgeryToken()
-                                            <input type="hidden" name="returnUrl" value="@returnUrl" />
-                                            <button type="submit" class="btn p-0 border-0 wishlist-btn active" title="Remove favorite"
-                                                    aria-label="Remove @relatedBook.Title from favorites">
-                                                <i class="fa-solid fa-heart text-danger"></i>
-                                            </button>
-                                        </form>
-                                    }
-                                    else
-                                    {
-                                        <form method="post" asp-controller="Home" asp-action="AddFavorite" asp-route-bookId="@relatedBook.Id"
-                                              class="d-inline related-favorite-form">
-                                            @Html.AntiForgeryToken()
-                                            <input type="hidden" name="returnUrl" value="@returnUrl" />
-                                            <button type="submit" class="btn p-0 border-0 wishlist-btn text-secondary" title="Add favorite"
-                                                    aria-label="Add @relatedBook.Title to favorites">
-                                                <i class="fa-regular fa-heart"></i>
-                                            </button>
-                                        </form>
-                                    }
-                                </div>
-                                <h6 class="related-book-title mb-1 small fw-bold">@relatedBook.Title</h6>
-                                <p class="author-text mb-3 small italic">@relatedBook.Author</p>
-                                <div class="text-end star-rating text-warning small">
-                                    @for (var i = 0; i < 5; i++)
-                                    {
-                                        if (i < relatedRating)
-                                        {
-                                            <i class="fa-solid fa-star"></i>
-                                        }
-                                        else
-                                        {
-                                            <i class="fa-regular fa-star"></i>
-                                        }
-                                    }
-                                </div>
-                            </div>
-                            <a asp-controller="Home" asp-action="BookDetail" asp-route-id="@relatedBook.Id"
-                               class="stretched-link" aria-label="View details for @relatedBook.Title"></a>
-                        </div>
-                    </div>
+                    <partial name="_SmaBookCard" model="@((relatedBook, Model.RelatedCards, returnUrl))" />
                 }
-            }
-            else
-            {
-                <div class="col-12">
-                    <div class="text-muted">No related books found.</div>
-                </div>
-            }
-        </div>
+            </div>
+        }
+        else
+        {
+            <div class="sma-home-empty">No related books found.</div>
+        }
     </section>
 </div>
 
-@if (User.Identity?.IsAuthenticated == true)
+@if (isSignedIn)
 {
     <div class="modal fade" id="bookFeedbackModal" tabindex="-1" aria-labelledby="bookFeedbackModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -263,7 +244,6 @@
         </div>
     </div>
 }
-
 @section Scripts {
     <script>
         (function () {

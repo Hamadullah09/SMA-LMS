@@ -1,6 +1,7 @@
+/* padding-top removed: it existed only to clear the formerly position:fixed header.
+   The header is sticky now, so this was 104px of dead space above the nav. */
 body {
     margin: 0;
-    padding-top: 104px;
     font-family:
         -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
         Arial, sans-serif;
@@ -11,7 +12,9 @@ body.has-breadcrumb {
     padding-top: 148px;
 }
 
-header {
+/* Scoped to the site chrome. As a bare element selector this pinned EVERY <header> on
+   the site to the viewport, including in-page section headers. */
+#main-header {
     position: fixed;
     top: 0;
     left: 0;
@@ -80,20 +83,20 @@ header {
     gap: 8px;
 }
 
-header.scrolled .top-header {
+#main-header.scrolled .top-header {
     height: 52px;
 }
 
-header.scrolled .logo-section i {
+#main-header.scrolled .logo-section i {
     font-size: 1.5rem;
 }
 
-header.scrolled .user-info {
+#main-header.scrolled .user-info {
     font-size: 13px;
     gap: 15px;
 }
 
-header.scrolled .top-header-content {
+#main-header.scrolled .top-header-content {
     padding: 0 28px;
 }
 
@@ -470,7 +473,8 @@ main {
     min-height: 70vh;
 }
 
-footer {
+/* Scoped: a bare footer selector repainted any in-page footer navy. */
+footer.sma-footer {
     background-color: var(--sma-navy-900);
     color: white;
     padding: 40px 0;

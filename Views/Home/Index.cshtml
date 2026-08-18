@@ -1,4 +1,5 @@
 @model Library_Management_system.Models.HomeViewModel
+@inject Microsoft.Extensions.Options.IOptions<Library_Management_system.Application.Policies.LibraryHoursOptions> LibraryHours
 @{
     ViewData["Title"] = "Home";
     ViewData["FullWidth"] = true;   // opt out of the 960px container
@@ -37,7 +38,6 @@
 
             <div class="sma-hero__actions">
                 <a asp-controller="Home" asp-action="Book">Browse the catalogue</a>
-                <a href="/assistant">Ask the library assistant</a>
                 @if (isSignedIn)
                 {
                     <a href="/portal">My library</a>
@@ -63,11 +63,6 @@
             <span class="sma-quick__icon" aria-hidden="true">◷</span>
             <span class="sma-quick__label">Due dates &amp; fines</span>
             <span class="sma-quick__hint">What you owe, if anything</span>
-        </a>
-        <a class="sma-quick__item" href="/assistant">
-            <span class="sma-quick__icon" aria-hidden="true">✦</span>
-            <span class="sma-quick__label">Library assistant</span>
-            <span class="sma-quick__hint">Ask where a book is</span>
         </a>
     </section>
 
@@ -170,7 +165,11 @@
         <div class="sma-info__grid">
             <div class="sma-info__item">
                 <h3>Opening hours</h3>
-                <p>Monday – Friday, 07:30 – 20:30<br />Saturday – Sunday, 07:30 – 16:30</p>
+                @* One source for the hours, shared with the About page and the assistant. *@
+                <p>
+                    Monday – Friday, @LibraryHours.Value.WeekdayRange<br />
+                    Saturday – Sunday, @LibraryHours.Value.WeekendRange
+                </p>
             </div>
             <div class="sma-info__item">
                 <h3>Borrowing</h3>
