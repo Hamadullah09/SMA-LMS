@@ -2885,3 +2885,56 @@ footer.sma-footer {
     max-width: calc(var(--sma-measure) + 2 * var(--sma-gutter));
     padding-inline: calc(2 * var(--sma-gutter));
 }
+
+/* ---------------------------------------------------------------- nav, small screens */
+
+@media (max-width: 48rem) {
+    /* The burger belongs in the corner. It was order:2, which put it between the
+       brand and the icon buttons — a menu control floating mid-bar with the cart
+       and bell to its right. The icons take the auto margin now, so the pair
+       sits hard right with the burger last. */
+    .sma-nav__actions { order: 2; margin-left: auto; }
+    .sma-nav__burger  { order: 3; margin-left: 0.35rem; }
+
+    /* Account and search share the second row; search takes what is left rather
+       than claiming a whole row of its own. */
+    .sma-nav__account { order: 4; }
+    .sma-nav__search  { order: 5; flex: 1 1 8rem; flex-basis: 8rem; min-width: 0; }
+}
+
+/* sma-theme-bridge.css hides Sign in below 576px, leaving only Register. That is
+   the wrong one to drop: a returning student signs in far more often than anyone
+   registers, and the account block is the one place to do it. Both are shown; they
+   are narrow enough to sit together on the row. */
+@media (max-width: 36rem) {
+    .sma-nav__account .sma-nav__signin { display: inline-flex; }
+
+    /* Absolute px, not rem: site.css drops the root to 14px below 768px, so a
+       rem-based minimum silently lands under the 44px target on the very
+       devices that need it. */
+    .sma-nav__signin, .sma-nav__register {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        padding: 0 0.75rem;
+        font-size: 0.8125rem;
+    }
+
+    /* 35px wide was under the target in one dimension. */
+    .sma-nav__burger { width: 44px; }
+
+    /* Signed in, the account block is the avatar alone — the name is hidden at this
+       width — which left a 37px target. */
+    .sma-nav__user { min-width: 44px; min-height: 44px; justify-content: center; }
+}
+
+@media (max-width: 22.5rem) {
+    /* At 320px the brand, three icon buttons and the burger cannot share a row,
+       and the burger is what wrapped — putting the menu control on the second
+       row instead of the corner where it was asked for.
+
+       Borrowing history gives way: it is reachable from the menu under My
+       library and again from the footer, whereas the burger has no alternative
+       route at all. Cart and notifications are time-sensitive and stay. */
+    .sma-nav__actions a[href="/History"] { display: none; }
+}
