@@ -221,6 +221,7 @@ jobs:
             rm -f app_offline.htm;
           " || echo "::warning::Could not remove app_offline.htm. Delete it by hand or the site stays offline."
 
+
       - name: Check the site responds
         run: |
           url="${{ secrets.SITE_URL }}"
@@ -244,3 +245,36 @@ jobs:
 
           echo "::error::Site did not return 200. Check $url and the stdout log on the server."
           exit 1
+      # The only account of a startup failure lives on the server, and reading it by hand over
+      # FTP after every attempt is the slow way to debug this. Pulled into the job output
+      # instead, and only when something is actually wrong.
+      - name: Fetch the server startup log
+        if: failure()
+        run: |
+          which lftp >/dev/null 2>&1 || { sudo apt-get update -qq && sudo apt-get install -y -qq lftp; }
+
+          mkdir -p serverlogs
+          lftp -c "
+            set ftp:ssl-allow true;
+            set ssl:verify-certificate false;
+            set net:max-retries 1;
+            set net:timeout 25;
+            open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
+            cd '${{ steps.dir.outputs.path }}';
+            lcd serverlogs;
+            mget -E logs/*.log;
+          " 2>&1 | tail -5 || echo "No logs directory on the server yet."
+
+          if ls serverlogs/*.log >/dev/null 2>&1; then
+            for f in serverlogs/*.log; do
+              echo "================ $f ================"
+              # The interesting part of an ASP.NET Core startup failure is the tail.
+              tail -c 6000 "$f"
+              echo
+            done
+          else
+            echo "Nothing was written to logs/. If the site returns an empty 503 with no log at"
+            echo "all, the module could not start the process - check that the application pool"
+            echo "is set to 'No Managed Code' and note whether it is 32-bit, which an x64"
+            echo "self-contained build cannot load in-process."
+          fi
