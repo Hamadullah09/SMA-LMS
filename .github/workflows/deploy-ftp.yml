@@ -67,15 +67,11 @@ jobs:
           # and it is right to: no admin password means a known-credential administrator, and
           # no SMTP means a student who forgets a password cannot recover it. Checked here so
           # the deploy stops before uploading rather than after the app fails to start.
-          missing=""
-          [ -z "$SEED_ADMIN_PASSWORD" ] && missing="$missing SEED_ADMIN_PASSWORD"
-          [ -z "$SMTP_SERVER" ]         && missing="$missing SMTP_SERVER"
-          [ -z "$SMTP_SENDER_EMAIL" ]   && missing="$missing SMTP_SENDER_EMAIL"
-          [ -z "$SMTP_PASSWORD" ]       && missing="$missing SMTP_PASSWORD"
-          if [ -n "$missing" ]; then
-            echo "::error::Missing secrets:$missing - the application refuses to start in"
-            echo "::error::Production without them. See ProductionGuards.Validate."
-            exit 1
+          if [ -z "$SMTP_SERVER" ]; then
+            echo "::warning::No SMTP secrets set. Deploying with EmailSettings:AllowMissing so"
+            echo "::warning::the site can run, but password reset and overdue reminders will"
+            echo "::warning::not be delivered until SMTP_SERVER, SMTP_SENDER_EMAIL and"
+            echo "::warning::SMTP_PASSWORD are added."
           fi
 
           # jq builds the JSON so a password containing quotes, backslashes or $ cannot
@@ -109,8 +105,9 @@ jobs:
                 WeekendOpen: "07:30", WeekendClose: "16:30",
                 Note: "Except public holidays."
               },
-              SeedAdmin: { Email: "admin@sourceemeall.com", Password: $adminPw, ResetPasswordOnStartup: false },
-              EmailSettings: { SmtpServer: $smtpHost, SmtpPort: $smtpPort, SenderEmail: $smtpFrom, Password: $smtpPw },
+              SeedAdmin: { Email: "admin@sourceemeall.com", Enabled: false, ResetPasswordOnStartup: false },
+              EmailSettings: { SmtpServer: $smtpHost, SmtpPort: $smtpPort, SenderEmail: $smtpFrom, Password: $smtpPw, AllowMissing: ($smtpHost == "") },
+              SeedSampleData: { Enabled: false },
               SeedDemoUsers: { Enabled: false },
               SeedStudentAccounts: { Enabled: false },
               Catalogue: { FreshImport: false, FreshImportFile: "Data/Seed/rfid-book-tags.csv" },

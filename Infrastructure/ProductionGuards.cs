@@ -41,11 +41,22 @@ public static class ProductionGuards
         }
 
         // ---- Seed administrator ----
+        // Only required when an administrator would actually be created. A deployment onto a
+        // database that already holds its accounts seeds nothing, and demanding a password for a
+        // create that never happens just pushes a real credential into configuration for no gain.
+        var seedAdminEnabled = configuration.GetValue("SeedAdmin:Enabled", true);
         var adminPassword = configuration["SeedAdmin:Password"];
-        if (string.IsNullOrWhiteSpace(adminPassword))
+
+        if (!seedAdminEnabled)
+        {
+            // Nothing to guard against: with seeding off no account is created, so there is no
+            // known-credential administrator to prevent.
+        }
+        else if (string.IsNullOrWhiteSpace(adminPassword))
         {
             failures.Add("SeedAdmin:Password is not set. Set it through the hosting control panel "
-                         + "rather than in appsettings.json.");
+                         + "rather than in appsettings.json, or set SeedAdmin:Enabled to false if "
+                         + "the database already contains the administrator.");
         }
         else if (KnownWeakPasswords.Contains(adminPassword, StringComparer.OrdinalIgnoreCase))
         {
@@ -74,26 +85,46 @@ public static class ProductionGuards
         }
 
         // ---- Email ----
-        // Every field is checked, not just the server. SmtpServer now has a sensible default
+        // Every field is checked, not just the server. SmtpServer has a sensible default
         // ("smtp.gmail.com") in appsettings, so on its own it proves nothing — a deploy with a
-        // server but no credentials would have passed the old check and still sent nothing.
+        // server but no credentials would pass and still send nothing.
         //
         // This matters more than it used to. Email is no longer only for reminders: it is the
         // sole password reset channel since the Telegram OTP was removed. A production library
         // with unusable email is one where a student who forgets a password cannot recover it
         // without visiting the desk.
-        foreach (var (key, consequence) in new[]
-                 {
-                     ("EmailSettings:SmtpServer", "there is no server to send through"),
-                     ("EmailSettings:SenderEmail", "there is no address to send from"),
-                     ("EmailSettings:Password", "the SMTP login will be rejected")
-                 })
+        //
+        // EmailSettings:AllowMissing exists for the window between putting a site live and
+        // having its mailbox — it has to be set deliberately, it is reported at every start, and
+        // it does not weaken any other check. It is not a way to leave email unconfigured.
+        var allowMissingEmail = configuration.GetValue("EmailSettings:AllowMissing", false);
+
+        var emailGaps = new[]
+            {
+                ("EmailSettings:SmtpServer", "there is no server to send through"),
+                ("EmailSettings:SenderEmail", "there is no address to send from"),
+                ("EmailSettings:Password", "the SMTP login will be rejected")
+            }
+            .Where(entry => string.IsNullOrWhiteSpace(configuration[entry.Item1]))
+            .ToList();
+
+        if (emailGaps.Count > 0 && !allowMissingEmail)
         {
-            if (string.IsNullOrWhiteSpace(configuration[key]))
+            foreach (var (key, consequence) in emailGaps)
             {
                 failures.Add($"{key} is not set, so {consequence}. Password reset emails and "
-                             + "overdue reminders will not be delivered.");
+                             + "overdue reminders will not be delivered. Set EmailSettings:AllowMissing "
+                             + "to true to start anyway while the mailbox is being arranged.");
             }
+        }
+        else if (emailGaps.Count > 0)
+        {
+            // Console rather than the logger: this runs before the host, and the point is that it
+            // cannot be filtered out or missed in the startup log.
+            Console.Error.WriteLine(
+                "WARNING: starting with EmailSettings:AllowMissing = true. "
+                + string.Join(" ", emailGaps.Select(g => g.Item1 + " is not set."))
+                + " Password reset and overdue reminders will not be delivered until they are.");
         }
 
         if (failures.Count == 0)

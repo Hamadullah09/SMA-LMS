@@ -118,6 +118,11 @@ builder.Services.AddScoped<IAccountEmailService, AccountEmailService>();
 
 var seedAdminEmail = builder.Configuration["SeedAdmin:Email"] ?? "admin@library.com";
 var seedAdminPassword = builder.Configuration["SeedAdmin:Password"] ?? "Admin@123";
+
+// Off when the database already holds its administrator - a deployment onto restored data
+// seeds nothing, so requiring a password for a create that never happens would only put a
+// real credential into configuration.
+var seedAdminEnabled = builder.Configuration.GetValue("SeedAdmin:Enabled", true);
 var resetSeedAdminPasswordOnStartup =
     builder.Configuration.GetValue("SeedAdmin:ResetPasswordOnStartup", builder.Environment.IsDevelopment());
 
@@ -184,6 +189,13 @@ await using (var scope = app.Services.CreateAsyncScope())
     await EnsureRoleExistsAsync(roleManager, "User");
 
     // Seed Admin User
+    if (!seedAdminEnabled)
+    {
+        Console.WriteLine("[seed] SeedAdmin:Enabled is false - the administrator is expected to "
+            + "already exist in the database.");
+    }
+    else
+    {
     var adminUser = await userManager.FindByEmailAsync(seedAdminEmail);
     if (adminUser == null)
     {
@@ -243,6 +255,8 @@ await using (var scope = app.Services.CreateAsyncScope())
             throw new InvalidOperationException($"Failed to assign Admin role to '{seedAdminEmail}': {errors}");
         }
     }
+    }
+
 
     if (seedDemoUsers)
     {
