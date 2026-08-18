@@ -1797,36 +1797,8 @@ body {
     margin-bottom: 1.5rem;
 }
 
-.sma-profile__cover {
-    position: relative;
-    height: clamp(140px, 22vw, 240px);
-    background: var(--sma-surface-sunken, #faf7f4);
-}
-
-.sma-profile__cover-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-}
-
-/* Keeps the Change cover button legible over an arbitrary photo. */
-.sma-profile__cover-scrim {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(to top, rgb(16 12 8 / 0.45), transparent 45%);
-    pointer-events: none;
-}
-
-.sma-profile__cover-form {
-    position: absolute;
-    right: 1rem;
-    bottom: 1rem;
-}
-
 .image-upload-input { display: none; }
 
-.sma-profile__cover-btn,
 .sma-profile__avatar-btn {
     display: inline-flex;
     align-items: center;
@@ -1841,17 +1813,8 @@ body {
     transition: background .15s ease;
 }
 
-.sma-profile__cover-btn {
-    min-height: 44px;
-    padding: 0 1rem;
-    border-radius: 999px;
-    box-shadow: 0 4px 14px -6px rgb(16 12 8 / 0.6);
-}
-
-.sma-profile__cover-btn:hover,
 .sma-profile__avatar-btn:hover { background: #fff; }
 
-.sma-profile__cover-btn:focus-visible,
 .sma-profile__avatar-btn:focus-visible {
     outline: 3px solid var(--sma-orange-400, #f4923f);
     outline-offset: 2px;
@@ -1862,13 +1825,12 @@ body {
 .sma-profile__identity {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
-    align-items: flex-end;
+    align-items: center;
     gap: 1.25rem;
-    padding: 0 1.75rem 1.5rem;
-    /* Pulls the avatar up over the cover. */
-    margin-top: -2.75rem;
+    /* Even padding: there is no cover band above to pull the avatar up over, and the
+       negative top margin that did so left the name clipped by the cover's edge. */
+    padding: 1.75rem;
 }
-
 .sma-profile__avatar-wrap {
     position: relative;
     width: 8.5rem;
@@ -2265,13 +2227,12 @@ body {
 @media (max-width: 48rem) {
     .sma-profile { padding-inline: 1rem; }
 
-    /* Stack: avatar centred over the cover, then name, then the buttons full width. */
+    /* Stack: avatar, then name, then the buttons full width. */
     .sma-profile__identity {
         grid-template-columns: minmax(0, 1fr);
         justify-items: center;
         text-align: center;
-        padding-inline: 1.25rem;
-        margin-top: -2.25rem;
+        padding: 1.5rem 1.25rem;
     }
 
     .sma-profile__avatar-wrap { width: 6.5rem; height: 6.5rem; }

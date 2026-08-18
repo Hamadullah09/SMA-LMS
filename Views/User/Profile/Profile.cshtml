@@ -39,29 +39,22 @@
 
 <div class="sma-profile">
 
-    @* ---------------- cover + identity ---------------- *@
+    @* ---------------- identity ---------------- *@
+    @*
+        The cover photo is gone. It was a fixed stock photograph shown identically to every user,
+        it pushed the name down under its own bottom edge, and nothing on the page depended on it.
+        The avatar remains, because that one is genuinely per-person.
+    *@
     <header class="sma-profile__head">
-        <div class="sma-profile__cover">
-            <img src="@Model.CoverImageUrl" alt="" class="sma-profile__cover-img" />
-            <div class="sma-profile__cover-scrim" aria-hidden="true"></div>
-
-            <form method="post" asp-controller="Home" asp-action="UploadCoverImage"
-                  enctype="multipart/form-data" class="image-upload-form sma-profile__cover-form">
-                @Html.AntiForgeryToken()
-                <input type="file" name="imageFile" class="image-upload-input" id="coverImageInput"
-                       accept=".jpg,.jpeg,.png,.webp,image/*" />
-                <button type="button" class="sma-profile__cover-btn image-upload-trigger"
-                        data-target-input="coverImageInput">
-                    <i class="bi bi-image" aria-hidden="true"></i>
-                    Change cover
-                </button>
-            </form>
-        </div>
-
         <div class="sma-profile__identity">
             <div class="sma-profile__avatar-wrap">
+                @* Sits behind the image, so it shows when there is none or the file 404s. *@
                 <span class="sma-profile__initials" aria-hidden="true">@initials</span>
-                <img src="@Model.ProfileImageUrl" alt="" class="sma-profile__avatar" />
+
+                @if (!string.IsNullOrWhiteSpace(Model.ProfileImageUrl))
+                {
+                    <img src="@Model.ProfileImageUrl" alt="" class="sma-profile__avatar" />
+                }
 
                 <form method="post" asp-controller="Home" asp-action="UploadProfileImage"
                       enctype="multipart/form-data" class="image-upload-form sma-profile__avatar-form">

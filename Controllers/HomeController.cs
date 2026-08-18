@@ -12,11 +12,7 @@ namespace Library_Management_system.Controllers
     public class HomeController : Controller
     {
         private const string ProfileImageClaimType = "ProfileImageUrl";
-        private const string CoverImageClaimType = "CoverImageUrl";
-        private const string DefaultProfileImageUrl =
-            "https://i.pinimg.com/736x/c0/d1/9f/c0d19f67852cb44fe9bdbed793141790.jpg";
-        private const string DefaultCoverImageUrl =
-            "https://i.pinimg.com/736x/61/0d/c5/610dc55e2fb7a1ab8728a718be63e1d4.jpg";
+
 
         private static readonly HashSet<string> AllowedImageExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -614,29 +610,25 @@ namespace Library_Management_system.Controllers
                 }
             }
 
-            var profileImageUrl = DefaultProfileImageUrl;
-            var coverImageUrl = DefaultCoverImageUrl;
+            // No stock default. An unset avatar falls through to the initials the profile draws
+            // behind it, which is at least the right person — the old default was a fixed
+            // Pinterest photograph served to every user alike.
+            var profileImageUrl = string.Empty;
+
             if (!string.IsNullOrWhiteSpace(userId))
             {
-                var imageClaims = await _context.UserClaims
+                // Ordered explicitly: EF refuses LastOrDefault without a deterministic sort, and
+                // "last" here means the most recently added claim, which is the newest upload.
+                var profileClaim = await _context.UserClaims
                     .AsNoTracking()
-                    .Where(x => x.UserId == userId &&
-                                (x.ClaimType == ProfileImageClaimType || x.ClaimType == CoverImageClaimType))
-                    .ToListAsync();
-
-                var profileClaim = imageClaims
-                    .LastOrDefault(x => x.ClaimType == ProfileImageClaimType)?.ClaimValue;
-                var coverClaim = imageClaims
-                    .LastOrDefault(x => x.ClaimType == CoverImageClaimType)?.ClaimValue;
+                    .Where(x => x.UserId == userId && x.ClaimType == ProfileImageClaimType)
+                    .OrderBy(x => x.Id)
+                    .Select(x => x.ClaimValue)
+                    .LastOrDefaultAsync();
 
                 if (!string.IsNullOrWhiteSpace(profileClaim))
                 {
                     profileImageUrl = profileClaim;
-                }
-
-                if (!string.IsNullOrWhiteSpace(coverClaim))
-                {
-                    coverImageUrl = coverClaim;
                 }
             }
 
@@ -699,7 +691,6 @@ namespace Library_Management_system.Controllers
                 FullName = fullName,
                 Email = email,
                 ProfileImageUrl = profileImageUrl,
-                CoverImageUrl = coverImageUrl,
                 MemberSince = memberSince,
 
                 BooksOutCount = stillOut.Count,
@@ -765,13 +756,6 @@ namespace Library_Management_system.Controllers
         public async Task<IActionResult> UploadProfileImage(IFormFile? imageFile)
         {
             return await SaveProfileImageAsync(imageFile, ProfileImageClaimType, "Profile image updated successfully.");
-        }
-
-        [HttpPost("profile/upload-cover-image")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UploadCoverImage(IFormFile? imageFile)
-        {
-            return await SaveProfileImageAsync(imageFile, CoverImageClaimType, "Cover image updated successfully.");
         }
 
         [HttpGet("bookmark")]
