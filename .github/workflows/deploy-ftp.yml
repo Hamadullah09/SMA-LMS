@@ -151,6 +151,16 @@ jobs:
           echo "Remote listing of ${{ steps.dir.outputs.path }}:"
           echo "$out"
 
+          # lftp returns 0 even when a cd fails, so the transcript has to be read. Without
+          # this the job sails on and the deploy action creates the missing folder, which is
+          # how 210MB once landed in a directory IIS does not serve.
+          if echo "$out" | grep -qiE "Access failed|550 "; then
+            echo "::error::Could not enter the target folder - it does not exist for this FTP"
+            echo "::error::user. FTP_SERVER_DIR is relative to that user home, listed above as"
+            echo "::error::--- home ---. If the site files are in the home itself, set it to /"
+            exit 1
+          fi
+
           # web.config is the marker that this is the folder IIS serves the app from.
           if echo "$out" | grep -qi 'web.config'; then
             echo "Found web.config - this looks like the site root."
@@ -220,7 +230,15 @@ jobs:
           for i in 1 2 3 4 5 6; do
             code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 60 "$url" || echo 000)
             echo "attempt $i: HTTP $code"
-            [ "$code" = "200" ] && { echo "Site is up."; exit 0; }
+            if [ "$code" = "200" ]; then
+              # The host answers 200 with its own placeholder page, so the status code alone
+              # proves nothing. Look for markup only this application emits.
+              if curl -s --max-time 60 "$url" | grep -q "sma-nav"; then
+                echo "Site is up and serving the application."; exit 0
+              fi
+              echo "200, but this is not the application - most likely the host placeholder,"
+              echo "which means the upload went to a folder IIS does not serve."
+            fi
             sleep 20
           done
 
