@@ -110,6 +110,9 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          # Overridable without touching this file: add a repository variable
+          # FTP_PROTOCOL = ftps if the host insists on explicit TLS.
+          protocol: ${{ vars.FTP_PROTOCOL || 'ftp' }}
           local-dir: ./.github/offline/
           dangerous-clean-slate: false
 
@@ -120,6 +123,9 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          # Overridable without touching this file: add a repository variable
+          # FTP_PROTOCOL = ftps if the host insists on explicit TLS.
+          protocol: ${{ vars.FTP_PROTOCOL || 'ftp' }}
           local-dir: ./publish/
           # The action keeps a manifest on the server and uploads only what changed, so the
           # first deploy is slow and later ones are not.
