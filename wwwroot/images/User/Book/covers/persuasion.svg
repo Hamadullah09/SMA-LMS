@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 400" width="300" height="400" role="img" aria-label="Persuasion by Jane Austen">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5c2649"/>
+      <stop offset="1" stop-color="#3a1730"/>
+    </linearGradient>
+  </defs>
+  <rect width="300" height="400" fill="url(#g)"/>
+  <rect x="0" y="0" width="14" height="400" fill="#3a1730"/>
+  <rect x="14" y="0" width="2" height="400" fill="#f19cbb" opacity="0.55"/>
+  <rect x="42" y="46" width="46" height="3" fill="#f19cbb"/>
+  <text x="150" y="0" fill="#ffffff" font-family="Georgia, 'Times New Roman', serif" font-size="30" font-weight="700" text-anchor="middle"><tspan x="150" y="150">Persuasion</tspan></text>
+  <text x="150" y="0" fill="#f19cbb" font-family="Georgia, 'Times New Roman', serif" font-size="15" font-style="italic" text-anchor="middle"><tspan x="150" y="300">Jane Austen</tspan></text>
+  <text x="150" y="360" fill="#ffffff" font-family="'Courier New', monospace" font-size="12" letter-spacing="1" text-anchor="middle" opacity="0.75">BR210 035</text>
+  <text x="150" y="382" fill="#ffffff" font-family="Arial, sans-serif" font-size="9" letter-spacing="2" text-anchor="middle" opacity="0.45">ROMANCE</text>
+</svg>

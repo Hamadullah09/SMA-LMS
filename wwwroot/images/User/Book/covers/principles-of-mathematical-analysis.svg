@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 400" width="300" height="400" role="img" aria-label="Principles of Mathematical Analysis by Walter Rudin">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1e5245"/>
+      <stop offset="1" stop-color="#14342b"/>
+    </linearGradient>
+  </defs>
+  <rect width="300" height="400" fill="url(#g)"/>
+  <rect x="0" y="0" width="14" height="400" fill="#14342b"/>
+  <rect x="14" y="0" width="2" height="400" fill="#7fd1ae" opacity="0.55"/>
+  <rect x="42" y="46" width="46" height="3" fill="#7fd1ae"/>
+  <text x="150" y="0" fill="#ffffff" font-family="Georgia, 'Times New Roman', serif" font-size="26" font-weight="700" text-anchor="middle"><tspan x="150" y="119">Principles of</tspan><tspan x="150" y="150">Mathematical</tspan><tspan x="150" y="181">Analysis</tspan></text>
+  <text x="150" y="0" fill="#7fd1ae" font-family="Georgia, 'Times New Roman', serif" font-size="15" font-style="italic" text-anchor="middle"><tspan x="150" y="300">Walter Rudin</tspan></text>
+  <text x="150" y="360" fill="#ffffff" font-family="'Courier New', monospace" font-size="12" letter-spacing="1" text-anchor="middle" opacity="0.75">BR205 017</text>
+  <text x="150" y="382" fill="#ffffff" font-family="Arial, sans-serif" font-size="9" letter-spacing="2" text-anchor="middle" opacity="0.45">MATHEMATICS</text>
+</svg>

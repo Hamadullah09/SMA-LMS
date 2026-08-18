@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 400" width="300" height="400" role="img" aria-label="Database System Concepts by Henry F. Korth">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#24405e"/>
+      <stop offset="1" stop-color="#1b2a41"/>
+    </linearGradient>
+  </defs>
+  <rect width="300" height="400" fill="url(#g)"/>
+  <rect x="0" y="0" width="14" height="400" fill="#1b2a41"/>
+  <rect x="14" y="0" width="2" height="400" fill="#f07c20" opacity="0.55"/>
+  <rect x="42" y="46" width="46" height="3" fill="#f07c20"/>
+  <text x="150" y="0" fill="#ffffff" font-family="Georgia, 'Times New Roman', serif" font-size="26" font-weight="700" text-anchor="middle"><tspan x="150" y="119">Database</tspan><tspan x="150" y="150">System</tspan><tspan x="150" y="181">Concepts</tspan></text>
+  <text x="150" y="0" fill="#f07c20" font-family="Georgia, 'Times New Roman', serif" font-size="15" font-style="italic" text-anchor="middle"><tspan x="150" y="300">Henry F. Korth</tspan></text>
+  <text x="150" y="360" fill="#ffffff" font-family="'Courier New', monospace" font-size="12" letter-spacing="1" text-anchor="middle" opacity="0.75">BR201 073</text>
+  <text x="150" y="382" fill="#ffffff" font-family="Arial, sans-serif" font-size="9" letter-spacing="2" text-anchor="middle" opacity="0.45">PROGRAMMING</text>
+</svg>

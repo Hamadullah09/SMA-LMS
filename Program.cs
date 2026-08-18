@@ -294,6 +294,29 @@ await using (var scope = app.Services.CreateAsyncScope())
     // listed in the database, so without this a physical reader on the LAN is never contacted.
     await RfidReaderSeeder.SeedAsync(dbContext, rfidOptions);
 
+    // Operator-triggered account re-keying. Off unless CredentialReset:Enabled is true. The
+    // addresses and passwords come from configuration, never from source: this repository is
+    // public and appsettings.json is not in it.
+    var credentialReset = builder.Configuration
+        .GetSection(Library_Management_system.Data.CredentialResetOptions.SectionName)
+        .Get<Library_Management_system.Data.CredentialResetOptions>();
+
+    if (credentialReset is { Enabled: true, Accounts.Count: > 0 })
+    {
+        var results = await Library_Management_system.Data.CredentialResetSeeder.RunAsync(
+            userManager, dbContext, credentialReset);
+
+        foreach (var r in results)
+        {
+            Console.WriteLine(r.Succeeded
+                ? $"[credentials] {r.CurrentEmail} -> {r.NewEmail}"
+                : $"[credentials] FAILED {r.CurrentEmail}: {r.Error}");
+        }
+
+        Console.WriteLine(
+            $"[credentials] {results.Count(r => r.Succeeded)}/{results.Count} account(s) updated.");
+    }
+
     // Destructive, operator-triggered catalogue rebuild. Off unless Catalogue:FreshImport is
     // explicitly true, because it deletes every book, copy and tag in the database. Turn it off
     // again once it has run, or the next restart wipes the catalogue a second time.

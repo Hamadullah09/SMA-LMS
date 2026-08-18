@@ -143,7 +143,9 @@ public static class FreshCatalogueSeeder
                 Status = "available",
                 Rating = template.Rating,
                 Description = template.Description,
-                ImageUrl = "/images/User/Book/book2.png",
+                // One generated cover per title (tools/generate-covers.js). Pointing every book at
+                // the same placeholder is what made the catalogue look like one book fifty times.
+                ImageUrl = $"/images/User/Book/covers/{Slug(template.Title)}.svg",
                 CreatedBy = "Fresh catalogue import",
                 CreatedDate = now
             };
@@ -364,6 +366,21 @@ public static class FreshCatalogueSeeder
 
     private static bool IsHex(string value) =>
         value.Length > 0 && value.All(Uri.IsHexDigit);
+
+    /// <summary>Matches the filenames produced by tools/generate-covers.js.</summary>
+    private static string Slug(string value)
+    {
+        var lowered = value.ToLowerInvariant();
+        var chars = lowered.Select(c => char.IsLetterOrDigit(c) ? c : '-').ToArray();
+        var joined = new string(chars);
+
+        while (joined.Contains("--"))
+        {
+            joined = joined.Replace("--", "-");
+        }
+
+        return joined.Trim('-');
+    }
 
     private static string BuildIsbn(int index) =>
         $"978-0-{(100 + index):000}-{(10000 + index * 7):00000}-{index % 10}";
