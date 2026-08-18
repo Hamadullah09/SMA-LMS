@@ -2938,3 +2938,13 @@ footer.sma-footer {
        route at all. Cart and notifications are time-sensitive and stay. */
     .sma-nav__actions a[href="/History"] { display: none; }
 }
+
+/* Stock code on a browse card. Tabular figures so codes line up down a column,
+   and quiet enough not to compete with the title. */
+.sma-book__code {
+    margin: 0.15rem 0 0;
+    font-size: 0.75rem;
+    letter-spacing: 0.02em;
+    color: var(--sma-ink-subtle, #8a807a);
+    font-variant-numeric: tabular-nums;
+}

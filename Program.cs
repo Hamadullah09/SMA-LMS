@@ -293,6 +293,32 @@ await using (var scope = app.Services.CreateAsyncScope())
     // The configured reader always gets a row, sample data or not: the host service dials readers
     // listed in the database, so without this a physical reader on the LAN is never contacted.
     await RfidReaderSeeder.SeedAsync(dbContext, rfidOptions);
+
+    // Destructive, operator-triggered catalogue rebuild. Off unless Catalogue:FreshImport is
+    // explicitly true, because it deletes every book, copy and tag in the database. Turn it off
+    // again once it has run, or the next restart wipes the catalogue a second time.
+    if (builder.Configuration.GetValue<bool>("Catalogue:FreshImport"))
+    {
+        var csv = Path.Combine(
+            builder.Environment.ContentRootPath,
+            builder.Configuration["Catalogue:FreshImportFile"] ?? "Data/Seed/rfid-book-tags.csv");
+
+        var outcome = await FreshCatalogueSeeder.RunAsync(dbContext, csv);
+
+        Console.WriteLine(
+            $"[catalogue] Rebuilt from {csv}: {outcome.BooksCreated} books, "
+            + $"{outcome.CopiesCreated} copies, {outcome.TagsCreated} tags. "
+            + $"Removed {outcome.BooksDeleted} books / {outcome.CopiesDeleted} copies / "
+            + $"{outcome.TagsDeleted} tags, closed {outcome.LoansClosed} open loan(s).");
+
+        if (outcome.UnreadableEpcStockCodes.Count > 0)
+        {
+            Console.WriteLine(
+                $"[catalogue] {outcome.UnreadableEpcStockCodes.Count} EPC(s) are not hexadecimal and "
+                + "can never be reported by a reader. Those copies exist but will not scan: "
+                + string.Join(", ", outcome.UnreadableEpcStockCodes));
+        }
+    }
 }
 
 app.Run();

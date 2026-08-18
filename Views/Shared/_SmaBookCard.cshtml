@@ -37,6 +37,15 @@
 
         <p class="sma-book__author">@book.Author</p>
 
+        @*
+            The stock code from the shelf label. It is the same string printed on the book, so a
+            student can match what is on screen to what is in their hand before walking to the pad.
+        *@
+        @if (!string.IsNullOrWhiteSpace(book.BookCode))
+        {
+            <p class="sma-book__code sma-mono">@book.BookCode</p>
+        }
+
         @* Availability carries a glyph as well as colour (section 111). *@
         @if (available > 0)
         {
