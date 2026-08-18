@@ -35,14 +35,18 @@
                        placeholder="Search by title, author or ISBN" />
                 <button type="submit">Search</button>
             </form>
-
-            <div class="sma-hero__actions">
-                <a asp-controller="Home" asp-action="Book">Browse the catalogue</a>
-                @if (isSignedIn)
-                {
+            @*
+                "Browse the catalogue" used to sit here as well. It was the third route to the same
+                place on one screen — the nav has Browse, and the quick-action grid below has
+                "Browse books" — and it sat directly under a box that searches that catalogue.
+                The nav and the quick card both keep it; this one went.
+            *@
+            @if (isSignedIn)
+            {
+                <div class="sma-hero__actions">
                     <a href="/portal">My library</a>
-                }
-            </div>
+                </div>
+            }
         </div>
     </section>
 
@@ -188,3 +192,26 @@
 </div>
 
 @await Html.PartialAsync("_StaticChatbot")
+
+@section Scripts {
+    <script>
+        (function () {
+            // Hands search over from the hero to the bar as the hero box leaves the screen, so
+            // there is exactly one search field visible at any scroll position. The nav starts
+            // in the deferred state from the server, so nothing flashes in and out on load.
+            var nav = document.querySelector('.sma-nav--defer-search');
+            var heroSearch = document.querySelector('.sma-hero__search');
+            if (!nav || !heroSearch) { return; }
+
+            if (!('IntersectionObserver' in window)) {
+                // No observer: show it rather than leave the bar without a search field.
+                nav.classList.add('is-search-revealed');
+                return;
+            }
+
+            new IntersectionObserver(function (entries) {
+                nav.classList.toggle('is-search-revealed', !entries[0].isIntersecting);
+            }, { rootMargin: '-72px 0px 0px 0px' }).observe(heroSearch);
+        })();
+    </script>
+}

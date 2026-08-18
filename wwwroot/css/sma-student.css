@@ -2749,3 +2749,15 @@ footer.sma-footer {
     .sma-checkout { padding: 1.25rem; }
     .sma-checkout__option { padding: 0.85rem; }
 }
+
+/* The home page hero owns search. The bar's own field stays out until the hero
+   box has scrolled away, so the page never shows two search fields at once —
+   and search is still there once you have scrolled past the hero. */
+.sma-nav--defer-search .sma-nav__search { display: none; }
+.sma-nav--defer-search.is-search-revealed .sma-nav__search { display: flex; }
+
+@media (max-width: 48rem) {
+    /* Below the nav's stacking breakpoint the hero search is still the one in
+       view first, so the same rule applies. */
+    .sma-nav--defer-search.is-search-revealed .sma-nav__search { display: flex; }
+}
