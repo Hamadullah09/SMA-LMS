@@ -31,7 +31,9 @@ param(
     [string] $ServiceName  = 'SMALibrary',
     [string] $DisplayName  = 'SMA Library',
     [string] $InstallPath  = 'C:\SMA-Library\app',
-    [string] $ListenUrl    = 'http://localhost:5000'
+    # 5001, not 5000: a developer running dotnet run takes 5000, and a service that cannot bind
+    # its port simply exits. Keeping them apart means both can run at once.
+    [string] $ListenUrl    = 'http://localhost:5001'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -139,12 +141,27 @@ if ($keptConfig) {
     }
 }
 
-# A service gets no --urls argument, so the address has to be in configuration.
-$config = Get-Content $liveConfig -Raw | ConvertFrom-Json
-if (-not $config.Urls) {
-    $config | Add-Member -NotePropertyName Urls -NotePropertyValue $ListenUrl -Force
-    $config | ConvertTo-Json -Depth 20 | Set-Content $liveConfig -Encoding utf8
-    Write-Host "  Set Urls to $ListenUrl"
+# ---- make the configuration fit for Production ------------------------------
+# A service has no launchSettings.json, so it starts in Production - where ProductionGuards
+# refuses to run with anything unsafe configured. A config copied out of a development source
+# tree is not that, and the symptom is a service that will not start with nothing in the
+# PowerShell output to say why: the reason only appears in the Windows event log.
+#
+# The sample-data seeder is the one that matters. Left enabled it inserts fictional books and
+# simulated RFID tags into a live catalogue.
+#
+# The address is set here too, since a service is given no --urls argument.
+$normaliser = Join-Path $PSScriptRoot 'prepare-service-config.js'
+
+if (Test-Path $normaliser) {
+    Write-Host '  Preparing the configuration for Production...'
+    & node $normaliser $liveConfig $ListenUrl
+
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Could not prepare the configuration. The service would refuse to start.'
+    }
+} else {
+    Write-Warning "prepare-service-config.js not found beside this script; configuration left as copied."
 }
 
 # ---- create or update the service ------------------------------------------
@@ -242,6 +259,9 @@ Write-Host ''
 Write-Host '  Check it:'
 Write-Host "    Get-Service $ServiceName"
 Write-Host "    Invoke-WebRequest $ListenUrl/kiosk/state/1 | Select-Object -ExpandProperty Content"
+Write-Host ''
+Write-Host '  The reader is relayed to the hosted kiosk while this service runs.'
+Write-Host '  A local kiosk is also available at ' + $ListenUrl + '/kiosk'
 Write-Host ''
 Write-Host '  Remove it:'
 Write-Host "    Stop-Service $ServiceName; sc.exe delete $ServiceName"
