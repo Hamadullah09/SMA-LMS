@@ -126,6 +126,18 @@ public sealed record KioskState(
     int ReaderId,
     string ReaderName,
     bool ReaderOnline,
+
+    /// <summary>
+    /// Whether this instance drives reader hardware at all.
+    /// </summary>
+    /// <remarks>
+    /// False on the hosted deployment, where Rfid:AutoConnect is off because a cloud server has
+    /// no route to the library LAN. Without this the kiosk showed the same "Reader offline" there
+    /// as it would for a genuinely broken pad, which reads as a fault and sends people looking
+    /// for one that does not exist.
+    /// </remarks>
+    bool ReaderSupportedHere,
+
     KioskMode Mode,
     KioskStage Stage,
     string? StudentName,

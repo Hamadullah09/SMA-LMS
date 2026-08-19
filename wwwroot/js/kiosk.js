@@ -143,8 +143,16 @@
            until somebody reloads the page by hand, which nobody is there to do. */
         try {
             el.stationName.textContent = state.readerName || '';
+            /* Three states, not two. A hosted copy of this site can never reach a reader on
+               the library LAN, and telling staff the pad is offline there sends them hunting a
+               hardware fault that does not exist - so say plainly that this copy is not the
+               station. Only a build that is meant to drive the reader reports it as offline. */
             setReaderState(state.readerOnline,
-                state.readerOnline ? 'Reader ready' : 'Reader offline — please use the desk');
+                state.readerOnline
+                    ? 'Reader ready'
+                    : state.readerSupportedHere === false
+                        ? 'Self-service runs on the library computer — use that, or the desk'
+                        : 'Reader offline — please use the desk');
 
             renderSteps(state);
             renderModes(state);

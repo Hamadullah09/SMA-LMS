@@ -759,6 +759,7 @@ public sealed class KioskService : IKioskService
             ReaderId: station.ReaderId,
             ReaderName: reader?.Name ?? "Unknown station",
             ReaderOnline: online,
+            ReaderSupportedHere: _rfid.AutoConnect,
             Mode: station.Mode,
             Stage: stage,
             StudentName: station.StudentName,
