@@ -7,8 +7,25 @@ using Library_Management_system.Rfid.Bridge;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using Microsoft.Extensions.Hosting.WindowsServices;
 
-var builder = WebApplication.CreateBuilder(args);
+// Running as a Windows service matters on the library PC: it is the machine wired to the
+// reader, and the hosted kiosk only sees a reader while this copy is running. Started at boot
+// rather than at logon, so a reboot does not leave the pad dead until somebody signs in.
+//
+// The content root has to be set explicitly. A service starts with its working directory in
+// System32, so without this the application would look for appsettings.json and wwwroot there
+// and fail before it could say why.
+var runningAsService = WindowsServiceHelpers.IsWindowsService();
+
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = runningAsService ? AppContext.BaseDirectory : default
+});
+
+// No-op when launched from a console, so dotnet run is unaffected.
+builder.Services.AddWindowsService(options => options.ServiceName = "SMA Library");
 
 // SQL Server
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
