@@ -23,6 +23,64 @@ public sealed class LibraryHoursOptions
     public TimeOnly WeekendOpen { get; set; } = new(7, 30);
     public TimeOnly WeekendClose { get; set; } = new(16, 30);
 
+    /// <summary>
+    /// The library's own timezone, used to decide whether it is open right now.
+    /// </summary>
+    /// <remarks>
+    /// Not the server's. The hosted deployment runs on a machine set to UTC, so comparing the
+    /// opening hours against DateTime.Now there reported the library closed at 05:50 UTC while it
+    /// was 10:50 and open in Karachi. Opening hours are wall-clock times in the library's town, so
+    /// the comparison has to be made in the library's zone wherever the code happens to run.
+    ///
+    /// Accepts either an IANA name ("Asia/Karachi") or a Windows one ("Pakistan Standard Time");
+    /// which of the two a machine recognises depends on its ICU data, so both are tried.
+    /// </remarks>
+    public string TimeZone { get; set; } = "Asia/Karachi";
+
+    /// <summary>Now, in the library's timezone.</summary>
+    public DateTime LocalNow()
+    {
+        var zone = ResolveZone();
+
+        return zone is null
+            ? DateTime.Now                                   // no such zone on this machine
+            : TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, zone);
+    }
+
+    private TimeZoneInfo? ResolveZone()
+    {
+        if (string.IsNullOrWhiteSpace(TimeZone))
+        {
+            return null;
+        }
+
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById(TimeZone);
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            // Windows and Linux disagree on the identifier. Translate and try the other spelling.
+            if (TimeZoneInfo.TryConvertIanaIdToWindowsId(TimeZone, out var windowsId))
+            {
+                try { return TimeZoneInfo.FindSystemTimeZoneById(windowsId); }
+                catch (TimeZoneNotFoundException) { }
+            }
+
+            if (TimeZoneInfo.TryConvertWindowsIdToIanaId(TimeZone, out var ianaId))
+            {
+                try { return TimeZoneInfo.FindSystemTimeZoneById(ianaId); }
+                catch (TimeZoneNotFoundException) { }
+            }
+
+            return null;
+        }
+        catch (InvalidTimeZoneException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>Shown alongside the hours, e.g. to note holiday closures.</summary>
     public string? Note { get; set; } = "Except public holidays.";
 

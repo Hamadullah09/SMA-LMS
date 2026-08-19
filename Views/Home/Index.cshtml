@@ -40,8 +40,11 @@
 
             @{
                 var hours = LibraryHours.Value;
-                var openNow = hours.IsOpenAt(DateTime.Now);
-                var todayIsWeekend = DateTime.Now.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
+                // Library time, not server time: the host runs on UTC, which reported the
+                // library closed at 05:50 UTC while it was 10:50 and open in Karachi.
+                var libraryNow = hours.LocalNow();
+                var openNow = hours.IsOpenAt(libraryNow);
+                var todayIsWeekend = libraryNow.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
                 var todayRange = todayIsWeekend ? hours.WeekendRange : hours.WeekdayRange;
             }
 

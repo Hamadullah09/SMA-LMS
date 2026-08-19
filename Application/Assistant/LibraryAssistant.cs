@@ -193,8 +193,8 @@ public sealed class LibraryAssistant : ILibraryAssistant
     /// </summary>
     private AssistantAnswer AnswerHours()
     {
-        var now = DateTime.Now;
-        var openNow = _hours.IsOpenAt(now);
+        // The library timezone, not the server one - the host runs on UTC.
+        var openNow = _hours.IsOpenAt(_hours.LocalNow());
 
         var status = openNow
             ? "We are open right now."

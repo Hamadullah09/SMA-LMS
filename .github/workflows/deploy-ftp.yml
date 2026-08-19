@@ -107,6 +107,7 @@ jobs:
               LibraryHours: {
                 WeekdayOpen: "07:30", WeekdayClose: "20:30",
                 WeekendOpen: "07:30", WeekendClose: "16:30",
+                TimeZone: "Asia/Karachi",
                 Note: "Except public holidays."
               },
               SeedAdmin: { Email: "admin@sourceemeall.com", Enabled: false, ResetPasswordOnStartup: false },
