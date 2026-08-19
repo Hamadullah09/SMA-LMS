@@ -371,3 +371,6 @@ FodyWeavers.xsd
 
 # Database data export - contains password hashes and personal data
 *-data.sql
+
+# Filled-in library PC config - carries the bridge secret
+appsettings.library-pc.json
