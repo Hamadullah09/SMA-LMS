@@ -35,6 +35,19 @@ public sealed class RfidOptions
     /// </summary>
     public bool AutoConnect { get; set; } = true;
 
+    /// <summary>
+    /// Look for the reader on the local network when the configured address does not answer.
+    /// </summary>
+    /// <remarks>
+    /// On by default, because a written-down IP address is the thing that breaks when the reader
+    /// takes a new DHCP lease or the application is moved to another PC.
+    ///
+    /// Turned off for the hosted deployment. A cloud server has no route to the library LAN, so
+    /// the scan could never find anything there, and what it would actually be probing is the
+    /// hosting provider is own network.
+    /// </remarks>
+    public bool AutoDiscover { get; set; } = true;
+
     /// <summary>Seconds between health checks on a connected reader.</summary>
     public int HeartbeatSeconds { get; set; } = 15;
 
@@ -87,6 +100,7 @@ public static class RfidRegistration
         // Reachability check for the reader admin screen. Separate from the host service because a
         // librarian needs to be able to test an address that is not connected, or not yet saved.
         services.AddSingleton<IRfidConnectionProbe, RfidConnectionProbe>();
+        services.AddSingleton<IRfidReaderDiscovery, RfidReaderDiscovery>();
 
         // Exit-gate alarm (§28, §29). One instance serving two interfaces: the reader host attaches
         // live connections to it, and the gate policy sounds it. Singleton because an alarm already

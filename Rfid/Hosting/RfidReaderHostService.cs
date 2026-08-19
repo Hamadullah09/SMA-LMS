@@ -40,6 +40,7 @@ public sealed class RfidReaderHostService : BackgroundService
     private readonly IRfidScanProcessor _processor;
     private readonly IRfidLiveFeed _feed;
     private readonly Application.Security.IRfidAlarmTransport _alarm;
+    private readonly IRfidReaderDiscovery _discovery;
     private readonly RfidOptions _options;
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<RfidReaderHostService> _logger;
@@ -60,6 +61,7 @@ public sealed class RfidReaderHostService : BackgroundService
         IRfidScanProcessor processor,
         IRfidLiveFeed feed,
         Application.Security.IRfidAlarmTransport alarm,
+        IRfidReaderDiscovery discovery,
         IOptions<RfidOptions> options,
         ILoggerFactory loggerFactory,
         ILogger<RfidReaderHostService> logger)
@@ -68,6 +70,7 @@ public sealed class RfidReaderHostService : BackgroundService
         _processor = processor;
         _feed = feed;
         _alarm = alarm;
+        _discovery = discovery;
         _options = options.Value;
         _loggerFactory = loggerFactory;
         _logger = logger;
@@ -228,6 +231,30 @@ public sealed class RfidReaderHostService : BackgroundService
                 {
                     attempt++;
                     await PersistUnreachableAsync(target, attempt, ct);
+
+                    // The configured address did not answer. Rather than redial a stale IP for the
+                    // rest of the day, look for the reader on this machine's own networks — that is
+                    // what makes a new DHCP lease, or running on a different PC, a non-event.
+                    if (_options.AutoDiscover)
+                    {
+                        var found = await _discovery.FindAsync(target.Port, target.Address, ct);
+
+                        if (found is not null &&
+                            !string.Equals(found.Host, target.Host, StringComparison.OrdinalIgnoreCase))
+                        {
+                            _logger.LogInformation(
+                                "Reader {Name} answered at {Found} instead of the configured {Configured}. "
+                                + "Saving the new address.",
+                                target.Name, found.Host, target.Host);
+
+                            await PersistDiscoveredHostAsync(target.Id, found.Host, ct);
+
+                            // Records are immutable, so this rebinds the local parameter for the
+                            // next turn of the loop; the saved row keeps it across restarts.
+                            target = target with { Host = found.Host };
+                            attempt = 0;
+                        }
+                    }
                 }
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -412,6 +439,22 @@ public sealed class RfidReaderHostService : BackgroundService
             }
         }, ct);
     }
+
+    /// <summary>
+    /// Records an address found by discovery, so the next start dials it directly.
+    /// </summary>
+    /// <remarks>
+    /// Written to the reader row rather than to configuration: the row is what an administrator
+    /// edits on the Reader health screen and what LoadReadersAsync reads, and on the hosted
+    /// deployment configuration is rewritten by the release pipeline anyway.
+    /// </remarks>
+    private Task PersistDiscoveredHostAsync(int readerId, string host, CancellationToken ct) =>
+        UpdateReaderAsync(readerId, row =>
+        {
+            row.Host = host;
+            row.LastError = null;
+            row.LastErrorUtc = null;
+        }, ct);
 
     private Task PersistUnreachableAsync(ReaderTarget target, int attempt, CancellationToken ct)
     {

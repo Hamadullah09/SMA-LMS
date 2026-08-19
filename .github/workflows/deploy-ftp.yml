@@ -95,6 +95,10 @@ jobs:
                 Port: 4001,
                 ReaderAddress: 1,
                 AutoConnect: $rfidAuto,
+                # Off for the hosted site. A cloud server has no route to the library LAN, so a
+                # scan could never find the reader there - what it would actually be probing is
+                # the hosting provider own network.
+                AutoDiscover: false,
                 HeartbeatSeconds: 15,
                 ReconnectDelaySeconds: 5,
                 MaxReconnectDelaySeconds: 60,

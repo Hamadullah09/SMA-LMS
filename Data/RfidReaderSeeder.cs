@@ -32,16 +32,29 @@ public static class RfidReaderSeeder
 
         var host = options.Host.Trim();
 
-        // Match on the address rather than the name: the address is what identifies a device, and a
-        // librarian is free to rename the station.
+        // Matched by name, which is the station's identity and the column with the unique index on
+        // it. Matching by address was wrong in a way that took the whole application down: the
+        // reader takes a new DHCP lease, no row matches the configured address any more, and this
+        // then tries to create a second "Self-Checkout Kiosk 01" and breaches that index, so the
+        // site fails to start over an IP change.
         var existing = await context.RfidReaders
-            .FirstOrDefaultAsync(r => r.Transport == RfidTransport.Tcp
-                                      && r.Host == host
-                                      && r.Port == options.Port, ct);
+            .FirstOrDefaultAsync(r => r.Name == KioskReaderName, ct);
 
         if (existing is not null)
         {
             existing.Model ??= "D2184";
+            existing.Transport = RfidTransport.Tcp;
+            existing.Port ??= options.Port;
+
+            // The row wins on address. An administrator may have corrected it on the Reader health
+            // screen, or discovery may have found the reader somewhere else — either way that is
+            // better information than a value baked into configuration, so it is only filled in
+            // when the row has nothing.
+            if (string.IsNullOrWhiteSpace(existing.Host))
+            {
+                existing.Host = host;
+            }
+
             await context.SaveChangesAsync(ct);
             return;
         }
