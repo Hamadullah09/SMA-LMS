@@ -122,3 +122,25 @@ public interface IRfidScanProcessor
     /// <summary>Forget history for a reader, e.g. after it reconnects.</summary>
     void Reset(int readerId);
 }
+
+/// <summary>
+/// The single way an observation enters the pipeline, whoever saw it.
+/// </summary>
+/// <remarks>
+/// A tag read reaches this application two ways: from a reader this process is holding a socket
+/// to, or relayed from another machine that is. Both must land in the same place, or the second
+/// one would need its own copy of the debounce, persistence and kiosk plumbing and the two would
+/// drift.
+///
+/// <see cref="Observed"/> is what lets a library PC forward its reads to a hosted copy of the
+/// application: the bridge subscribes to it rather than tapping the reader a second time, so the
+/// reader keeps its single TCP client.
+/// </remarks>
+public interface IRfidObservationSink
+{
+    /// <summary>Feed an observation in. Deduplication and persistence happen downstream.</summary>
+    void Submit(RfidObservation observation);
+
+    /// <summary>Raised for every observation submitted, before deduplication.</summary>
+    event Action<RfidObservation>? Observed;
+}

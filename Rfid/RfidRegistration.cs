@@ -102,6 +102,13 @@ public static class RfidRegistration
         services.AddSingleton<IRfidConnectionProbe, RfidConnectionProbe>();
         services.AddSingleton<IRfidReaderDiscovery, RfidReaderDiscovery>();
 
+        // One instance, three roles: the background service, the sink everything feeds, and the
+        // thing a bridge subscribes to. Registering it twice would give the bridge a different
+        // object from the one holding the reader.
+        services.AddSingleton<Hosting.RfidReaderHostService>();
+        services.AddSingleton<IRfidObservationSink>(sp => sp.GetRequiredService<Hosting.RfidReaderHostService>());
+        services.AddSingleton<Bridge.IRfidBridgeRegistry, Bridge.RfidBridgeRegistry>();
+
         // Exit-gate alarm (§28, §29). One instance serving two interfaces: the reader host attaches
         // live connections to it, and the gate policy sounds it. Singleton because an alarm already
         // sounding must be extended rather than restarted by the next violation.
@@ -119,7 +126,10 @@ public static class RfidRegistration
 
         // Opens and maintains the actual hardware connections. It no-ops for the simulator, so the
         // registration is unconditional and the decision stays in one place.
-        services.AddHostedService<RfidReaderHostService>();
+        // Resolved rather than constructed, so the hosted service is the same object the sink
+        // and the bridge use. AddHostedService<T>() would build a second one.
+        services.AddHostedService(sp => sp.GetRequiredService<Hosting.RfidReaderHostService>());
+        services.AddHostedService<Bridge.RfidBridgeClient>();
 
         return services;
     }

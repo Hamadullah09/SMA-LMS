@@ -34,7 +34,7 @@ namespace Library_Management_system.Rfid.Hosting;
 /// failure here degrades to a status on the reader row and a log line. Nothing throws out of the
 /// supervisor loop.
 /// </summary>
-public sealed class RfidReaderHostService : BackgroundService
+public sealed class RfidReaderHostService : BackgroundService, IRfidObservationSink
 {
     private readonly IServiceScopeFactory _scopes;
     private readonly IRfidScanProcessor _processor;
@@ -78,7 +78,6 @@ public sealed class RfidReaderHostService : BackgroundService
 
     /// <summary>How long to wait before looking again when there is nothing to connect to.</summary>
     private static readonly TimeSpan IdleRecheckInterval = TimeSpan.FromSeconds(30);
-
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         if (_options.IsSimulator)
@@ -89,6 +88,18 @@ public sealed class RfidReaderHostService : BackgroundService
             return;
         }
 
+        // The consumer runs for the lifetime of the process, whatever the scans turn out to come
+        // from. It used to be started alongside the reader connections, which meant an instance
+        // holding no reader of its own never drained the queue - so a copy fed entirely by a
+        // bridge accepted relayed reads, queued them, and recorded nothing.
+        var consumer = ConsumeAsync(stoppingToken);
+        var readers = SuperviseReadersAsync(stoppingToken);
+
+        await Task.WhenAll(consumer, readers);
+    }
+
+    private async Task SuperviseReadersAsync(CancellationToken stoppingToken)
+    {
         // Re-checked on a timer rather than decided once at start-up. Enabling a reader on the
         // Reader health screen, or correcting its address, used to require restarting the site,
         // which on shared hosting means a redeploy. Now it takes effect within
@@ -109,8 +120,8 @@ public sealed class RfidReaderHostService : BackgroundService
                         _options.AutoConnect
                             ? "No enabled TCP reader is configured. Waiting - add or enable one on the "
                               + "Reader health screen and it will be picked up within {Seconds}s."
-                            : "RFID auto-connect is off (Rfid:AutoConnect = false). Waiting, and "
-                              + "re-checking every {Seconds}s in case a reader is enabled.",
+                            : "RFID auto-connect is off (Rfid:AutoConnect = false). This copy holds no "
+                              + "reader; any scans will arrive over a bridge. Re-checking every {Seconds}s.",
                         IdleRecheckInterval.TotalSeconds);
 
                     announcedIdle = true;
@@ -135,11 +146,8 @@ public sealed class RfidReaderHostService : BackgroundService
                 readers.Count,
                 string.Join(", ", readers.Select(r => $"{r.Name} @ {r.Host}:{r.Port}")));
 
-            // The consumer and the supervisors run until cancellation. Task.WhenAll rather than
-            // fire-and-forget so a crash in any of them surfaces rather than vanishing.
             var work = readers
                 .Select(reader => SuperviseAsync(reader, stoppingToken))
-                .Append(ConsumeAsync(stoppingToken))
                 .ToList();
 
             await Task.WhenAll(work);
@@ -341,8 +349,18 @@ public sealed class RfidReaderHostService : BackgroundService
     /// Runs on the socket read loop, so it must not block and must not throw. Debounce here (cheap,
     /// in memory) and hand anything that survives to the consumer.
     /// </summary>
+    /// <inheritdoc />
+    public event Action<RfidObservation>? Observed;
+
+    /// <inheritdoc />
+    public void Submit(RfidObservation observation) => OnObservation(observation);
+
     private void OnObservation(RfidObservation observation)
     {
+        // Announced before deduplication so a bridge forwards what the reader actually saw and
+        // the far end applies its own debounce, rather than inheriting this one.
+        Observed?.Invoke(observation);
+
         try
         {
             var scan = _processor.Process(

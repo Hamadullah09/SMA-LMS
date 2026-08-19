@@ -63,6 +63,7 @@ public sealed class KioskService : IKioskService
     private readonly KioskStationStore _stations;
     private readonly KioskOptions _options;
     private readonly Library_Management_system.Rfid.RfidOptions _rfid;
+    private readonly Library_Management_system.Rfid.Bridge.IRfidBridgeRegistry _bridges;
     private readonly ILogger<KioskService> _logger;
 
     public KioskService(
@@ -73,6 +74,7 @@ public sealed class KioskService : IKioskService
         KioskStationStore stations,
         IOptions<KioskOptions> options,
         IOptions<Library_Management_system.Rfid.RfidOptions> rfid,
+        Library_Management_system.Rfid.Bridge.IRfidBridgeRegistry bridges,
         ILogger<KioskService> logger)
     {
         _db = db;
@@ -82,6 +84,7 @@ public sealed class KioskService : IKioskService
         _stations = stations;
         _options = options.Value;
         _rfid = rfid.Value;
+        _bridges = bridges;
         _logger = logger;
     }
 
@@ -734,9 +737,15 @@ public sealed class KioskService : IKioskService
         // the heartbeat, and allow a couple of missed beats before calling it dead.
         var heartbeatWindow = TimeSpan.FromSeconds(Math.Max(_rfid.HeartbeatSeconds, 5) * 3);
 
-        var online = reader?.Status == RfidReaderStatus.Online
-                     && reader.LastHeartbeatUtc is { } lastBeat
-                     && DateTime.UtcNow - lastBeat < heartbeatWindow;
+        var localOnline = reader?.Status == RfidReaderStatus.Online
+                          && reader.LastHeartbeatUtc is { } lastBeat
+                          && DateTime.UtcNow - lastBeat < heartbeatWindow;
+
+        // Or a library PC is relaying one to us. On the public site that is the only way a
+        // reader can be present at all, since the pad is on a private network this process
+        // cannot reach; the heartbeat row above is written by whichever machine holds the
+        // socket, which on a hosted copy is nobody.
+        var online = localOnline || _bridges.IsOnline(station.ReaderId);
 
         var stage =
             reader is null || !reader.IsEnabled ? KioskStage.Unavailable

@@ -3,6 +3,7 @@ using Library_Management_system.Models;
 using Library_Management_system.Services;
 using Library_Management_system.Infrastructure;
 using Library_Management_system.Rfid;
+using Library_Management_system.Rfid.Bridge;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -84,6 +85,9 @@ builder.Services.AddScoped<Library_Management_system.Application.Assistant.ILibr
 
 // Self-service station. The store is a singleton because a kiosk is a piece of furniture: the books
 // on its antenna outlive any one HTTP request or browser session.
+builder.Services.Configure<Library_Management_system.Rfid.Bridge.RfidBridgeOptions>(
+    builder.Configuration.GetSection(Library_Management_system.Rfid.Bridge.RfidBridgeOptions.SectionName));
+
 builder.Services.Configure<Library_Management_system.Application.Policies.LibraryHoursOptions>(
     builder.Configuration.GetSection(Library_Management_system.Application.Policies.LibraryHoursOptions.SectionName));
 
@@ -174,6 +178,10 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.MapRazorPages();
+
+// The library PC dials in here to relay its reader. No-op unless Rfid:Bridge:Secret is set.
+app.UseWebSockets();
+app.MapRfidBridge();
 
 await using (var scope = app.Services.CreateAsyncScope())
 {
