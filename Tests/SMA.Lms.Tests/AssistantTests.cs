@@ -1,4 +1,6 @@
 using Library_Management_system.Application.Assistant;
+using Library_Management_system.Application.Policies;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace SMA.Lms.Tests;
@@ -65,7 +67,7 @@ public class AssistantIntentTests
     {
         // No database is needed: an account question short-circuits before any query when the
         // caller is anonymous, which is exactly the routing decision under test.
-        var assistant = new LibraryAssistant(null!, null!);
+        var assistant = new LibraryAssistant(null!, null!, Options.Create(new LibraryHoursOptions()));
         var answer = await assistant.AskAsync(question, studentId: null);
         return answer.Intent;
     }
@@ -86,7 +88,7 @@ public class AssistantIntentTests
     [Fact]
     public async Task An_anonymous_account_question_asks_the_student_to_sign_in()
     {
-        var assistant = new LibraryAssistant(null!, null!);
+        var assistant = new LibraryAssistant(null!, null!, Options.Create(new LibraryHoursOptions()));
         var answer = await assistant.AskAsync("What books do I have?", studentId: null);
 
         Assert.True(answer.RequiresSignIn);
@@ -97,7 +99,7 @@ public class AssistantIntentTests
     [Fact]
     public async Task A_question_too_short_to_act_on_is_not_guessed_at()
     {
-        var assistant = new LibraryAssistant(null!, null!);
+        var assistant = new LibraryAssistant(null!, null!, Options.Create(new LibraryHoursOptions()));
         Assert.Equal("empty", (await assistant.AskAsync("a", null)).Intent);
     }
 }
